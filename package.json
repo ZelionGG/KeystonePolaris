@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "scripts": {
+    "sync-locales": "tsx scripts/sync-locales.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsx": "^4.0.0"
+  }
+}

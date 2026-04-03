@@ -5,8 +5,6 @@ local AceLocale = LibStub:GetLibrary("AceLocale-3.0");
 local L = AceLocale:NewLocale(AddonName, "ruRU", false, false);
 if not L then return end
 
--- Last translated March 29th, 2026.
--- Translation by Hollicsh (https://github.com/Hollicsh)
 
 -- Temporary locales for Midnight Compatibility Warning
 L["COMPATIBILITY_WARNING"] = "Предупреждение о совместимости с 'Полночью'"
@@ -30,6 +28,7 @@ L["SEASON_STARTS_IN_ONE_MONTH"] = "Следующий сезон начнётс�
 L["SEASON_STARTS_IN_WEEKS"] = "Следующий сезон начнётся менее чем через %d недель."
 L["SEASON_STARTS_IN_DAYS"] = "Следующий сезон начнётся через %d дней."
 L["SEASON_STARTS_IN_TOMORROW"] = "Следующий сезон начинается завтра."
+-- TODO: L["WEEKDAY_NEXT_FORMAT"] = "(next %s)"
 
 L["EXPANSION_MIDNIGHT"] = "Полночь"
 L["EXPANSION_WW"] = "Война Внутри"
@@ -93,15 +92,17 @@ L["MISSING"] = "Не хватает"
 L["FINISHED_COLOR"] = "Готово"
 L["VALIDATE"] = "Подтвердить"
 L["CANCEL"] = "Отмена"
-L["DIM_BACKGROUND"] = "Dim Background" -- TODO: To Translate
-L["SHOW_GRID"] = "Show Grid" -- TODO: To Translate
-L["GRID_SPACING"] = "Grid Spacing" -- TODO: To Translate
+-- TODO: L["DIM_BACKGROUND"] = "Dim Background"
+-- TODO: L["SHOW_GRID"] = "Show Grid"
+-- TODO: L["GRID_SPACING"] = "Grid Spacing"
 L["POSITION"] = "Положение"
-L["TOP"] = "Сверху"
+L["TOP"] = "Верх"
 L["CENTER"] = "Центр"
-L["BOTTOM"] = "Снизу"
+L["BOTTOM"] = "Низ"
 L["X_OFFSET"] = "Смещение по оси X"
+-- TODO: L["X_OFFSET_DESC"] = "Adjust the horizontal position of the text"
 L["Y_OFFSET"] = "Смещение по оси Y"
+-- TODO: L["Y_OFFSET_DESC"] = "Adjust the vertical position of the text"
 L["SHOW_ANCHOR"] = "Показать позиционирование крепления"
 L["RESET_DUNGEON"] = "Сброс настроек по умолчанию"
 L["RESET_DUNGEON_DESC"] = "Сбросить все процентные значения боссов в этом подземелье по умолчанию"
@@ -172,15 +173,14 @@ L["PREFIX_COLOR_DESC"] = "Цвет, применяемый к меткам/пр�
 L["MAX_WIDTH"] = "Максимальная ширина (однострочная)"
 L["MAX_WIDTH_DESC"] = "Максимальная ширина в пикселях для однострочного расположения; 0 = автоматически (без переноса)."
 L["REQUIRED_DEFAULT"] = "Требуется:"
+L["SECTION_REQUIRED_DEFAULT"] = "Всего требуется для части подземелья:"
 L["CURRENT_DEFAULT"] = "Текущий:"
-L["SECTION_REQUIRED_DEFAULT"] = "Всего требуется для этой части подземелья:"
 L["PULL_DEFAULT"] = "Пулл:"
 
 -- Section required prefix
 L["SHOW_SECTION_REQUIRED_PREFIX"] = "Показать требуемую часть подземелья"
 L["SHOW_SECTION_REQUIRED_PREFIX_DESC"] = "Отображает текущий процент общих сил противника, необходимых для текущей части подземелья, без учета уже достигнутого прогресса."
 L["SECTION_REQUIRED_LABEL_DESC"] = "Метка отображается перед частью подземелья требуемого значения.\n\nОчистите поле, чтобы сбросить значения по умолчанию."
-L["SECTION_REQUIRED_DEFAULT"] = "Всего требуется для части подземелья:"
 
 L["FORMAT_MODE"] = "Формат текста"
 L["FORMAT_MODE_DESC"] = "Выберите способ отображения прогресса."
@@ -233,8 +233,6 @@ L["MOB_PERCENTAGE_POSITION"] = "Положение"
 L["MOB_PERCENTAGE_POSITION_DESC"] = "Установить положение процентного текста относительно индикаторов здоровья."
 L["RIGHT"] = "Право"
 L["LEFT"] = "Лево"
-L["TOP"] = "Верх"
-L["BOTTOM"] = "Низ"
 L["MDT_WARNING"] = "Для этой функции требуется установленный аддон Mythic Dungeon Tools (MDT)."
 L["MDT_FOUND"] = "Найден Mythic Dungeon Tools. Проценты мобов будут использовать данные MDT."
 L["MDT_LOADED"] = "Mythic Dungeon Tools успешно загружен."

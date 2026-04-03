@@ -1,0 +1,69 @@
+name: Locale Sync
+
+on:
+  pull_request:
+    paths:
+      - 'Locales/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run locale sync
+        id: sync
+        run: |
+          npx tsx scripts/sync-locales.ts --report-json > sync-report.json
+          echo "changed=$(git diff --quiet && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
+
+      - name: Commit changes
+        if: steps.sync.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Locales/
+          git commit -m "Sync locale files with enUS"
+          git push
+
+      - name: Post PR comment
+        if: steps.sync.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('sync-report.json', 'utf8'));
+
+            let body = '### Locale Sync Report\n\n';
+            body += '| Locale | Translated | Coverage | Changes |\n';
+            body += '|--------|-----------|----------|----------|\n';
+
+            for (const r of report) {
+              const changes = [];
+              if (r.newKeys.length) changes.push(`${r.newKeys.length} new`);
+              if (r.staleKeys.length) changes.push(`${r.staleKeys.length} stale`);
+              if (r.removedKeys.length) changes.push(`${r.removedKeys.length} removed`);
+              const pct = Math.round((r.translatedKeys / r.totalKeys) * 100);
+              body += `| ${r.locale} | ${r.translatedKeys}/${r.totalKeys} | ${pct}% | ${changes.join(', ') || 'none'} |\n`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
