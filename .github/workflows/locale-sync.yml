@@ -3,7 +3,7 @@ name: Locale Sync
 on:
   pull_request:
     paths:
-      - 'Locales/**'
+      - 'Locales/enUS.lua'
 
 permissions:
   contents: write
@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
@@ -28,8 +29,9 @@ jobs:
       - name: Run locale sync
         id: sync
         run: |
-          npx tsx scripts/sync-locales.ts --report-json > sync-report.json
-          echo "changed=$(git diff --quiet && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
+          git diff origin/${{ github.base_ref }}...HEAD -- Locales/enUS.lua > /tmp/enus-diff.patch
+          npx tsx scripts/sync-locales.ts --diff /tmp/enus-diff.patch --report-json > sync-report.json
+          echo "changed=$(git diff --quiet Locales/ && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
 
       - name: Commit changes
         if: steps.sync.outputs.changed == 'true'

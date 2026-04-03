@@ -48,11 +48,16 @@ interface LocaleReport {
 
 // ── Parsing helpers ────────────────────────────────────────────────────────────
 
-function extractQuotedString(raw: string): string {
+function extractValueString(rawLines: string[]): string {
+  // Extract the value portion (after the first =) and concatenate all quoted segments
+  const full = rawLines.join("\n");
+  const eqIdx = full.indexOf("=");
+  if (eqIdx === -1) return "";
+  const rhs = full.substring(eqIdx + 1);
   const segments: string[] = [];
   const regex = /"((?:[^"\\]|\\.|"")*)"/g;
   let match: RegExpExecArray | null;
-  while ((match = regex.exec(raw)) !== null) {
+  while ((match = regex.exec(rhs)) !== null) {
     segments.push(match[1]);
   }
   return segments.join("");
@@ -73,7 +78,7 @@ function readLines(filePath: string): string[] {
 function collectContinuationLines(
   lines: string[],
   startIndex: number
-): { rawLines: string[]; fullRaw: string; endIndex: number } {
+): { rawLines: string[]; endIndex: number } {
   const rawLines: string[] = [lines[startIndex]];
   let i = startIndex;
   let current = lines[i];
@@ -82,7 +87,28 @@ function collectContinuationLines(
     current = lines[i];
     rawLines.push(current);
   }
-  return { rawLines, fullRaw: rawLines.join("\n"), endIndex: i };
+  return { rawLines, endIndex: i };
+}
+
+// ── Diff parser ────────────────────────────────────────────────────────────────
+
+function parseEnusDiff(diffPath: string): Set<string> {
+  // Parse a unified diff of enUS.lua to find keys whose values changed.
+  // We look at added lines (starting with +) that contain L["KEY"] assignments,
+  // since a changed value appears as a removed old line and an added new line.
+  const changedKeys = new Set<string>();
+  const content = readFileSync(diffPath, "utf-8");
+  const lines = content.split("\n");
+
+  for (const line of lines) {
+    if (!line.startsWith("+") || line.startsWith("+++")) continue;
+    const match = line.match(/^\+\s*L\["([^"]+)"\]\s*=/);
+    if (match) {
+      changedKeys.add(match[1]);
+    }
+  }
+
+  return changedKeys;
 }
 
 // ── enUS parser ────────────────────────────────────────────────────────────────
@@ -123,8 +149,8 @@ function parseEnUS(filePath: string): { header: string[]; elements: EnusElement[
     const assignMatch = line.match(/^L\["([^"]+)"\]\s*=/);
     if (assignMatch) {
       const key = assignMatch[1];
-      const { rawLines, fullRaw, endIndex } = collectContinuationLines(lines, i);
-      const value = extractQuotedString(fullRaw);
+      const { rawLines, endIndex } = collectContinuationLines(lines, i);
+      const value = extractValueString(rawLines);
       elements.push({ kind: "assignment", key, value, rawLines });
       i = endIndex + 1;
       continue;
@@ -190,8 +216,8 @@ function parseLocale(
     const todoMatch = line.match(/^\s*--\s*TODO:\s*L\["([^"]+)"\]\s*=/);
     if (todoMatch) {
       const key = todoMatch[1];
-      const { rawLines, fullRaw, endIndex } = collectContinuationLines(lines, i);
-      const value = extractQuotedString(fullRaw);
+      const { rawLines, endIndex } = collectContinuationLines(lines, i);
+      const value = extractValueString(rawLines);
       entries.set(key, { key, value, status: "todo-commented", rawLines });
       i = endIndex + 1;
       continue;
@@ -201,12 +227,12 @@ function parseLocale(
     const assignMatch = line.match(/^L\["([^"]+)"\]\s*=/);
     if (assignMatch) {
       const key = assignMatch[1];
-      const { rawLines, fullRaw, endIndex } = collectContinuationLines(lines, i);
+      const { rawLines, endIndex } = collectContinuationLines(lines, i);
       const lastLine = rawLines[rawLines.length - 1];
 
       const staleMatch = lastLine.match(/--\s*TODO:\s*"([^"]*)"$/);
       if (staleMatch) {
-        const value = extractQuotedString(fullRaw);
+        const value = extractValueString(rawLines);
         entries.set(key, {
           key,
           value,
@@ -222,7 +248,7 @@ function parseLocale(
         /--\s*To Translate\s*$/.test(lastLine) ||
         /--\s*TODO:\s*To Translate\s*$/.test(lastLine);
 
-      const value = extractQuotedString(fullRaw);
+      const value = extractValueString(rawLines);
 
       if (hasToTranslateMarker) {
         entries.set(key, { key, value, status: "untranslated-marked", rawLines });
@@ -272,7 +298,8 @@ function generateLocaleFile(
   fileComment: string | null,
   enusElements: EnusElement[],
   enusEntries: Map<string, EnusEntry>,
-  localeEntries: Map<string, LocaleEntry>
+  localeEntries: Map<string, LocaleEntry>,
+  changedEnusKeys: Set<string>
 ): { content: string; report: LocaleReport } {
   const outputLines: string[] = [];
   const report: LocaleReport = {
@@ -324,9 +351,13 @@ function generateLocaleFile(
 
     switch (localeEntry.status) {
       case "translated": {
-        // We can't know the original enUS value the translation was based on,
-        // so we keep the translation as-is
-        outputLines.push(...localeEntry.rawLines);
+        // If this key's enUS value changed in the diff, flag the translation as stale
+        if (changedEnusKeys.has(key)) {
+          outputLines.push(...formatStaleEntry(localeEntry, enusValue));
+          report.staleKeys.push(key);
+        } else {
+          outputLines.push(...localeEntry.rawLines);
+        }
         report.translatedKeys++;
         break;
       }
@@ -348,6 +379,7 @@ function generateLocaleFile(
       }
 
       case "stale-flagged": {
+        // Update the TODO marker to the current enUS value
         if (localeEntry.todoValue !== enusValue) {
           outputLines.push(...formatStaleEntry(localeEntry, enusValue));
           report.staleKeys.push(key);
@@ -377,7 +409,12 @@ function main(): void {
 
   const dryRun = args.includes("--dry-run");
   const reportJson = args.includes("--report-json");
-  const fileArgs = args.filter((a) => !a.startsWith("--"));
+
+  const diffIdx = args.indexOf("--diff");
+  const diffPath = diffIdx !== -1 ? args[diffIdx + 1] : null;
+  const changedEnusKeys = diffPath ? parseEnusDiff(diffPath) : new Set<string>();
+
+  const fileArgs = args.filter((a, i) => !a.startsWith("--") && i !== diffIdx + 1);
 
   const localesDir = join(process.cwd(), "Locales");
   const enusPath = join(localesDir, "enUS.lua");
@@ -416,7 +453,8 @@ function main(): void {
       fileComment,
       enusElements,
       enusEntries,
-      entries
+      entries,
+      changedEnusKeys
     );
 
     reports.push(report);
