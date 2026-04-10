@@ -9,8 +9,15 @@ local EXPORT_PREFIX = "!KeystonePolaris:"
 -- Shallow clone helper (reused here locally if needed, or we can make it global later)
 local function CloneTable(tbl)
     if type(CopyTable) == "function" then return CopyTable(tbl) end
+    if type(tbl) ~= "table" then return tbl end
     local t = {}
-    for k, v in pairs(tbl) do t[k] = v end
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            t[k] = CloneTable(v)
+        else
+            t[k] = v
+        end
+    end
     return t
 end
 

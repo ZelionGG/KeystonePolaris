@@ -189,6 +189,7 @@ function KeystonePolaris:GenerateExpansionTables(expansionId, dungeonData)
             if hasOrder then
                 defaults.bossOrder = bossOrder
             end
+            defaults.milestones = {}
 
             self[expansionId .. "_DEFAULTS"][shortName] = defaults
         end
@@ -229,7 +230,11 @@ function KeystonePolaris:LoadExpansionDungeons()
                 if defaults then
                     for key, value in pairs(defaults) do
                         if self.db.profile.advanced[shortName][key] == nil then
-                            self.db.profile.advanced[shortName][key] = value
+                            if type(value) == "table" then
+                                self.db.profile.advanced[shortName][key] = CloneTable(value)
+                            else
+                                self.db.profile.advanced[shortName][key] = value
+                            end
                         end
                     end
                 end
@@ -251,7 +256,11 @@ function KeystonePolaris:LoadExpansionDungeons()
         local defaults = self[expansion.id .. "_DEFAULTS"]
         if defaults then
             for k, v in pairs(defaults) do
-                KeystonePolaris.defaults.profile.advanced[k] = v
+                if type(v) == "table" then
+                    KeystonePolaris.defaults.profile.advanced[k] = CloneTable(v)
+                else
+                    KeystonePolaris.defaults.profile.advanced[k] = v
+                end
             end
         end
     end
@@ -528,63 +537,6 @@ end
 -- ---------------------------------------------------------------------------
 -- Dungeon State & Tracking
 -- ---------------------------------------------------------------------------
-
--- Track currently engaged mobs for real pull percent
-KeystonePolaris.realPull = {
-    mobs = {},    -- [guid] = { npcID = number, count = number }
-    sum = 0,      -- total count across engaged GUIDs
-    denom = 0,    -- MDT total required count for 100%
-}
-
--- Helpers to manage real pull set
-function KeystonePolaris:AddEngagedMobByGUID(guid)
-    if not guid then return end
-    -- If already tracked, just refresh lastSeen and return
-    local existing = self.realPull.mobs[guid]
-    if existing then
-        existing.lastSeen = (GetTime and GetTime()) or existing.lastSeen or 0
-        return
-    end
-    local DungeonTools = _G and (_G.MDT or _G.MethodDungeonTools)
-    if not DungeonTools or not DungeonTools.GetEnemyForces then return end
-
-    local _, _, _, _, _, npcID = strsplit("-", guid)
-    local id = tonumber(npcID)
-    if not id then return end
-
-    local count, max, maxTeeming, teemingCount = DungeonTools:GetEnemyForces(id)
-    local isTeeming = self.IsTeeming and self:IsTeeming() or false
-    local denom = (isTeeming and maxTeeming) or max
-    local c = (isTeeming and teemingCount) or count
-    c = tonumber(c) or 0
-    denom = tonumber(denom) or 0
-
-    -- Initialize denominator when first known
-    if self.realPull.denom == 0 and denom > 0 then
-        self.realPull.denom = denom
-    end
-
-    if c > 0 then
-        self.realPull.mobs[guid] = { npcID = id, count = c, lastSeen = (GetTime and GetTime()) or 0 }
-        self.realPull.sum = self.realPull.sum + c
-    end
-end
-
-function KeystonePolaris:RemoveEngagedMobByGUID(guid)
-    local data = guid and self.realPull.mobs[guid]
-    if not data then return end
-    self.realPull.sum = math.max(0, self.realPull.sum - (data.count or 0))
-    self.realPull.mobs[guid] = nil
-end
-
--- Compute current planned pull percent via MDT (if available)
-function KeystonePolaris:GetCurrentPullPercent()
-    if not C_ChallengeMode.IsChallengeModeActive() then return 0 end
-    local denom = tonumber(self.realPull.denom) or 0
-    local sum = tonumber(self.realPull.sum) or 0
-    if denom <= 0 or sum <= 0 then return 0 end
-    return (sum / denom) * 100
-end
 
 -- Determine if all non-weighted (boss) criteria are completed
 function KeystonePolaris.AreAllBossesKilled()

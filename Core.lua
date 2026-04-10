@@ -5,6 +5,8 @@ local _G = _G;
 local pairs, select = pairs, select
 local C_Scenario = _G.C_Scenario
 local C_ScenarioInfo = _G.C_ScenarioInfo
+local GetZoneText = _G.GetZoneText
+local GetSubZoneText = _G.GetSubZoneText
 
 -- Initialize Ace3 libraries
 local AceAddon = LibStub("AceAddon-3.0")
@@ -272,6 +274,7 @@ KeystonePolaris.DUNGEONS = {}
 KeystonePolaris.currentDungeonID = 0
 KeystonePolaris.currentSection = 1
 KeystonePolaris.currentSectionOrder = nil
+KeystonePolaris.currentMilestoneInformState = {}
 
 -- Called when the addon is first loaded
 function KeystonePolaris:OnInitialize()
@@ -311,7 +314,7 @@ function KeystonePolaris:OnInitialize()
     -- Register options with Ace3 config system
     local optionsAddonName = (self.GetGradientAddonNameFromSecondLetter and self:GetGradientAddonNameFromSecondLetter()) or "Keystone Polaris"
     local optionsAddonDisplayName = (self.GetGradientAddonName and self:GetGradientAddonName()) or optionsAddonName
-    AceConfig:RegisterOptionsTable(AddOnName, {
+    self.optionsTable = {
         name = optionsAddonDisplayName,
         type = "group",
         args = {
@@ -393,7 +396,8 @@ function KeystonePolaris:OnInitialize()
             },
             advanced = self:GetAdvancedOptions()
         }
-    })
+    }
+    AceConfig:RegisterOptionsTable(AddOnName, self.optionsTable)
     AceConfig:RegisterOptionsTable(AddOnName .. "_Changelog", self.changelogOptions)
     AceConfig:RegisterOptionsTable(AddOnName .. "_About", self.aboutOptions)
 
@@ -508,7 +512,6 @@ function KeystonePolaris:BuildSectionOrder(dungeonId)
         end
     end
 
-    -- Fallback: order by required percentage ascending
     for i = 1, numBosses do
         order[i] = i
     end
@@ -531,6 +534,24 @@ function KeystonePolaris:InitiateDungeon()
     -- Set current dungeon and reset to first section
     self.currentDungeonID = currentDungeonId
     self.currentSection = 1
+    if type(self.currentMilestoneInformState) ~= "table" then
+        self.currentMilestoneInformState = {}
+    end
+    self.currentMilestoneInformState[self.currentDungeonID] = {}
+    if type(self.currentMilestoneTriggerState) ~= "table" then
+        self.currentMilestoneTriggerState = {}
+    end
+    self.currentMilestoneTriggerState[self.currentDungeonID] = {}
+
+    local dungeon = self.DUNGEONS[self.currentDungeonID]
+    if dungeon then
+        for i = 1, #dungeon do
+            if dungeon[i] then
+                dungeon[i][4] = false
+            end
+        end
+    end
+
     self:BuildSectionOrder(self.currentDungeonID)
 end
 
@@ -608,7 +629,227 @@ function KeystonePolaris:GetDungeonData()
     end
 
     local dungeonData = dungeon[sectionIndex]
-    return dungeonData[1], dungeonData[2], dungeonData[3], dungeonData[4]
+    return {
+        kind = "boss",
+        bossIndex = sectionIndex,
+        bossID = dungeonData[1],
+        neededPercent = dungeonData[2] or 0,
+        shouldInform = dungeonData[3] ~= false,
+        haveInformed = dungeonData[4] == true,
+    }
+end
+
+local function NormalizeMilestoneText(value)
+    if type(value) ~= "string" then
+        return ""
+    end
+    local trim = value:match("^%s*(.-)%s*$")
+    return trim:lower()
+end
+
+local function TrimString(value)
+    if type(value) ~= "string" then
+        return ""
+    end
+    return value:match("^%s*(.-)%s*$") or ""
+end
+
+function KeystonePolaris.IsSectionTriggerMet(_, section)
+    if type(section) ~= "table" then
+        return false
+    end
+
+    if section.kind == "boss" then
+        local info = section.bossID and C_ScenarioInfo.GetCriteriaInfo(section.bossID) or nil
+        return info and info.completed or false
+    end
+
+    local triggerType = tostring(section.triggerType or "none"):lower()
+    if triggerType == "none" then
+        return true
+    end
+
+    local target = NormalizeMilestoneText(section.matchText)
+    if target == "" then
+        return false
+    end
+
+    local currentText
+    if triggerType == "zone" then
+        currentText = GetZoneText()
+    else
+        currentText = GetSubZoneText()
+    end
+    local isMatched = NormalizeMilestoneText(currentText) == target
+
+    if isMatched and section.kind == "milestone" and KeystonePolaris.MarkMilestoneTriggered then
+        KeystonePolaris:MarkMilestoneTriggered(section)
+    end
+
+    if section.kind == "milestone" and KeystonePolaris.HasMilestoneTriggered then
+        return KeystonePolaris:HasMilestoneTriggered(section)
+    end
+
+    return isMatched
+end
+
+function KeystonePolaris:MarkSectionInformed(section)
+    if type(section) ~= "table" then return end
+    if section.kind == "boss" then
+        local dungeon = self.DUNGEONS[self.currentDungeonID]
+        local idx = section.bossIndex
+        if dungeon and idx and dungeon[idx] then
+            dungeon[idx][4] = true
+        end
+        section.haveInformed = true
+        return
+    end
+
+    if section.kind == "milestone" then
+        if type(self.currentMilestoneInformState) ~= "table" then
+            self.currentMilestoneInformState = {}
+        end
+        local dungeonState = self.currentMilestoneInformState[self.currentDungeonID]
+        if type(dungeonState) ~= "table" then
+            dungeonState = {}
+            self.currentMilestoneInformState[self.currentDungeonID] = dungeonState
+        end
+        local runtimeKey = tostring(section.runtimeKey or section.milestoneIndex or "")
+        if runtimeKey ~= "" then
+            dungeonState[runtimeKey] = true
+        end
+        section.haveInformed = true
+    end
+end
+
+function KeystonePolaris:MarkMilestoneTriggered(section)
+    if type(section) ~= "table" or section.kind ~= "milestone" then return end
+
+    if type(self.currentMilestoneTriggerState) ~= "table" then
+        self.currentMilestoneTriggerState = {}
+    end
+    local dungeonState = self.currentMilestoneTriggerState[self.currentDungeonID]
+    if type(dungeonState) ~= "table" then
+        dungeonState = {}
+        self.currentMilestoneTriggerState[self.currentDungeonID] = dungeonState
+    end
+
+    local runtimeKey = tostring(section.runtimeKey or section.milestoneIndex or "")
+    if runtimeKey ~= "" then
+        dungeonState[runtimeKey] = true
+    end
+end
+
+function KeystonePolaris:HasMilestoneTriggered(section)
+    if type(section) ~= "table" or section.kind ~= "milestone" then return false end
+    if type(self.currentMilestoneTriggerState) ~= "table" then return false end
+
+    local dungeonState = self.currentMilestoneTriggerState[self.currentDungeonID]
+    if type(dungeonState) ~= "table" then return false end
+
+    local runtimeKey = tostring(section.runtimeKey or section.milestoneIndex or "")
+    return runtimeKey ~= "" and dungeonState[runtimeKey] == true or false
+end
+
+function KeystonePolaris:GetSortedMilestones(dungeonId)
+    local dungeonKey = self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId) or nil
+    local advancedData = dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] or nil
+    if type(advancedData) ~= "table" or type(advancedData.milestones) ~= "table" then
+        return {}
+    end
+
+    if type(self.currentMilestoneInformState) ~= "table" then
+        self.currentMilestoneInformState = {}
+    end
+    local dungeonState = self.currentMilestoneInformState[dungeonId]
+    if type(dungeonState) ~= "table" then
+        dungeonState = {}
+        self.currentMilestoneInformState[dungeonId] = dungeonState
+    end
+
+    local milestones = {}
+    for milestoneIndex, milestone in ipairs(advancedData.milestones) do
+        if type(milestone) == "table" then
+            local triggerType = tostring(milestone.triggerType or "none"):lower()
+            if triggerType ~= "none" and triggerType ~= "zone" and triggerType ~= "subzone" then
+                triggerType = "none"
+            end
+            local runtimeKey = tostring(milestone.id or milestoneIndex)
+            milestones[#milestones + 1] = {
+                kind = "milestone",
+                milestoneIndex = milestoneIndex,
+                runtimeKey = runtimeKey,
+                label = tostring(milestone.label or ""),
+                neededPercent = tonumber(milestone.thresholdPercent) or 0,
+                shouldInform = triggerType ~= "none" and milestone.inform == true,
+                haveInformed = dungeonState[runtimeKey] == true,
+                triggerType = triggerType,
+                matchText = tostring(milestone.matchText or ""),
+                informSuffix = tostring(milestone.informSuffix or ""),
+                creationOrder = tonumber(milestone.creationOrder) or milestoneIndex,
+            }
+        end
+    end
+
+    table.sort(milestones, function(left, right)
+        local leftPct = tonumber(left.neededPercent) or 0
+        local rightPct = tonumber(right.neededPercent) or 0
+        if leftPct ~= rightPct then
+            return leftPct < rightPct
+        end
+        local leftCreation = tonumber(left.creationOrder) or 0
+        local rightCreation = tonumber(right.creationOrder) or 0
+        if leftCreation ~= rightCreation then
+            return leftCreation < rightCreation
+        end
+        return (tonumber(left.milestoneIndex) or 0) < (tonumber(right.milestoneIndex) or 0)
+    end)
+
+    return milestones
+end
+
+function KeystonePolaris:GetActiveMilestone(dungeonId, currentPercentage)
+    local milestones = self:GetSortedMilestones(dungeonId)
+    for _, milestone in ipairs(milestones) do
+        local remainingPercent = (tonumber(milestone.neededPercent) or 0) - (tonumber(currentPercentage) or 0)
+        if remainingPercent < 0.05 and remainingPercent > 0 then
+            remainingPercent = 0
+        end
+        local triggerMet
+        if milestone.triggerType == "none" then
+            triggerMet = remainingPercent <= 0
+        else
+            triggerMet = self:IsSectionTriggerMet(milestone)
+        end
+
+        if not (remainingPercent <= 0 and triggerMet) then
+            milestone.remainingPercent = math.max(0, remainingPercent)
+            milestone.triggerMet = triggerMet
+            return milestone
+        end
+    end
+    return nil
+end
+
+function KeystonePolaris:BuildInformMessage(percentage, suffixOverride)
+    local percentageStr = string.format("%.2f%%", tonumber(percentage) or 0)
+    local prefix = (self.GetChatPrefix and self:GetChatPrefix(true, true)) or "[Keystone Polaris]"
+    local baseMessage = prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr
+
+    local suffix = suffixOverride
+    if suffix == nil then
+        suffix = self.db
+            and self.db.profile
+            and self.db.profile.general
+            and self.db.profile.general.informSuffix
+            or ""
+    end
+    suffix = TrimString(suffix)
+    if suffix ~= "" then
+        baseMessage = baseMessage .. " " .. suffix
+    end
+
+    return baseMessage
 end
 
 -- Send a chat message to inform the group about missing percentage
@@ -618,8 +859,7 @@ function KeystonePolaris:InformGroup(percentage)
     local percentageStr = string.format("%.2f%%", percentage)
     -- Don't send message if percentage is 0
     if percentageStr == "0.00%" then return end
-    local prefix = (self.GetChatPrefix and self:GetChatPrefix(true, true)) or "[Keystone Polaris]"
-    self:PrepareInformMacro(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr)
+    self:PrepareInformMacro(self:BuildInformMessage(percentage))
     -- SendChatMessage(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr, channel)
 end
 
@@ -640,6 +880,9 @@ function KeystonePolaris:OnEnable()
 	self:RegisterEvent("SCENARIO_CRITERIA_UPDATE")
 
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self:RegisterEvent("ZONE_CHANGED")
+    self:RegisterEvent("ZONE_CHANGED_INDOORS")
+    self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 
     -- Extra refresh triggers for dynamic current pull percent
     if self.InitializePullTracker then
@@ -664,6 +907,22 @@ function KeystonePolaris:SCENARIO_CRITERIA_UPDATE()
     if self._QueuePullUpdate then self:_QueuePullUpdate() end
 end
 
+function KeystonePolaris:QueueDeferredDisplayRefresh()
+    if not self.UpdatePercentageText then
+        return
+    end
+
+    local function refreshDisplay()
+        if self.UpdatePercentageText then
+            self:UpdatePercentageText()
+        end
+    end
+
+    refreshDisplay()
+    C_Timer.After(0.2, refreshDisplay)
+    C_Timer.After(1, refreshDisplay)
+end
+
 -- Event handler for starting a Mythic+ dungeon
 function KeystonePolaris:CHALLENGE_MODE_START()
     if self._testMode and self.DisableTestMode then self:DisableTestMode("started dungeon") end
@@ -671,14 +930,9 @@ function KeystonePolaris:CHALLENGE_MODE_START()
 
     self:InitiateDungeon()
     if self.HideInformButton then self:HideInformButton() end
-    if self.PrepareInformMacro then
-        C_Timer.After(5, function()
-            if self.PrepareInformMacro then
-                self:PrepareInformMacro(nil) -- init macro without fake percent text
-            end
-        end)
+    if self.QueueDeferredDisplayRefresh then
+        self:QueueDeferredDisplayRefresh()
     end
-    if self.UpdatePercentageText then self:UpdatePercentageText() end
 end
 
 function KeystonePolaris:CHALLENGE_MODE_COMPLETED()
@@ -691,14 +945,20 @@ function KeystonePolaris:PLAYER_ENTERING_WORLD()
     if self._testMode and self.DisableTestMode then self:DisableTestMode("changed zone") end
     self:InitiateDungeon()
     if self.HideInformButton then self:HideInformButton() end
-    if self.PrepareInformMacro then
-        -- Utilise le message par défaut (WE_STILL_NEED + % fictif)
-        C_Timer.After(10, function()
-            if self.PrepareInformMacro then
-                self:PrepareInformMacro(nil)
-            end
-        end)
+    if self.QueueDeferredDisplayRefresh then
+        self:QueueDeferredDisplayRefresh()
     end
+end
+
+function KeystonePolaris:ZONE_CHANGED()
+    if self.UpdatePercentageText then self:UpdatePercentageText() end
+end
+
+function KeystonePolaris:ZONE_CHANGED_INDOORS()
+    if self.UpdatePercentageText then self:UpdatePercentageText() end
+end
+
+function KeystonePolaris:ZONE_CHANGED_NEW_AREA()
     if self.UpdatePercentageText then self:UpdatePercentageText() end
 end
 

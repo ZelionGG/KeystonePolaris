@@ -8,10 +8,13 @@ local strsplit = strsplit
 local HideUIPanel = _G.HideUIPanel
 local AceGUIWidgetLSMlists = _G.AceGUIWidgetLSMlists
 local CALENDAR_WEEKDAY_NAMES = _G.CALENDAR_WEEKDAY_NAMES
+local GetZoneText = _G.GetZoneText
+local GetSubZoneText = _G.GetSubZoneText
 
 -- Get localization table
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, true)
 local ACR = LibStub("AceConfigRegistry-3.0")
+local ACD = LibStub("AceConfigDialog-3.0", true)
 
 -- MDT integration unavailable due to Blizzard API changes in Midnight
 local MDT_FEATURES_ENABLED = false
@@ -172,6 +175,7 @@ KeystonePolaris.defaults = {
             positioningGridSpacing = 60,
             informGroup = true,
             informChannel = "PARTY",
+            informSuffix = "",
             showCompartmentIcon = true,
             showMinimapIcon = true,
             minimapAngle = 225,
@@ -710,6 +714,23 @@ function KeystonePolaris:GetInformGroupOptions()
                     self.db.profile.general.informChannel = value
                 end
             }),
+            informSuffix = {
+                name = L["INFORM_GROUP_SUFFIX"],
+                desc = L["INFORM_GROUP_SUFFIX_DESC"],
+                type = "input",
+                order = 2,
+                width = "full",
+                disabled = function()
+                    return not self.db.profile.general.informGroup
+                end,
+                get = function()
+                    return self.db.profile.general.informSuffix or ""
+                end,
+                set = function(_, value)
+                    self.db.profile.general.informSuffix = tostring(value or "")
+                    if self.UpdatePercentageText then self:UpdatePercentageText() end
+                end
+            },
             rolesHeader = {
                 type = "header",
                 name = "",
@@ -1449,6 +1470,39 @@ function KeystonePolaris:GetAdvancedOptions()
     }
 end
 
+function KeystonePolaris:RefreshAdvancedOptionsTree(selectedDungeonKey)
+    if not self.optionsTable or not self.optionsTable.args then return end
+
+    self.optionsTable.args.advanced = self:GetAdvancedOptions()
+    ACR:NotifyChange(AddOnName)
+
+    if not ACD or not ACD.SelectGroup then return end
+
+    if not selectedDungeonKey then
+        C_Timer.After(0, function()
+            ACD:SelectGroup(AddOnName, "advanced")
+        end)
+        return
+    end
+
+    local expansionSectionKey
+    for _, expansion in ipairs(expansions) do
+        local dungeonIds = self[expansion.id .. "_DUNGEON_IDS"]
+        if dungeonIds and dungeonIds[selectedDungeonKey] then
+            expansionSectionKey = expansion.id:lower()
+            break
+        end
+    end
+
+    C_Timer.After(0, function()
+        if expansionSectionKey then
+            ACD:SelectGroup(AddOnName, "advanced", expansionSectionKey, selectedDungeonKey)
+        else
+            ACD:SelectGroup(AddOnName, "advanced")
+        end
+    end)
+end
+
 function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
     local numBosses = #self.DUNGEONS[self:GetDungeonIdByKey(dungeonKey)]
 
@@ -1473,6 +1527,76 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                 break
             end
         end
+    end
+
+    local function EnsureMilestonesTable()
+        local advanced = self.db.profile.advanced[dungeonKey]
+        if type(advanced.milestones) ~= "table" then
+            advanced.milestones = {}
+        end
+
+        for index, milestone in ipairs(advanced.milestones) do
+            if type(milestone) ~= "table" then
+                milestone = {}
+                advanced.milestones[index] = milestone
+            end
+            if milestone.id == nil then
+                milestone.id = index
+            end
+            if milestone.creationOrder == nil then
+                milestone.creationOrder = index
+            end
+            milestone.thresholdPercent = tonumber(milestone.thresholdPercent) or 0
+            local triggerType = tostring(milestone.triggerType or "none"):lower()
+            if triggerType ~= "none" and triggerType ~= "zone" and triggerType ~= "subzone" then
+                triggerType = "none"
+            end
+            milestone.triggerType = triggerType
+            milestone.matchText = tostring(milestone.matchText or "")
+            milestone.label = tostring(milestone.label or "")
+            milestone.informSuffix = tostring(milestone.informSuffix or "")
+            milestone.inform = milestone.inform == true
+        end
+
+        return advanced.milestones
+    end
+
+    local function RefreshDungeonRouting()
+        self:UpdateDungeonData()
+        local dungeonId = self:GetDungeonIdByKey(dungeonKey)
+        if dungeonId and self.BuildSectionOrder then
+            self:BuildSectionOrder(dungeonId)
+        end
+        if self.UpdatePercentageText then self:UpdatePercentageText() end
+        ACR:NotifyChange(AddOnName)
+    end
+
+    local function RefreshDungeonRoutingOptionsView()
+        if self.RefreshAdvancedOptionsTree then
+            self:RefreshAdvancedOptionsTree(dungeonKey)
+        end
+    end
+
+    local function NextMilestoneId(milestones)
+        local maxId = 0
+        for _, milestone in ipairs(milestones) do
+            local id = tonumber(milestone.id)
+            if id and id > maxId then
+                maxId = id
+            end
+        end
+        return maxId + 1
+    end
+
+    local function NextMilestoneCreationOrder(milestones)
+        local maxOrder = 0
+        for _, milestone in ipairs(milestones) do
+            local creationOrder = tonumber(milestone.creationOrder)
+            if creationOrder and creationOrder > maxOrder then
+                maxOrder = creationOrder
+            end
+        end
+        return maxOrder + 1
     end
 
     local options = {
@@ -1657,14 +1781,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     self.db.profile.advanced[dungeonKey].bossOrder = {}
                 end
                 self.db.profile.advanced[dungeonKey].bossOrder[section] = value
-                local dungeonId = self:GetDungeonIdByKey(dungeonKey)
-                if dungeonId then
-                    if self.BuildSectionOrder then
-                        self:BuildSectionOrder(dungeonId)
-                    end
-                    self:UpdateDungeonData()
-                    if self.UpdatePercentageText then self:UpdatePercentageText() end
-                end
+                RefreshDungeonRouting()
             end
         }
     end
@@ -1695,7 +1812,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     set = function(_, value)
                         self.db.profile.advanced[dungeonKey]["Boss" ..
                             bossNumStr] = value
-                        self:UpdateDungeonData()
+                        RefreshDungeonRouting()
                     end
                 },
                 inform = {
@@ -1711,12 +1828,267 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     set = function(_, value)
                         self.db.profile.advanced[dungeonKey]["Boss" ..
                             bossNumStr .. "Inform"] = value
-                        self:UpdateDungeonData()
+                        RefreshDungeonRouting()
                     end
                 }
             }
         }
     end
+
+    local RebuildMilestoneOptionGroups
+
+    options.args.milestones = {
+        type = "group",
+        name = L["MILESTONES"],
+        inline = true,
+        order = numBosses + 5,
+        args = {
+            description = {
+                type = "description",
+                order = 0,
+                fontSize = "medium",
+                name = L["MILESTONES_DESC"]
+            },
+            addMilestone = {
+                type = "execute",
+                order = 1,
+                name = L["MILESTONE_ADD"],
+                func = function()
+                    local milestones = EnsureMilestonesTable()
+                    milestones[#milestones + 1] = {
+                        id = NextMilestoneId(milestones),
+                        label = "",
+                        thresholdPercent = 0,
+                        triggerType = "none",
+                        matchText = "",
+                        informSuffix = "",
+                        inform = false,
+                        creationOrder = NextMilestoneCreationOrder(milestones),
+                    }
+                    if RebuildMilestoneOptionGroups then
+                        RebuildMilestoneOptionGroups()
+                    end
+                    RefreshDungeonRouting()
+                    RefreshDungeonRoutingOptionsView()
+                end
+            }
+        }
+    }
+
+    local function AddMilestoneOptions(milestoneIndex)
+        local milestones = EnsureMilestonesTable()
+        local milestone = milestones[milestoneIndex]
+        if not milestone then return end
+
+        local optionKey = "milestone" .. milestoneIndex
+        options.args.milestones.args[optionKey] = {
+            type = "group",
+            inline = true,
+            order = milestoneIndex + 10,
+            name = function()
+                local currentMilestones = EnsureMilestonesTable()
+                local current = currentMilestones[milestoneIndex]
+                if not current then
+                    return string.format("%s %d", L["MILESTONE"], milestoneIndex)
+                end
+                local matchText = tostring(current.matchText or ""):match("^%s*(.-)%s*$") or ""
+                if matchText ~= "" then
+                    return matchText
+                end
+                local label = tostring(current.label or ""):match("^%s*(.-)%s*$") or ""
+                if label ~= "" then
+                    return label
+                end
+                return string.format("%s %d", L["MILESTONE"], milestoneIndex)
+            end,
+            args = {
+                --[[ label = {
+                    type = "input",
+                    order = 1,
+                    width = 1.2,
+                    name = L["MILESTONE_LABEL"],
+                    get = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return current and current.label or ""
+                    end,
+                    set = function(_, value)
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        if not current then return end
+                        current.label = tostring(value or "")
+                        RefreshDungeonRouting()
+                    end
+                }, ]]
+                threshold = {
+                    type = "range",
+                    min = 0,
+                    max = 100,
+                    step = 0.01,
+                    order = 2,
+                    width = 0.8,
+                    name = L["MILESTONE_THRESHOLD"],
+                    get = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return (current and tonumber(current.thresholdPercent)) or 0
+                    end,
+                    set = function(_, value)
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        if not current then return end
+                        current.thresholdPercent = tonumber(value) or 0
+                        RefreshDungeonRouting()
+                    end
+                },
+                triggerType = {
+                    type = "select",
+                    order = 3,
+                    width = 0.8,
+                    name = L["MILESTONE_TRIGGER_TYPE"],
+                    values = {
+                        none = L["MILESTONE_TRIGGER_NONE"],
+                        zone = L["MILESTONE_TRIGGER_ZONE"],
+                        subzone = L["MILESTONE_TRIGGER_SUBZONE"],
+                    },
+                    get = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return (current and current.triggerType) or "none"
+                    end,
+                    set = function(_, value)
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        if not current then return end
+                        current.triggerType = value
+                        if value == "none" then
+                            current.inform = false
+                        end
+                        RefreshDungeonRouting()
+                    end
+                },
+                matchText = {
+                    type = "input",
+                    order = 4,
+                    width = 1.2,
+                    name = L["MILESTONE_MATCH_TEXT"],
+                    hidden = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return not current or current.triggerType == "none"
+                    end,
+                    get = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return current and current.matchText or ""
+                    end,
+                    set = function(_, value)
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        if not current then return end
+                        current.matchText = tostring(value or "")
+                        RefreshDungeonRouting()
+                    end
+                },
+                captureZone = {
+                    type = "execute",
+                    order = 5,
+                    width = 0.8,
+                    name = L["MILESTONE_CAPTURE_ZONE"],
+                    hidden = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return not current or current.triggerType ~= "zone"
+                    end,
+                    func = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        if not current then return end
+                        current.matchText = tostring(GetZoneText() or "")
+                        RefreshDungeonRouting()
+                    end
+                },
+                captureSubzone = {
+                    type = "execute",
+                    order = 6,
+                    width = 0.8,
+                    name = L["MILESTONE_CAPTURE_SUBZONE"],
+                    hidden = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return not current or current.triggerType ~= "subzone"
+                    end,
+                    func = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        if not current then return end
+                        current.matchText = tostring(GetSubZoneText() or "")
+                        RefreshDungeonRouting()
+                    end
+                },
+                informRow = ColumnRow(7, {
+                    type = "toggle",
+                    width = 1,
+                    name = L["SHOW_INFORM_GROUP_BUTTON"],
+                    desc = L["SHOW_INFORM_GROUP_BUTTON_DESC"],
+                    hidden = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return not current or current.triggerType == "none"
+                    end,
+                    get = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return current and current.inform == true or false
+                    end,
+                    set = function(_, value)
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        if not current then return end
+                        current.inform = value == true
+                        RefreshDungeonRouting()
+                    end
+                }, {
+                    type = "input",
+                    width = 1.1,
+                    name = L["MILESTONE_INFORM_SUFFIX"],
+                    desc = L["MILESTONE_INFORM_SUFFIX_DESC"],
+                    hidden = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return not current or current.triggerType == "none"
+                    end,
+                    get = function()
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        return current and current.informSuffix or ""
+                    end,
+                    set = function(_, value)
+                        local current = EnsureMilestonesTable()[milestoneIndex]
+                        if not current then return end
+                        current.informSuffix = tostring(value or "")
+                        RefreshDungeonRouting()
+                    end
+                }),
+                remove = {
+                    type = "execute",
+                    order = 8,
+                    width = 0.8,
+                    name = L["MILESTONE_REMOVE"],
+                    confirm = true,
+                    confirmText = L["MILESTONE_REMOVE_CONFIRM"],
+                    func = function()
+                        local currentMilestones = EnsureMilestonesTable()
+                        table.remove(currentMilestones, milestoneIndex)
+                        if RebuildMilestoneOptionGroups then
+                            RebuildMilestoneOptionGroups()
+                        end
+                        RefreshDungeonRouting()
+                        RefreshDungeonRoutingOptionsView()
+                    end
+                },
+            }
+        }
+    end
+
+    RebuildMilestoneOptionGroups = function()
+        local milestoneArgs = options.args.milestones.args
+        for key in pairs(milestoneArgs) do
+            if type(key) == "string" and key:match("^milestone%d+$") then
+                milestoneArgs[key] = nil
+            end
+        end
+
+        local milestones = EnsureMilestonesTable()
+        for milestoneIndex = 1, #milestones do
+            AddMilestoneOptions(milestoneIndex)
+        end
+    end
+
+    RebuildMilestoneOptionGroups()
+
     return options
 end
 
