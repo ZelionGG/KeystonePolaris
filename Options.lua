@@ -175,7 +175,6 @@ KeystonePolaris.defaults = {
             positioningGridSpacing = 60,
             informGroup = true,
             informChannel = "PARTY",
-            informSuffix = "",
             showCompartmentIcon = true,
             showMinimapIcon = true,
             minimapAngle = 225,
@@ -199,6 +198,8 @@ KeystonePolaris.defaults = {
                 sectionRequiredLabel = L["SECTION_REQUIRED_DEFAULT"], -- Label for the required base value when numeric
                 currentLabel = L["CURRENT_DEFAULT"],   -- Label for current percent
                 pullLabel = L["PULL_DEFAULT"],         -- Label for current pull percent
+                showMilestones = true,                 -- Show milestone supplementary text and logic
+                milestoneLabel = L["MILESTONE_DISPLAY_DEFAULT"], -- Label for milestone supplementary text
                 formatMode = "percent",               -- Display format: "percent" or "count"
                 singleLineSeparator = " | ",           -- Separator for single-line layout
                 textAlign = "CENTER",                  -- Horizontal font alignment: LEFT, CENTER, RIGHT
@@ -614,6 +615,30 @@ function KeystonePolaris:GetDisplayOptions()
                     return not self.db.profile.general.mainDisplay.showCurrentPullPercent or not IsMDTAvailable()
                 end
             },
+            milestoneRow = ColumnRow(10, {
+                name = L["SHOW_MILESTONES"],
+                desc = L["SHOW_MILESTONES_DESC"],
+                type = "toggle",
+                get = function() return self.db.profile.general.mainDisplay.showMilestones ~= false end,
+                set = function(_, value)
+                    self.db.profile.general.mainDisplay.showMilestones = value and true or false
+                    self:UpdatePercentageText()
+                end
+            }, {
+                name = L["PREFIX"],
+                desc = L["MILESTONE_DISPLAY_LABEL_DESC"],
+                type = "input",
+                get = function() return self.db.profile.general.mainDisplay.milestoneLabel or L["MILESTONE_DISPLAY_DEFAULT"] end,
+                set = function(_, value)
+                    local text = type(value) == "string" and value or ""
+                    text = (text ~= "" and text) or L["MILESTONE_DISPLAY_DEFAULT"]
+                    self.db.profile.general.mainDisplay.milestoneLabel = text
+                    self:UpdatePercentageText()
+                end,
+                disabled = function()
+                    return self.db.profile.general.mainDisplay.showMilestones == false
+                end
+            }),
             showProjectedLocked = {
                 name = "|cff9d9d9d" .. L["SHOW_PROJECTED"] .. "|r",
                 desc = L["MDT_FEATURE_UNAVAILABLE"],
@@ -714,33 +739,16 @@ function KeystonePolaris:GetInformGroupOptions()
                     self.db.profile.general.informChannel = value
                 end
             }),
-            informSuffix = {
-                name = L["INFORM_GROUP_SUFFIX"],
-                desc = L["INFORM_GROUP_SUFFIX_DESC"],
-                type = "input",
-                order = 2,
-                width = "full",
-                disabled = function()
-                    return not self.db.profile.general.informGroup
-                end,
-                get = function()
-                    return self.db.profile.general.informSuffix or ""
-                end,
-                set = function(_, value)
-                    self.db.profile.general.informSuffix = tostring(value or "")
-                    if self.UpdatePercentageText then self:UpdatePercentageText() end
-                end
-            },
             rolesHeader = {
                 type = "header",
                 name = "",
-                order = 3,
+                order = 2,
             },
             rolesEnabled = {
                 name = L["ROLES_ENABLED"],
                 desc = L["ROLES_ENABLED_DESC"],
                 type = "multiselect",
-                order = 4,
+                order = 3,
                 values = {
                     LEADER = LEADER,
                     TANK = TANK,

@@ -669,6 +669,29 @@ function KeystonePolaris.IsSectionTriggerMet(_, section)
         return true
     end
 
+    local isMatched = KeystonePolaris:IsMilestoneTriggerMatchedNow(section)
+
+    if isMatched and section.kind == "milestone" and KeystonePolaris.MarkMilestoneTriggered then
+        KeystonePolaris:MarkMilestoneTriggered(section)
+    end
+
+    if section.kind == "milestone" and KeystonePolaris.HasMilestoneTriggered then
+        return KeystonePolaris:HasMilestoneTriggered(section)
+    end
+
+    return isMatched
+end
+
+function KeystonePolaris.IsMilestoneTriggerMatchedNow(_, section)
+    if type(section) ~= "table" then
+        return false
+    end
+
+    local triggerType = tostring(section.triggerType or "none"):lower()
+    if triggerType == "none" then
+        return true
+    end
+
     local target = NormalizeMilestoneText(section.matchText)
     if target == "" then
         return false
@@ -680,17 +703,8 @@ function KeystonePolaris.IsSectionTriggerMet(_, section)
     else
         currentText = GetSubZoneText()
     end
-    local isMatched = NormalizeMilestoneText(currentText) == target
 
-    if isMatched and section.kind == "milestone" and KeystonePolaris.MarkMilestoneTriggered then
-        KeystonePolaris:MarkMilestoneTriggered(section)
-    end
-
-    if section.kind == "milestone" and KeystonePolaris.HasMilestoneTriggered then
-        return KeystonePolaris:HasMilestoneTriggered(section)
-    end
-
-    return isMatched
+    return NormalizeMilestoneText(currentText) == target
 end
 
 function KeystonePolaris:MarkSectionInformed(section)
@@ -816,15 +830,22 @@ function KeystonePolaris:GetActiveMilestone(dungeonId, currentPercentage)
             remainingPercent = 0
         end
         local triggerMet
+        local triggerMatchedNow
         if milestone.triggerType == "none" then
             triggerMet = remainingPercent <= 0
+            triggerMatchedNow = triggerMet
         else
-            triggerMet = self:IsSectionTriggerMet(milestone)
+            triggerMatchedNow = self:IsMilestoneTriggerMatchedNow(milestone)
+            if triggerMatchedNow and self.MarkMilestoneTriggered then
+                self:MarkMilestoneTriggered(milestone)
+            end
+            triggerMet = self:HasMilestoneTriggered(milestone)
         end
 
         if not (remainingPercent <= 0 and triggerMet) then
             milestone.remainingPercent = math.max(0, remainingPercent)
             milestone.triggerMet = triggerMet
+            milestone.triggerMatchedNow = triggerMatchedNow
             return milestone
         end
     end
@@ -837,13 +858,6 @@ function KeystonePolaris:BuildInformMessage(percentage, suffixOverride)
     local baseMessage = prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr
 
     local suffix = suffixOverride
-    if suffix == nil then
-        suffix = self.db
-            and self.db.profile
-            and self.db.profile.general
-            and self.db.profile.general.informSuffix
-            or ""
-    end
     suffix = TrimString(suffix)
     if suffix ~= "" then
         baseMessage = baseMessage .. " " .. suffix

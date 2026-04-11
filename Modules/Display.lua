@@ -1009,7 +1009,8 @@ function KeystonePolaris:UpdatePercentageText()
 
     local bossSection = self:GetDungeonData()
     local cfg = self.db.profile.general.mainDisplay
-    local activeMilestone = self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage) or nil
+    local milestonesEnabled = cfg and cfg.showMilestones ~= false
+    local activeMilestone = milestonesEnabled and self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage) or nil
 
     if not bossSection then
         local doneColor = self.db.profile.color.finished
@@ -1264,6 +1265,7 @@ function KeystonePolaris:BuildMilestoneDisplayText(milestone)
     if type(milestone) ~= "table" then return "" end
 
     if not self.colorCache.prefix then self:UpdateColorCache() end
+    local cfg = self.db and self.db.profile and self.db.profile.general and self.db.profile.general.mainDisplay or nil
     local hexPrefix = self.colorCache.prefix or "cccccc"
     local hexMissing = self.colorCache.missing or "ff0000"
     local hexFinished = self.colorCache.finished or "00ff00"
@@ -1276,16 +1278,25 @@ function KeystonePolaris:BuildMilestoneDisplayText(milestone)
         label = L["MILESTONE"]
     end
 
-    local prefix = colorizePrefix(L["MILESTONE"], hexPrefix)
+    local milestonePrefixText = (cfg and cfg.milestoneLabel) or L["MILESTONE_DISPLAY_DEFAULT"]
+    local prefix = colorizePrefix(milestonePrefixText, hexPrefix)
     local remaining = tonumber(milestone.remainingPercent) or 0
-    local suffix = ""
+    local valueText
     if remaining > 0 then
-        suffix = string.format(" |cff%s(%.2f%%)|r", hexMissing, remaining)
+        local percentText = string.format("%.2f%%", remaining)
+        local isMissedMilestone = milestone.triggerMet == true and milestone.triggerMatchedNow ~= true
+        if isMissedMilestone then
+            valueText = string.format("|cff%s%s|r", hexMissing, percentText)
+        else
+            valueText = percentText
+        end
     elseif milestone.triggerMet then
-        suffix = string.format(" |cff%s(%s)|r", hexFinished, L["DONE"])
+        valueText = string.format("|cff%s%s|r", hexFinished, L["DONE"])
+    else
+        valueText = "0.00%"
     end
 
-    return string.format("%s %s%s", prefix, label, suffix)
+    return string.format("%s %s - %s", prefix, label, valueText)
 end
 
 -- FormatMainDisplayText: builds the final display string with optional Current/Pull/Required parts and projected values.
