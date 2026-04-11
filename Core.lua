@@ -542,6 +542,10 @@ function KeystonePolaris:InitiateDungeon()
         self.currentMilestoneTriggerState = {}
     end
     self.currentMilestoneTriggerState[self.currentDungeonID] = {}
+    if type(self.currentMilestoneCompletionState) ~= "table" then
+        self.currentMilestoneCompletionState = {}
+    end
+    self.currentMilestoneCompletionState[self.currentDungeonID] = {}
 
     local dungeon = self.DUNGEONS[self.currentDungeonID]
     if dungeon then
@@ -765,6 +769,35 @@ function KeystonePolaris:HasMilestoneTriggered(section)
     return runtimeKey ~= "" and dungeonState[runtimeKey] == true or false
 end
 
+function KeystonePolaris:MarkMilestoneCompletionShown(section)
+    if type(section) ~= "table" or section.kind ~= "milestone" then return end
+
+    if type(self.currentMilestoneCompletionState) ~= "table" then
+        self.currentMilestoneCompletionState = {}
+    end
+    local dungeonState = self.currentMilestoneCompletionState[self.currentDungeonID]
+    if type(dungeonState) ~= "table" then
+        dungeonState = {}
+        self.currentMilestoneCompletionState[self.currentDungeonID] = dungeonState
+    end
+
+    local runtimeKey = tostring(section.runtimeKey or section.milestoneIndex or "")
+    if runtimeKey ~= "" then
+        dungeonState[runtimeKey] = true
+    end
+end
+
+function KeystonePolaris:HasMilestoneCompletionShown(section)
+    if type(section) ~= "table" or section.kind ~= "milestone" then return false end
+    if type(self.currentMilestoneCompletionState) ~= "table" then return false end
+
+    local dungeonState = self.currentMilestoneCompletionState[self.currentDungeonID]
+    if type(dungeonState) ~= "table" then return false end
+
+    local runtimeKey = tostring(section.runtimeKey or section.milestoneIndex or "")
+    return runtimeKey ~= "" and dungeonState[runtimeKey] == true or false
+end
+
 function KeystonePolaris:GetSortedMilestones(dungeonId)
     local dungeonKey = self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId) or nil
     local advancedData = dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] or nil
@@ -849,6 +882,41 @@ function KeystonePolaris:GetActiveMilestone(dungeonId, currentPercentage)
             return milestone
         end
     end
+    return nil
+end
+
+function KeystonePolaris:GetJustCompletedMilestone(dungeonId, currentPercentage)
+    local milestones = self:GetSortedMilestones(dungeonId)
+    for _, milestone in ipairs(milestones) do
+        local remainingPercent = (tonumber(milestone.neededPercent) or 0) - (tonumber(currentPercentage) or 0)
+        if remainingPercent < 0.05 and remainingPercent > 0 then
+            remainingPercent = 0
+        end
+
+        local triggerMet
+        local triggerMatchedNow
+        if milestone.triggerType == "none" then
+            triggerMet = remainingPercent <= 0
+            triggerMatchedNow = triggerMet
+        else
+            triggerMatchedNow = self:IsMilestoneTriggerMatchedNow(milestone)
+            if triggerMatchedNow and self.MarkMilestoneTriggered then
+                self:MarkMilestoneTriggered(milestone)
+            end
+            triggerMet = self:HasMilestoneTriggered(milestone)
+        end
+
+        if remainingPercent <= 0 and triggerMet then
+            if not self:HasMilestoneCompletionShown(milestone) then
+                self:MarkMilestoneCompletionShown(milestone)
+                milestone.remainingPercent = 0
+                milestone.triggerMet = triggerMet
+                milestone.triggerMatchedNow = triggerMatchedNow
+                return milestone
+            end
+        end
+    end
+
     return nil
 end
 

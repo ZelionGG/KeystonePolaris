@@ -1011,11 +1011,18 @@ function KeystonePolaris:UpdatePercentageText()
     local cfg = self.db.profile.general.mainDisplay
     local milestonesEnabled = cfg and cfg.showMilestones ~= false
     local activeMilestone = milestonesEnabled and self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage) or nil
+    local completedMilestone = milestonesEnabled and self.GetJustCompletedMilestone and self:GetJustCompletedMilestone(self.currentDungeonID, currentPercentage) or nil
+    if completedMilestone then
+        self._milestoneDoneTextUntil = GetTime() + 2
+    end
+    local showMilestoneDoneText = self._milestoneDoneTextUntil and GetTime() < self._milestoneDoneTextUntil
 
     if not bossSection then
         local doneColor = self.db.profile.color.finished
         local doneText = self:FormatMainDisplayText(L["DUNGEON_DONE"], currentPercentage, currentPullPercent, nil, nil)
-        if activeMilestone then
+        if showMilestoneDoneText and self.BuildMilestoneDoneDisplayText then
+            doneText = AppendSupplementaryText(doneText, self:BuildMilestoneDoneDisplayText(), cfg)
+        elseif activeMilestone then
             doneText = AppendSupplementaryText(doneText, self:BuildMilestoneDisplayText(activeMilestone), cfg)
         end
         self.displayFrame.text:SetText(doneText)
@@ -1134,7 +1141,9 @@ function KeystonePolaris:UpdatePercentageText()
                         }
                         local nextText = self:FormatMainDisplayText(baseNext, currentPercentage, currentPullPercent, nextRequired, fmtNext)
                         local nextMilestone = self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage) or nil
-                        if nextMilestone then
+                        if showMilestoneDoneText and self.BuildMilestoneDoneDisplayText then
+                            nextText = AppendSupplementaryText(nextText, self:BuildMilestoneDoneDisplayText(), cfg)
+                        elseif nextMilestone then
                             nextText = AppendSupplementaryText(nextText, self:BuildMilestoneDisplayText(nextMilestone), cfg)
                         end
                         self.displayFrame.text:SetText(nextText)
@@ -1151,7 +1160,7 @@ function KeystonePolaris:UpdatePercentageText()
 
     local bossShouldShowInform = (remainingPercent > 0) and isSectionTriggerMet and shouldInfom and self.db.profile.general.informGroup
 
-    if activeMilestone then
+    if activeMilestone and not showMilestoneDoneText then
         local milestoneRemaining = tonumber(activeMilestone.remainingPercent) or 0
         if not bossShouldShowInform and activeMilestone.shouldInform and not activeMilestone.haveInformed and activeMilestone.triggerMet and milestoneRemaining > 0 and self.db.profile.general.informGroup then
             if self.BuildInformMessage then
@@ -1167,6 +1176,10 @@ function KeystonePolaris:UpdatePercentageText()
         if displayText and displayText ~= "" then
             displayText = AppendSupplementaryText(displayText, self:BuildMilestoneDisplayText(activeMilestone), cfg)
         end
+    elseif showMilestoneDoneText and self.BuildMilestoneDoneDisplayText then
+        if displayText and displayText ~= "" then
+            displayText = AppendSupplementaryText(displayText, self:BuildMilestoneDoneDisplayText(), cfg)
+        end
     end
 
     if displayText and displayText ~= "" then
@@ -1174,7 +1187,7 @@ function KeystonePolaris:UpdatePercentageText()
     end
 
     local milestoneShouldShowInform = false
-    if activeMilestone and not bossShouldShowInform then
+    if activeMilestone and not showMilestoneDoneText and not bossShouldShowInform then
         local milestoneRemaining = tonumber(activeMilestone.remainingPercent) or 0
         milestoneShouldShowInform = milestoneRemaining > 0 and activeMilestone.triggerMet and activeMilestone.shouldInform and self.db.profile.general.informGroup
     end
@@ -1297,6 +1310,15 @@ function KeystonePolaris:BuildMilestoneDisplayText(milestone)
     end
 
     return string.format("%s %s - %s", prefix, label, valueText)
+end
+
+function KeystonePolaris:BuildMilestoneDoneDisplayText()
+    if not self.colorCache.prefix then self:UpdateColorCache() end
+    local hexPrefix = self.colorCache.prefix or "cccccc"
+    local hexFinished = self.colorCache.finished or "00ff00"
+
+    local message = colorizePrefix(L["MILESTONE_PERCENTAGE_DONE"], hexPrefix)
+    return string.format("|cff%s%s|r", hexFinished, message)
 end
 
 -- FormatMainDisplayText: builds the final display string with optional Current/Pull/Required parts and projected values.
