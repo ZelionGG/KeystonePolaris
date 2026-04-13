@@ -77,9 +77,18 @@ local function GetTeleportCandidatesForMapIDLocal(self, mapID)
         return self:GetTeleportCandidatesForMapID(mapID)
     end
 
-    local knownPrefixes = {"TWW", "DF", "SL", "BFA", "LEGION", "WOD", "MOP", "CATA", "WOTLK", "BC", "CLASSIC"}
-    for _, prefix in ipairs(knownPrefixes) do
-        local data = self[prefix .. "_DUNGEON_DATA"]
+    if type(self.GlobalDungeonLookup) == "table" then
+        for _, d in pairs(self.GlobalDungeonLookup) do
+            if type(d) == "table" and d.mapID == mapID and d.teleportID ~= nil then
+                return d.teleportID
+            end
+        end
+    end
+
+    if type(self.Expansions) ~= "table" then return nil end
+    for _, expansion in ipairs(self.Expansions) do
+        local expansionId = type(expansion) == "table" and expansion.id
+        local data = expansionId and self[expansionId .. "_DUNGEON_DATA"]
         if type(data) == "table" then
             for _, d in pairs(data) do
                 if type(d) == "table" and d.mapID == mapID and d.teleportID ~= nil then

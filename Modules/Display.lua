@@ -28,12 +28,26 @@ local function AppendSupplementaryText(baseText, extraText, cfg)
     return baseText .. sep .. extraText
 end
 
+function KeystonePolaris:UpdateInformButtonFrameLayer()
+    local btn = self.informSecureButton
+    if not btn then return end
+
+    local strata = "MEDIUM"
+    local frameLevel = 1
+    if self.displayFrame then
+        strata = self.displayFrame:GetFrameStrata() or strata
+        frameLevel = (self.displayFrame:GetFrameLevel() or 0) + 1
+    end
+
+    btn:SetFrameStrata(strata)
+    btn:SetFrameLevel(frameLevel)
+end
+
 -- Secure action button (macro) for manual sends in lockdown contexts
 function KeystonePolaris:EnsureInformSecureButton(macroText)
     if not self.informSecureButton then
         local btn = CreateFrame("Button", "KeystonePolarisSecureInformButton", UIParent, "SecureActionButtonTemplate, UIPanelButtonTemplate, BackdropTemplate")
         btn:SetSize(160, 28)
-        btn:SetFrameStrata("FULLSCREEN_DIALOG")
         btn:SetText(L["INFORM_GROUP"])
         btn:EnableMouse(true)
         local useKeyDown = GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")
@@ -131,6 +145,9 @@ function KeystonePolaris:EnsureInformSecureButton(macroText)
 
         btn:Hide()
         self.informSecureButton = btn
+        if self.UpdateInformButtonFrameLayer then
+            self:UpdateInformButtonFrameLayer()
+        end
     end
 
     local btn = self.informSecureButton
@@ -139,6 +156,9 @@ function KeystonePolaris:EnsureInformSecureButton(macroText)
         btn:SetPoint("TOP", self.displayFrame, "BOTTOM", 0, -6)
     else
         btn:SetPoint("CENTER")
+    end
+    if self.UpdateInformButtonFrameLayer then
+        self:UpdateInformButtonFrameLayer()
     end
 
     if macroText then

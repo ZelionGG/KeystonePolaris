@@ -84,6 +84,28 @@ local function GradientText(text)
     return table.concat(out)
 end
 
+local function BuildModulesOverviewDescription(localeTable)
+    local featureIcon = "|TInterface\\OptionsFrame\\UI-OptionsFrame-NewFeatureIcon:14:14:0:0|t"
+    local intro = localeTable["MODULES_SUMMARY_INTRO"] or "Quick tour of available modules:"
+    local mdtTitle = localeTable["MDT_INTEGRATION"] or "MDT Integration"
+    local mobPercentagesTitle = localeTable["MOB_PERCENTAGES"] or "Mob Percentages"
+    local mobPercentagesDesc = localeTable["MODULES_SUMMARY_MOB_PERCENTAGES_DESC"] or
+        "Shows enemy-forces contribution directly on nameplates."
+    local groupReminderTitle = localeTable["KPL_GR_HEADER"] or "Group Reminder"
+    local groupReminderDesc = localeTable["MODULES_SUMMARY_GROUP_REMINDER_DESC"] or
+        "Displays a quick reminder popup when you join a group."
+
+    return table.concat({
+        intro,
+        "",
+        featureIcon .. " |cffffd100" .. mdtTitle .. "|r",
+        "   |cffcfcfcf• " .. mobPercentagesTitle .. "|r |cff9d9d9d- " .. mobPercentagesDesc .. "|r",
+        "",
+        featureIcon .. " |cffffd100" .. groupReminderTitle .. "|r",
+        "   |cff9d9d9d" .. groupReminderDesc .. "|r",
+    }, "\n")
+end
+
 function KeystonePolaris:GetGradientAddonName()
     if not self._gradientAddonName then
         self._gradientAddonName = GradientText("Keystone Polaris")
@@ -314,6 +336,7 @@ function KeystonePolaris:OnInitialize()
     -- Register options with Ace3 config system
     local optionsAddonName = (self.GetGradientAddonNameFromSecondLetter and self:GetGradientAddonNameFromSecondLetter()) or "Keystone Polaris"
     local optionsAddonDisplayName = (self.GetGradientAddonName and self:GetGradientAddonName()) or optionsAddonName
+    local modulesSummaryDescription = BuildModulesOverviewDescription(L)
     self.optionsTable = {
         name = optionsAddonDisplayName,
         type = "group",
@@ -357,7 +380,7 @@ function KeystonePolaris:OnInitialize()
                     modulesSummaryDescription = {
                         order = 1,
                         type = "description",
-                        name = L["MODULES_SUMMARY_DESC"],
+                        name = modulesSummaryDescription,
                         fontSize = "medium",
                     },
                     mdtIntegration = {
