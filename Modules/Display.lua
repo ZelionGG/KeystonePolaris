@@ -1030,8 +1030,9 @@ function KeystonePolaris:UpdatePercentageText()
     local bossSection = self:GetDungeonData()
     local cfg = self.db.profile.general.mainDisplay
     local milestonesEnabled = cfg and cfg.showMilestones ~= false
-    local activeMilestone = milestonesEnabled and self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage) or nil
-    local completedMilestone = milestonesEnabled and self.GetJustCompletedMilestone and self:GetJustCompletedMilestone(self.currentDungeonID, currentPercentage) or nil
+    local milestoneMaxThreshold = bossSection and (tonumber(bossSection.neededPercent) or nil) or nil
+    local activeMilestone = milestonesEnabled and self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage, milestoneMaxThreshold) or nil
+    local completedMilestone = milestonesEnabled and self.GetJustCompletedMilestone and self:GetJustCompletedMilestone(self.currentDungeonID, currentPercentage, milestoneMaxThreshold) or nil
     if completedMilestone then
         self._milestoneDoneTextUntil = GetTime() + 2
     end
@@ -1160,7 +1161,7 @@ function KeystonePolaris:UpdatePercentageText()
                             sectionRequiredCount = nextNeededCount or 0,
                         }
                         local nextText = self:FormatMainDisplayText(baseNext, currentPercentage, currentPullPercent, nextRequired, fmtNext)
-                        local nextMilestone = self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage) or nil
+                        local nextMilestone = self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage, nextNeededPercent) or nil
                         if showMilestoneDoneText and self.BuildMilestoneDoneDisplayText then
                             nextText = AppendSupplementaryText(nextText, self:BuildMilestoneDoneDisplayText(), cfg)
                         elseif nextMilestone then
@@ -1303,9 +1304,9 @@ function KeystonePolaris:BuildMilestoneDisplayText(milestone)
     local hexMissing = self.colorCache.missing or "ff0000"
     local hexFinished = self.colorCache.finished or "00ff00"
 
-    local label = milestone.matchText
+    local label = milestone.label
     if type(label) ~= "string" or label == "" then
-        label = milestone.label
+        label = milestone.matchText
     end
     if type(label) ~= "string" or label == "" then
         label = L["MILESTONE"]

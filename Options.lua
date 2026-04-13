@@ -1910,7 +1910,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                 return string.format("%s %d", L["MILESTONE"], milestoneIndex)
             end,
             args = {
-                --[[ label = {
+                label = {
                     type = "input",
                     order = 1,
                     width = 1.2,
@@ -1925,7 +1925,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         current.label = tostring(value or "")
                         RefreshDungeonRouting()
                     end
-                }, ]]
+                },
                 threshold = {
                     type = "range",
                     min = 0,

@@ -878,64 +878,69 @@ function KeystonePolaris:GetSortedMilestones(dungeonId)
     return milestones
 end
 
-function KeystonePolaris:GetActiveMilestone(dungeonId, currentPercentage)
+function KeystonePolaris:GetActiveMilestone(dungeonId, currentPercentage, maxThresholdPercent)
     local milestones = self:GetSortedMilestones(dungeonId)
     for _, milestone in ipairs(milestones) do
-        local remainingPercent = (tonumber(milestone.neededPercent) or 0) - (tonumber(currentPercentage) or 0)
-        if remainingPercent < 0.05 and remainingPercent > 0 then
-            remainingPercent = 0
-        end
-        local triggerMet
-        local triggerMatchedNow
-        if milestone.triggerType == "none" then
-            triggerMet = remainingPercent <= 0
-            triggerMatchedNow = triggerMet
-        else
-            triggerMatchedNow = self:IsMilestoneTriggerMatchedNow(milestone)
-            if triggerMatchedNow and self.MarkMilestoneTriggered then
-                self:MarkMilestoneTriggered(milestone)
+        local neededPercent = tonumber(milestone.neededPercent) or 0
+        if not (maxThresholdPercent and neededPercent > (tonumber(maxThresholdPercent) or 0)) then
+            local remainingPercent = neededPercent - (tonumber(currentPercentage) or 0)
+            if remainingPercent < 0.05 and remainingPercent > 0 then
+                remainingPercent = 0
             end
-            triggerMet = self:HasMilestoneTriggered(milestone)
-        end
+            local triggerMet
+            local triggerMatchedNow
+            if milestone.triggerType == "none" then
+                triggerMet = remainingPercent <= 0
+                triggerMatchedNow = triggerMet
+            else
+                triggerMatchedNow = self:IsMilestoneTriggerMatchedNow(milestone)
+                if triggerMatchedNow and self.MarkMilestoneTriggered then
+                    self:MarkMilestoneTriggered(milestone)
+                end
+                triggerMet = self:HasMilestoneTriggered(milestone)
+            end
 
-        if not (remainingPercent <= 0 and triggerMet) then
-            milestone.remainingPercent = math.max(0, remainingPercent)
-            milestone.triggerMet = triggerMet
-            milestone.triggerMatchedNow = triggerMatchedNow
-            return milestone
+            if not (remainingPercent <= 0 and triggerMet) then
+                milestone.remainingPercent = math.max(0, remainingPercent)
+                milestone.triggerMet = triggerMet
+                milestone.triggerMatchedNow = triggerMatchedNow
+                return milestone
+            end
         end
     end
     return nil
 end
 
-function KeystonePolaris:GetJustCompletedMilestone(dungeonId, currentPercentage)
+function KeystonePolaris:GetJustCompletedMilestone(dungeonId, currentPercentage, maxThresholdPercent)
     local milestones = self:GetSortedMilestones(dungeonId)
     for _, milestone in ipairs(milestones) do
-        local remainingPercent = (tonumber(milestone.neededPercent) or 0) - (tonumber(currentPercentage) or 0)
-        if remainingPercent < 0.05 and remainingPercent > 0 then
-            remainingPercent = 0
-        end
-
-        local triggerMet
-        local triggerMatchedNow
-        if milestone.triggerType == "none" then
-            triggerMet = remainingPercent <= 0
-            triggerMatchedNow = triggerMet
-        else
-            triggerMatchedNow = self:IsMilestoneTriggerMatchedNow(milestone)
-            if triggerMatchedNow and self.MarkMilestoneTriggered then
-                self:MarkMilestoneTriggered(milestone)
+        local neededPercent = tonumber(milestone.neededPercent) or 0
+        if not (maxThresholdPercent and neededPercent > (tonumber(maxThresholdPercent) or 0)) then
+            local remainingPercent = neededPercent - (tonumber(currentPercentage) or 0)
+            if remainingPercent < 0.05 and remainingPercent > 0 then
+                remainingPercent = 0
             end
-            triggerMet = self:HasMilestoneTriggered(milestone)
-        end
+            local triggerMet
+            local triggerMatchedNow
+            if milestone.triggerType == "none" then
+                triggerMet = remainingPercent <= 0
+                triggerMatchedNow = triggerMet
+            else
+                triggerMatchedNow = self:IsMilestoneTriggerMatchedNow(milestone)
+                if triggerMatchedNow and self.MarkMilestoneTriggered then
+                    self:MarkMilestoneTriggered(milestone)
+                end
+                triggerMet = self:HasMilestoneTriggered(milestone)
+            end
 
-        if remainingPercent <= 0 and triggerMet then
-            if not self:HasMilestoneCompletionShown(milestone) then
-                self:MarkMilestoneCompletionShown(milestone)
-                milestone.remainingPercent = 0
-                milestone.triggerMet = triggerMet
-                milestone.triggerMatchedNow = triggerMatchedNow
-                return milestone
+            if remainingPercent <= 0 and triggerMet then
+                if not self:HasMilestoneCompletionShown(milestone) then
+                    self:MarkMilestoneCompletionShown(milestone)
+                    milestone.remainingPercent = 0
+                    milestone.triggerMet = triggerMet
+                    milestone.triggerMatchedNow = triggerMatchedNow
+                    return milestone
+                end
             end
         end
     end
