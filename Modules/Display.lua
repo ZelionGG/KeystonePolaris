@@ -9,6 +9,35 @@ local GetCVarBool = _G.GetCVarBool
 
 KeystonePolaris.colorCache = {}
 
+-- ---------------------------------------------------------------------------
+-- Preview Scenarios (shared by text display and progress bar previews)
+-- ---------------------------------------------------------------------------
+
+local PREVIEW_TOTAL_COUNT = 220
+
+local PREVIEW_SCENARIOS = {
+    {
+        name = L["PREVIEW_IN_PROGRESS"] or "In progress",
+        currentPercent = 74.0, neededPercent = 80.0, pullPercent = 0.0,
+        isBossKilled = false, colorKey = "inProgress", inCombat = false,
+        barPercent = 74, bossesKilled = 3,
+    },
+    {
+        name = L["PREVIEW_MISSING"] or "Missing (boss killed)",
+        currentPercent = 50.0, neededPercent = 68.0, pullPercent = 0.0,
+        isBossKilled = true, colorKey = "missing", inCombat = false,
+        barPercent = 50, bossesKilled = 3,
+    },
+    {
+        name = L["PREVIEW_DUNGEON_DONE"] or "Dungeon complete",
+        isDungeonDone = true, colorKey = "finished", inCombat = false,
+        barPercent = 100, bossesKilled = 99,
+    },
+}
+
+KeystonePolaris.PreviewScenarios = PREVIEW_SCENARIOS
+KeystonePolaris.PREVIEW_TOTAL_COUNT = PREVIEW_TOTAL_COUNT
+
 local function formatProjectedValue(base, value, hexColor, suffix)
     local displayed = suffix or tostring(value)
     return string.format("%s (|cff%s%s|r)", base, hexColor, displayed)
@@ -351,7 +380,7 @@ end
 
 function KeystonePolaris:CreatePositioningToolbar()
     local toolbar = CreateFrame("Frame", "KPL_PositioningToolbar", UIParent, "BasicFrameTemplateWithInset")
-    toolbar:SetSize(240, 190)
+    toolbar:SetSize(240, 240)
     toolbar:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     toolbar:SetFrameStrata("TOOLTIP")
     toolbar.TitleText:SetText(self:GetGradientAddonName())
@@ -363,7 +392,7 @@ function KeystonePolaris:CreatePositioningToolbar()
     toolbar:SetScript("OnDragStart", function() toolbar:StartMoving() end)
     toolbar:SetScript("OnDragStop", function() toolbar:StopMovingOrSizing() end)
 
-    toolbar.CloseButton:SetScript("OnClick", function() self:ExitPositioningMode(false) end)
+    toolbar.CloseButton:SetScript("OnClick", function() self:ExitPlacementMode(false) end)
 
     -- Dim Background checkbox
     local dimCheck = CreateFrame("CheckButton", "KPL_DimCheck", toolbar, "UICheckButtonTemplate")
@@ -408,30 +437,61 @@ function KeystonePolaris:CreatePositioningToolbar()
         value = math.floor(value + 0.5)
         self.db.profile.general.positioningGridSpacing = value
         _G[sliderName .. "Text"]:SetText(L["GRID_SPACING"] .. ": " .. value)
-        if self.db.profile.general.positioningShowGrid and self._positioningMode then
+        if self.db.profile.general.positioningShowGrid and self._placementMode then
             self:RefreshGridLines()
         end
     end)
     toolbar.gridSlider = slider
+
+    -- Preview scenario dropdown
+    local scenarioLabel = toolbar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    scenarioLabel:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", 0, -16)
+    scenarioLabel:SetText(L["PREVIEW_SCENARIO"])
+
+    local scenarioDropdown = CreateFrame("Frame", "KPL_ScenarioDropdown", toolbar, "UIDropDownMenuTemplate")
+    scenarioDropdown:SetPoint("TOPLEFT", scenarioLabel, "BOTTOMLEFT", -16, -2)
+    UIDropDownMenu_SetWidth(scenarioDropdown, 170)
+    UIDropDownMenu_Initialize(scenarioDropdown, function(_, level)
+        local scenarios = self.PreviewScenarios
+        if not scenarios then return end
+        for i, s in ipairs(scenarios) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = s.name
+            info.value = i
+            info.checked = (i == (self._previewScenario or 1))
+            info.func = function()
+                self._previewScenario = i
+                self._testScenario = i
+                UIDropDownMenu_SetText(scenarioDropdown, s.name)
+                if self.UpdatePercentageText then self:UpdatePercentageText() end
+                if self._progressBarPreview and self.EnableProgressBarPreview then
+                    self:EnableProgressBarPreview()
+                end
+                CloseDropDownMenus()
+            end
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end)
+    toolbar.scenarioDropdown = scenarioDropdown
 
     -- Button row (bottom)
     local validateBtn = CreateFrame("Button", nil, toolbar, "UIPanelButtonTemplate")
     validateBtn:SetSize(96, 28)
     validateBtn:SetPoint("BOTTOMRIGHT", toolbar, "BOTTOM", -2, 10)
     validateBtn:SetText(L["VALIDATE"])
-    validateBtn:SetScript("OnClick", function() self:ExitPositioningMode(true) end)
+    validateBtn:SetScript("OnClick", function() self:ExitPlacementMode(true) end)
 
     local cancelBtn = CreateFrame("Button", nil, toolbar, "UIPanelButtonTemplate")
     cancelBtn:SetSize(96, 28)
     cancelBtn:SetPoint("BOTTOMLEFT", toolbar, "BOTTOM", 2, 10)
     cancelBtn:SetText(L["CANCEL"])
-    cancelBtn:SetScript("OnClick", function() self:ExitPositioningMode(false) end)
+    cancelBtn:SetScript("OnClick", function() self:ExitPlacementMode(false) end)
 
     toolbar:EnableKeyboard(true)
     toolbar:SetScript("OnKeyDown", function(f, key)
         if key == "ESCAPE" then
             f:SetPropagateKeyboardInput(false)
-            self:ExitPositioningMode(false)
+            self:ExitPlacementMode(false)
         else
             f:SetPropagateKeyboardInput(true)
         end
@@ -458,8 +518,8 @@ function KeystonePolaris:CreatePositioningToolbar()
     local combatFrame = CreateFrame("Frame")
     combatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
     combatFrame:SetScript("OnEvent", function()
-        if self._positioningMode then
-            self:ExitPositioningMode(true)
+        if self._placementMode then
+            self:ExitPlacementMode(true)
         end
     end)
 
@@ -467,50 +527,68 @@ function KeystonePolaris:CreatePositioningToolbar()
     self.positioningToolbar = toolbar
 end
 
-function KeystonePolaris:EnterPositioningMode()
-    if not self.displayFrame then return end
+function KeystonePolaris:EnterPlacementMode()
+    self._placementMode = true
+    self._progressBarPositioning = true
 
+    -- Hide settings panel (must happen after _placementMode is set
+    -- so DisableOptionsPreview skips its cleanup)
+    if _G.SettingsPanel and _G.SettingsPanel:IsShown() then
+        _G.HideUIPanel(_G.SettingsPanel)
+    end
+
+    -- Save positions for both frames so Cancel can revert
     self._savedPosition = {
         position = self.db.profile.general.position,
         xOffset = self.db.profile.general.xOffset,
         yOffset = self.db.profile.general.yOffset,
     }
+    if self.db.profile.progressBar then
+        self._savedProgressBarPosition = {
+            position = self.db.profile.progressBar.position,
+            xOffset = self.db.profile.progressBar.xOffset,
+            yOffset = self.db.profile.progressBar.yOffset,
+        }
+    end
 
+    -- Ensure test mode is active with mock data
     self._testMode = true
-    self._positioningMode = true
-    self:StartTestModeTicker()
-    self:UpdatePercentageText()
+    self._testScenario = self._previewScenario or 1
+    self._testCombatContext = false
+    if self.UpdatePercentageText then self:UpdatePercentageText() end
 
-    self.displayFrame:SetMovable(true)
-    self.displayFrame:EnableMouse(true)
-    self.displayFrame:RegisterForDrag("LeftButton")
-    self.displayFrame:SetScript("OnDragStart", function() self.displayFrame:StartMoving() end)
-    self.displayFrame:SetScript("OnDragStop", function()
-        self.displayFrame:StopMovingOrSizing()
-        local centerX, centerY = self.displayFrame:GetCenter()
-        local screenWidth = GetScreenWidth()
-        local screenHeight = GetScreenHeight()
-        local position = self.db.profile.general.position
-        local h = self.displayFrame:GetHeight()
+    -- Enable drag on text display
+    if self.displayFrame then
+        self.displayFrame:SetMovable(true)
+        self.displayFrame:EnableMouse(true)
+        self.displayFrame:RegisterForDrag("LeftButton")
+        self.displayFrame:SetScript("OnDragStart", function() self.displayFrame:StartMoving() end)
+        self.displayFrame:SetScript("OnDragStop", function()
+            self.displayFrame:StopMovingOrSizing()
+            local centerX, centerY = self.displayFrame:GetCenter()
+            local screenWidth = GetScreenWidth()
+            local screenHeight = GetScreenHeight()
+            local position = self.db.profile.general.position
+            local h = self.displayFrame:GetHeight()
+            local xOffset = centerX - screenWidth / 2
+            local yOffset
+            if position == "TOP" then
+                yOffset = centerY + h / 2 - screenHeight
+            elseif position == "BOTTOM" then
+                yOffset = centerY - h / 2
+            else
+                yOffset = centerY - screenHeight / 2
+            end
+            self.db.profile.general.xOffset = xOffset
+            self.db.profile.general.yOffset = yOffset
+        end)
+        self.displayFrame:Show()
+    end
 
-        local xOffset = centerX - screenWidth / 2
-        local yOffset
-        if position == "TOP" then
-            yOffset = centerY + h / 2 - screenHeight
-        elseif position == "BOTTOM" then
-            yOffset = centerY - h / 2
-        else
-            yOffset = centerY - screenHeight / 2
-        end
+    -- Ensure progress bar is visible with preview data
+    if self.EnableProgressBarPreview then self:EnableProgressBarPreview() end
 
-        self.db.profile.general.xOffset = xOffset
-        self.db.profile.general.yOffset = yOffset
-    end)
-
-    self.displayFrame:Show()
-    self:ShowPositioningBorder()
-    self.displayFrame:SetScript("OnSizeChanged", function() self:RefreshPositioningBorder() end)
-
+    -- Show toolbar
     if self.positioningToolbar then
         self.positioningToolbar:ClearAllPoints()
         self.positioningToolbar:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
@@ -524,6 +602,14 @@ function KeystonePolaris:EnterPositioningMode()
             self.positioningToolbar.gridSlider:SetValue(self.db.profile.general.positioningGridSpacing or 60)
         end
         self:UpdateGridSliderState()
+        -- Set dropdown text to current scenario name
+        if self.positioningToolbar.scenarioDropdown then
+            local scenarios = self.PreviewScenarios
+            local idx = self._previewScenario or 1
+            if scenarios and scenarios[idx] then
+                UIDropDownMenu_SetText(self.positioningToolbar.scenarioDropdown, scenarios[idx].name)
+            end
+        end
         self.positioningToolbar:Show()
     end
 
@@ -531,11 +617,15 @@ function KeystonePolaris:EnterPositioningMode()
     self:UpdatePositioningGrid()
 end
 
-function KeystonePolaris:ExitPositioningMode(save)
+function KeystonePolaris:ExitPlacementMode(save)
+    self._placementMode = false
+    self._progressBarPositioning = false
+    self._optionsPreviewActive = false
     self._testMode = false
-    self._positioningMode = false
-    self:StopTestModeTicker()
+    self._testCombatContext = nil
+    self._testScenario = nil
 
+    -- Disable drag on text display
     if self.displayFrame then
         self.displayFrame:SetMovable(false)
         self.displayFrame:EnableMouse(false)
@@ -545,27 +635,43 @@ function KeystonePolaris:ExitPositioningMode(save)
         self.displayFrame:SetScript("OnSizeChanged", nil)
     end
 
-    if not save and self._savedPosition then
-        self.db.profile.general.position = self._savedPosition.position
-        self.db.profile.general.xOffset = self._savedPosition.xOffset
-        self.db.profile.general.yOffset = self._savedPosition.yOffset
+    -- Revert positions on cancel
+    if not save then
+        if self._savedPosition then
+            self.db.profile.general.position = self._savedPosition.position
+            self.db.profile.general.xOffset = self._savedPosition.xOffset
+            self.db.profile.general.yOffset = self._savedPosition.yOffset
+        end
+        if self._savedProgressBarPosition and self.db.profile.progressBar then
+            self.db.profile.progressBar.position = self._savedProgressBarPosition.position
+            self.db.profile.progressBar.xOffset = self._savedProgressBarPosition.xOffset
+            self.db.profile.progressBar.yOffset = self._savedProgressBarPosition.yOffset
+        end
     end
     self._savedPosition = nil
+    self._savedProgressBarPosition = nil
 
+    -- Hide visual aids
     self:HidePositioningBorder()
-
     if self.testDimOverlay then self.testDimOverlay:Hide() end
     if self.gridOverlay then self.gridOverlay:Hide() end
     if self.displayFrame and self._prevDisplayStrata then
         self.displayFrame:SetFrameStrata(self._prevDisplayStrata)
         self._prevDisplayStrata = nil
     end
-
+    if self.progressBarFrame and self._prevProgressBarStrata then
+        self.progressBarFrame:SetFrameStrata(self._prevProgressBarStrata)
+        self._prevProgressBarStrata = nil
+    end
     if self.positioningToolbar then self.positioningToolbar:Hide() end
+
+    -- Disable progress bar preview
+    if self.DisableProgressBarPreview then self:DisableProgressBarPreview() end
 
     self:UpdatePercentageText()
     self:Refresh()
 
+    -- Reopen settings panel (triggers EnableOptionsPreview via OnShow hook)
     if self.ToggleConfig then
         self:ToggleConfig()
     elseif Settings and Settings.OpenToCategory then
@@ -580,7 +686,7 @@ end
 function KeystonePolaris:UpdatePositioningBorderAnimation()
     local anchor = self._borderAnchor
     local state = self._borderAnimationState
-    if not (self._positioningMode and anchor and state and self._borderTexturePool) then return end
+    if not (self._placementMode and anchor and state and self._borderTexturePool) then return end
 
     local w = state.width
     local h = state.height
@@ -713,7 +819,7 @@ function KeystonePolaris:HidePositioningBorder()
 end
 
 function KeystonePolaris:RefreshPositioningBorder()
-    if self._positioningMode then
+    if self._placementMode then
         self:ShowPositioningBorder()
     end
 end
@@ -723,7 +829,7 @@ end
 -- ---------------------------------------------------------------------------
 
 function KeystonePolaris:UpdatePositioningDim()
-    if self.db.profile.general.positioningDimBackground and self._positioningMode then
+    if self.db.profile.general.positioningDimBackground and self._placementMode then
         if not self.testDimOverlay then
             local dim = CreateFrame("Frame", "KPL_TestDimOverlay", UIParent, "BackdropTemplate")
             dim:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -738,12 +844,20 @@ function KeystonePolaris:UpdatePositioningDim()
             self._prevDisplayStrata = self._prevDisplayStrata or self.displayFrame:GetFrameStrata()
             self.displayFrame:SetFrameStrata("TOOLTIP")
         end
+        if self.progressBarFrame then
+            self._prevProgressBarStrata = self._prevProgressBarStrata or self.progressBarFrame:GetFrameStrata()
+            self.progressBarFrame:SetFrameStrata("TOOLTIP")
+        end
     else
         if self.testDimOverlay then self.testDimOverlay:Hide() end
-        if not (self.db.profile.general.positioningShowGrid and self._positioningMode) then
+        if not (self.db.profile.general.positioningShowGrid and self._placementMode) then
             if self.displayFrame and self._prevDisplayStrata then
                 self.displayFrame:SetFrameStrata(self._prevDisplayStrata)
                 self._prevDisplayStrata = nil
+            end
+            if self.progressBarFrame and self._prevProgressBarStrata then
+                self.progressBarFrame:SetFrameStrata(self._prevProgressBarStrata)
+                self._prevProgressBarStrata = nil
             end
         end
     end
@@ -814,7 +928,7 @@ function KeystonePolaris:RefreshGridLines()
 end
 
 function KeystonePolaris:UpdatePositioningGrid()
-    if self.db.profile.general.positioningShowGrid and self._positioningMode then
+    if self.db.profile.general.positioningShowGrid and self._placementMode then
         self:EnsureGridOverlay()
         self:RefreshGridLines()
         self.gridOverlay:Show()
@@ -822,10 +936,14 @@ function KeystonePolaris:UpdatePositioningGrid()
         if self.testDimOverlay and self.testDimOverlay:IsShown() then
             self.gridOverlay:SetFrameLevel(self.testDimOverlay:GetFrameLevel() + 1)
         end
-        -- Ensure display frame is above grid
+        -- Ensure display frames are above grid
         if self.displayFrame then
             self._prevDisplayStrata = self._prevDisplayStrata or self.displayFrame:GetFrameStrata()
             self.displayFrame:SetFrameStrata("TOOLTIP")
+        end
+        if self.progressBarFrame then
+            self._prevProgressBarStrata = self._prevProgressBarStrata or self.progressBarFrame:GetFrameStrata()
+            self.progressBarFrame:SetFrameStrata("TOOLTIP")
         end
     else
         if self.gridOverlay then self.gridOverlay:Hide() end
@@ -1646,71 +1764,29 @@ function KeystonePolaris:RenderTestText()
     if not (self.displayFrame and self.displayFrame.text and self.db and self.db.profile) then return end
     local cfg = self.db.profile.general and self.db.profile.general.mainDisplay or nil
     local formatMode = (cfg and cfg.formatMode) or "percent"
-    local scenario = self._testScenario or 1
+    local scenarioIdx = self._testScenario or 1
 
-    -- Shared baseline
-    local totalCount = 220
-    local textColor = self.db.profile.color.inProgress
+    local s = PREVIEW_SCENARIOS[scenarioIdx]
+    if not s then return end
 
-    if scenario == 7 then
-        -- Scenario 7: Dungeon finished
+    local textColor = self.db.profile.color[s.colorKey]
+
+    if s.isDungeonDone then
         self.displayFrame.text:SetText(L["DUNGEON_DONE"] or "Dungeon finished")
-        textColor = self.db.profile.color.finished
     else
-        local currentPercent, neededPercent, pullPercent, isBossKilled
-        if scenario == 1 then
-            -- 1) Nominal out of combat (white)
-            currentPercent = 45.0
-            neededPercent = 50.0
-            pullPercent = 0.0
-            isBossKilled = false
-            textColor = self.db.profile.color.inProgress
-        elseif scenario == 2 then
-            -- 2) Nominal in combat (white), small pull
-            currentPercent = 45.0
-            neededPercent = 50.0
-            pullPercent = 3.0
-            isBossKilled = false
-            textColor = self.db.profile.color.inProgress
-        elseif scenario == 3 then
-            -- 3) Nominal: projected finishes the section (white)
-            currentPercent = 62.0
-            neededPercent = 68.0
-            pullPercent = 8.0
-            isBossKilled = false
-            textColor = self.db.profile.color.inProgress
-        elseif scenario == 4 then
-            -- 4) Nominal: section already done (green)
-            currentPercent = 74.0
-            neededPercent = 70.0
-            pullPercent = 0.0
-            isBossKilled = false
-            textColor = self.db.profile.color.finished
-        elseif scenario == 5 then
-            -- 5) Late: projected finishes the section (red Missing)
-            currentPercent = 62.0
-            neededPercent = 68.0
-            pullPercent = 8.0
-            isBossKilled = true -- simulate boss done context for missing state
-            textColor = self.db.profile.color.missing
-        elseif scenario == 6 then
-            -- 6) Nominal with projected Dungeon finished (white, IC)
-            currentPercent = 98.0
-            neededPercent = 100.0
-            pullPercent = 3.0
-            isBossKilled = false
-            textColor = self.db.profile.color.inProgress
-        end
+        local currentPercent = s.currentPercent
+        local neededPercent = s.neededPercent
+        local pullPercent = s.pullPercent
 
         local remainingPercent = math.max(0, neededPercent - currentPercent)
-        local currentCount = math.floor((currentPercent / 100) * totalCount + 0.5)
-        local pullCount = math.floor((pullPercent / 100) * totalCount + 0.5)
-        local sectionRequiredCount = math.ceil((neededPercent / 100) * totalCount)
+        local currentCount = math.floor((currentPercent / 100) * PREVIEW_TOTAL_COUNT + 0.5)
+        local pullCount = math.floor((pullPercent / 100) * PREVIEW_TOTAL_COUNT + 0.5)
+        local sectionRequiredCount = math.ceil((neededPercent / 100) * PREVIEW_TOTAL_COUNT)
         local remainingCount = math.max(0, sectionRequiredCount - currentCount)
 
         local fmtData = {
             currentCount = currentCount,
-            totalCount = totalCount,
+            totalCount = PREVIEW_TOTAL_COUNT,
             pullCount = pullCount,
             remainingCount = remainingCount,
             sectionRequiredPercent = neededPercent,
@@ -1718,7 +1794,7 @@ function KeystonePolaris:RenderTestText()
         }
 
         local base
-        if scenario == 4 then
+        if currentPercent >= neededPercent and not s.isBossKilled then
             base = L["DONE"] or "Section percentage done"
         else
             if formatMode == "count" then
@@ -1728,28 +1804,23 @@ function KeystonePolaris:RenderTestText()
             end
         end
 
-        -- Force combat context per scenario when needed for projected display
         local originalCtx = self._testCombatContext
-        -- Force combat per scenario for projected parts visibility
-        if scenario == 1 or scenario == 4 or scenario == 7 then
-            self._testCombatContext = false
-        elseif scenario == 2 or scenario == 3 or scenario == 5 or scenario == 6 then
-            self._testCombatContext = true
-        end
-        local text = self:FormatMainDisplayText(base, currentPercent, pullPercent, remainingPercent, fmtData, isBossKilled, false)
+        self._testCombatContext = s.inCombat
+        local text = self:FormatMainDisplayText(base, currentPercent, pullPercent, remainingPercent, fmtData, s.isBossKilled, false)
         self._testCombatContext = originalCtx
         self.displayFrame.text:SetText(text)
     end
 
-    -- Apply chosen color and layout
     self.displayFrame.text:SetTextColor(textColor.r, textColor.g, textColor.b, textColor.a)
 end
 
 -- Disable Test Mode programmatically with a reason and inform the player
 function KeystonePolaris:DisableTestMode(reason)
     if not self._testMode then return end
-    if self._positioningMode then
-        self:ExitPositioningMode(true)
+    -- Don't auto-disable if the options panel is managing preview
+    if self._optionsPreviewActive and not self._placementMode then return end
+    if self._placementMode then
+        self:ExitPlacementMode(true)
     end
     self._testMode = false
     if self.HideTestOverlay then self:HideTestOverlay() end
@@ -1787,7 +1858,7 @@ function KeystonePolaris:Refresh()
     if not self.displayFrame then return end
 
     -- Update frame position (skip during positioning mode — frame is being dragged)
-    if not self._positioningMode then
+    if not self._placementMode then
         self.displayFrame:ClearAllPoints()
         self.displayFrame:SetPoint(
             self.db.profile.general.position,
@@ -1811,6 +1882,12 @@ function KeystonePolaris:Refresh()
     -- Update dungeon data with advanced options if enabled
     if self.UpdateDungeonData then self:UpdateDungeonData() end
 
+    -- Hide if text display is disabled
+    if self.db.profile.general.textDisplayEnabled == false and not self._testMode then
+        self.displayFrame:Hide()
+        return
+    end
+
     -- Show/hide based on enabled state
     local leaderEnabled   = self.db.profile.general.rolesEnabled.LEADER
     local isLeader        = UnitIsGroupLeader("player")
@@ -1828,4 +1905,9 @@ function KeystonePolaris:Refresh()
         end
     end
     self.displayFrame:Show()
+
+    -- Re-render test text after Refresh updates font/layout so scenario color is correct
+    if self._testMode and self.RenderTestText then
+        self:RenderTestText()
+    end
 end
