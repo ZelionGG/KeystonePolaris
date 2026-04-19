@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, readdirSync } from "fs";
-import { join, basename } from "path";
+import { join, basename, normalize, relative } from "path";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -66,8 +66,7 @@ interface LocaleReport {
 
 const L_KEY_RE = /^L\["([^"]+)"\]\s*=/;
 const TODO_L_KEY_RE = /^\s*--\s*TODO:\s*L\["([^"]+)"\]\s*=/;
-const DIFF_L_KEY_RE = /^\+\s*L\["([^"]+)"\]\s*=/;
-const COMMENT_RE = /^\s*--/;
+const DIFF_L_KEY_RE = /^\+\s*(?:--\s*TODO:\s*)?L\["([^"]+)"\]\s*=/;
 const TO_TRANSLATE_RE = /--\s*(?:TODO:\s*)?To Translate\s*$/;
 const NO_TRANSLATE_RE = /--\s*@no-translate\s*$/;
 
@@ -126,23 +125,58 @@ function collectContinuationLines(
 
 // ── Diff parser ────────────────────────────────────────────────────────────────
 
-function parseBaseDiff(diffPath: string): Set<string> {
-  // Parse a unified diff of enUS.lua to find keys whose values changed.
-  // We look at added lines (starting with +) that contain L["KEY"] assignments,
-  // since a changed value appears as a removed old line and an added new line.
-  const changedKeys = new Set<string>();
-  const content = readFileSync(diffPath, "utf-8");
-  const lines = content.split("\n");
+function normalizeDiffFilePath(filePath: string): string {
+  return normalize(filePath.replace(/^[ab]\//, "")).replace(/\\/g, "/");
+}
 
-  for (const line of lines) {
-    if (!line.startsWith("+") || line.startsWith("+++")) continue;
-    const match = line.match(DIFF_L_KEY_RE);
-    if (match) {
-      changedKeys.add(match[1]);
+function getDiffLookupPaths(filePath: string): string[] {
+  const absolutePath = normalize(filePath).replace(/\\/g, "/");
+  const relativePath = normalize(relative(process.cwd(), filePath)).replace(/\\/g, "/");
+  return [absolutePath, relativePath, basename(filePath)];
+}
+
+function getChangedKeysForFile(changedKeysByFile: Map<string, Set<string>>, filePath: string): Set<string> {
+  for (const candidate of getDiffLookupPaths(filePath)) {
+    const changedKeys = changedKeysByFile.get(candidate);
+    if (changedKeys) {
+      return changedKeys;
     }
   }
 
-  return changedKeys;
+  return new Set<string>();
+}
+
+function parseDiffByFile(diffPath: string): Map<string, Set<string>> {
+  // Parse a unified diff and collect changed locale keys per file from added lines.
+  // A changed assignment appears as a removed old line and an added new line.
+  const changedKeysByFile = new Map<string, Set<string>>();
+  const content = readFileSync(diffPath, "utf-8");
+  const lines = content.split("\n");
+  let currentFilePath: string | null = null;
+
+  for (const line of lines) {
+    if (line.startsWith("+++ ")) {
+      const rawPath = line.slice(4).trim();
+      currentFilePath = rawPath === "/dev/null" ? null : normalizeDiffFilePath(rawPath);
+      continue;
+    }
+
+    if (!line.startsWith("+") || line.startsWith("+++")) continue;
+    const match = line.match(DIFF_L_KEY_RE);
+    if (!match || !currentFilePath) {
+      continue;
+    }
+
+    let changedKeys = changedKeysByFile.get(currentFilePath);
+    if (!changedKeys) {
+      changedKeys = new Set<string>();
+      changedKeysByFile.set(currentFilePath, changedKeys);
+    }
+
+    changedKeys.add(match[1]);
+  }
+
+  return changedKeysByFile;
 }
 
 // ── Base locale parser ────────────────────────────────────────────────────────
@@ -355,7 +389,8 @@ function generateLocaleFile(
   baseElements: BaseElement[],
   baseEntries: Map<string, BaseEntry>,
   localeEntries: Map<string, LocaleEntry>,
-  changedBaseKeys: Set<string>
+  changedBaseKeys: Set<string>,
+  changedLocaleKeys: Set<string>
 ): { content: string; report: LocaleReport } {
   const outputLines: string[] = [];
   const report: LocaleReport = {
@@ -408,8 +443,8 @@ function generateLocaleFile(
 
     switch (localeEntry.status) {
       case "translated": {
-        // If this key's base value changed in the diff, flag the translation as stale
-        if (changedBaseKeys.has(key)) {
+        // Flag translations as stale only when the base changed and this locale key did not.
+        if (changedBaseKeys.has(key) && !changedLocaleKeys.has(key)) {
           outputLines.push(...formatStaleEntry(localeEntry, baseValue));
           report.staleKeys.push(key);
         } else {
@@ -475,12 +510,13 @@ function main(): void {
     }
     diffPath = next;
   }
-  const changedBaseKeys = diffPath ? parseBaseDiff(diffPath) : new Set<string>();
+  const changedKeysByFile = diffPath ? parseDiffByFile(diffPath) : new Map<string, Set<string>>();
 
-  const fileArgs = args.filter((a, i) => !a.startsWith("--") && i !== diffIdx + 1);
+  const fileArgs = args.filter((a: string, i: number) => !a.startsWith("--") && i !== diffIdx + 1);
 
   const localesDir = join(process.cwd(), "Locales");
   const basePath = join(localesDir, "enUS.lua");
+  const changedBaseKeys = getChangedKeysForFile(changedKeysByFile, basePath);
 
   const { elements: baseElements } = parseBaseLocale(basePath);
   const firstContentElement = findFirstContentElement(baseElements);
@@ -494,15 +530,15 @@ function main(): void {
 
   let localeFiles: string[];
   if (fileArgs.length > 0) {
-    localeFiles = fileArgs.map((f) => {
+    localeFiles = fileArgs.map((f: string) => {
       if (f.includes("/")) return f;
       return join(localesDir, f);
     });
   } else {
     localeFiles = readdirSync(localesDir)
-      .filter((f) => f.endsWith(".lua") && f !== "enUS.lua")
+      .filter((f: string) => f.endsWith(".lua") && f !== "enUS.lua")
       .sort()
-      .map((f) => join(localesDir, f));
+      .map((f: string) => join(localesDir, f));
   }
 
   const reports: LocaleReport[] = [];
@@ -510,6 +546,7 @@ function main(): void {
   for (const filePath of localeFiles) {
     const localeCode = basename(filePath, ".lua");
     const { header, introLines, entries } = parseLocale(filePath, baseEntries, firstContentElement);
+    const changedLocaleKeys = getChangedKeysForFile(changedKeysByFile, filePath);
 
     const { content, report } = generateLocaleFile(
       localeCode,
@@ -518,7 +555,8 @@ function main(): void {
       baseElements,
       baseEntries,
       entries,
-      changedBaseKeys
+      changedBaseKeys,
+      changedLocaleKeys
     );
 
     reports.push(report);
