@@ -48,8 +48,8 @@ function KeystonePolaris:GenerateChangelog()
         string = self:CreateColorString(string, {r = 0.4, g = 0.6, b = 1.0})
         return string
     end
-    local function renderChangelogLine(line)
-        line = gsub(line, "%[[^%[]+%]", orange)
+    local function renderChangelogLine(line, colorFunc)
+        line = gsub(line, "%[[^%[]+%]", colorFunc)
         return line
     end
 
@@ -206,7 +206,7 @@ function KeystonePolaris:GenerateChangelog()
                         local text = ""
                         for index, line in ipairs(important_localized) do
                             text = text .. index .. ". " ..
-                                       renderChangelogLine(line) .. "\n"
+                                       renderChangelogLine(line, orange) .. "\n"
                         end
                         return text .. "\n"
                     end,
@@ -236,7 +236,7 @@ function KeystonePolaris:GenerateChangelog()
                         local text = ""
                         for index, line in ipairs(new_localized) do
                             text = text .. index .. ". " ..
-                                       renderChangelogLine(line) .. "\n"
+                                       renderChangelogLine(line, orange) .. "\n"
                         end
                         return text .. "\n"
                     end,
@@ -266,7 +266,7 @@ function KeystonePolaris:GenerateChangelog()
                         local text = ""
                         for index, line in ipairs(bugfix_localized) do
                             text = text .. index .. ". " ..
-                                       renderChangelogLine(line) .. "\n"
+                                       renderChangelogLine(line, orange) .. "\n"
                         end
                         return text .. "\n"
                     end,
@@ -296,7 +296,7 @@ function KeystonePolaris:GenerateChangelog()
                         local text = ""
                         for index, line in ipairs(improvment_localized) do
                             text = text .. index .. ". " ..
-                                       renderChangelogLine(line) .. "\n"
+                                       renderChangelogLine(line, orange) .. "\n"
                         end
                         return text .. "\n"
                     end,

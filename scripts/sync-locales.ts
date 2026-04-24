@@ -90,12 +90,16 @@ function isLineContinuation(line: string): boolean {
   return /\.\.\s*$/.test(line.trimEnd());
 }
 
-function readLines(filePath: string): string[] {
-  const lines = readFileSync(filePath, "utf-8").split("\n");
+function splitNormalizedLines(content: string): string[] {
+  const lines = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
   if (lines.length > 0 && lines[lines.length - 1] === "") {
     lines.pop();
   }
   return lines;
+}
+
+function readLines(filePath: string): string[] {
+  return splitNormalizedLines(readFileSync(filePath, "utf-8"));
 }
 
 function trimTrailingBlankLines(lines: string[]): string[] {
@@ -151,7 +155,7 @@ function parseDiffByFile(diffPath: string): Map<string, Set<string>> {
   // A changed assignment appears as a removed old line and an added new line.
   const changedKeysByFile = new Map<string, Set<string>>();
   const content = readFileSync(diffPath, "utf-8");
-  const lines = content.split("\n");
+  const lines = splitNormalizedLines(content);
   let currentFilePath: string | null = null;
 
   for (const line of lines) {
