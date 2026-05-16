@@ -19,6 +19,11 @@ L["COMPATIBILITY_WARNING_MESSAGE"] = "|cffff0000В настоящее время
                                 "|cff8888ff• Прогнозируемые значения|r\n\n" ..
                                 "|cff8888ffЭти функции будут повторно включены после того, как Blizzard выпустит новый API для Mythic+. В настоящее время точная дата этого пока неизвестна.|r\n\n" ..
                                 "Все остальные функции должны оставаться доступными. Приносим извинения за неудобства.\n"
+L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000В настоящее время некоторые функции в 'Полночи' отключены из-за ограничений API:|r\n\n" ..
+                                "|cff8888ff• Текущее отслеживание пуллов|r\n" ..
+                                "|cff8888ff• Прогнозируемые значения|r\n\n" ..
+                                "|cff8888ffЭти функции будут повторно включены после того, как Blizzard выпустит новый API для Mythic+. В настоящее время точная дата этого пока неизвестна.|r\n\n" ..
+                                "Все остальные функции должны оставаться доступными. Приносим извинения за неудобства.\n" -- TODO: "|cffff0000Some features are disabled on Midnight for now due to API restrictions:|r\n\n|cff8888ff• Current pull tracking|r\n|cff8888ff• Projected values|r\n\n|cff8888ffThese features will be re-enabled once Blizzard releases the new Mythic+ API. There is currently no ETA for this.|r\n\nAll other features should remain available, sorry for the inconvenience.\n"
 
 -- Dungeons Group
 L["DUNGEONS"] = "Подземелья"
@@ -168,9 +173,9 @@ L["DONATE"] = "Пожертвование"
 L["DONATE_DESC"] = "Хотите поддержать разработку Keystone Polaris? Используйте одну из кнопок ниже, чтобы скопировать ссылку для пожертвования."
 L["SUPPORT"] = "Поддержка"
 L["SUPPORT_DESC"] = "Хотите помочь в поддержке разработки Keystone Polaris? Используйте одну из кнопок ниже, чтобы скопировать ссылку для поддержки."
-L["GITHUB_SPONSORS"] = "GitHub Sponsors"
+-- TODO: L["GITHUB_SPONSORS"] = "GitHub Sponsors"
 L["GITHUB_SPONSORS_DESC"] = "Скопировать ссылку GitHub Sponsors."
-L["PAYPAL"] = "PayPal"
+-- TODO: L["PAYPAL"] = "PayPal"
 L["PAYPAL_DESC"] = "Скопировать ссылку для пожертвования через PayPal."
 
 -- Test Mode
@@ -269,8 +274,9 @@ L["MOB_PERCENTAGE_POSITION"] = "Положение"
 L["MOB_PERCENTAGE_POSITION_DESC"] = "Установить положение процентного текста относительно индикаторов здоровья."
 L["RIGHT"] = "Право"
 L["LEFT"] = "Лево"
-L["MDT_WARNING"] = "Для этой функции требуется установленный аддон Mythic Dungeon Tools (MDT)."
-L["MDT_FOUND"] = "Найден Mythic Dungeon Tools. Проценты мобов будут использовать данные MDT."
+L["MOB_PERCENTAGES_API_WARNING"] = "Для работы этой функции требуется API отслеживания прогресса юнитов в M+ от Blizzard, доступный в WoW 12.0.5 и выше."
+L["MOB_PERCENTAGES_API_FOUND"] = "API прогресса юнитов для M+ от Blizzard доступен. Процентное соотношение мобов будет определяться на основе данных подземелья в реальном времени."
+L["MOB_PERCENTAGES_API_UNAVAILABLE"] = "Проценты мобов недоступны в этом клиенте, так как отсутствует API прогресса юнитов для M+ от Blizzard."
 L["MDT_LOADED"] = "Mythic Dungeon Tools успешно загружен."
 L["MDT_NOT_FOUND"] = "Mythic Dungeon Tools не найден. Проценты мобов не будут отображаться. Для работы этой функции требуется MDT."
 L["MDT_INTEGRATION"] = "Интеграция MDT"

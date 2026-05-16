@@ -5,6 +5,7 @@
     "moduleResolution": "nodenext",
     "strict": true,
     "noEmit": true,
+    "types": ["node"],
     "skipLibCheck": true
   },
   "include": ["scripts/**/*.ts"]

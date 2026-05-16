@@ -19,6 +19,11 @@ L["COMPATIBILITY_WARNING_MESSAGE"] = "|cffff0000Algumas funcionalidades estão d
                                 "|cff8888ff• Valores projetados|r\n\n" ..
                                 "|cff8888ffEstas funcionalidades serão reabilitadas quando a Blizzard lançar a nova API do Mythic+. Atualmente não há uma data prevista para isso.|r\n\n" ..
                                 "Todas as outras funcionalidades devem permanecer disponíveis, desculpe pelo inconveniente.\n"
+L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000Algumas funcionalidades estão desabilitadas no Midnight por causa das restrições da API:|r\n\n" ..
+                                "|cff8888ff• Rastreamento de pulls atuais|r\n" ..
+                                "|cff8888ff• Valores projetados|r\n\n" ..
+                                "|cff8888ffEstas funcionalidades serão reabilitadas quando a Blizzard lançar a nova API do Mythic+. Atualmente não há uma data prevista para isso.|r\n\n" ..
+                                "Todas as outras funcionalidades devem permanecer disponíveis, desculpe pelo inconveniente.\n" -- TODO: "|cffff0000Some features are disabled on Midnight for now due to API restrictions:|r\n\n|cff8888ff• Current pull tracking|r\n|cff8888ff• Projected values|r\n\n|cff8888ffThese features will be re-enabled once Blizzard releases the new Mythic+ API. There is currently no ETA for this.|r\n\nAll other features should remain available, sorry for the inconvenience.\n"
 
 -- Dungeons Group
 L["DUNGEONS"] = "Temporada Atual"
@@ -269,8 +274,9 @@ L["MOB_PERCENTAGE_POSITION"] = "Posição"
 L["MOB_PERCENTAGE_POSITION_DESC"] = "Definir a posição do texto de percentual relativo à nameplate"
 L["RIGHT"] = "Direita"
 L["LEFT"] = "Esquerda"
-L["MDT_WARNING"] = "Esta funcionalidade requer o addon Mythic Dungeon Tools (MDT) instalado."
-L["MDT_FOUND"] = "Mythic Dungeon Tools encontrado. Percentagens de mobs usarão dados do MDT."
+-- TODO: L["MOB_PERCENTAGES_API_WARNING"] = "This feature requires Blizzard's Mythic+ unit progress API, available in WoW 12.0.5+."
+-- TODO: L["MOB_PERCENTAGES_API_FOUND"] = "Blizzard's Mythic+ unit progress API is available. Mob percentages will use live scenario data."
+-- TODO: L["MOB_PERCENTAGES_API_UNAVAILABLE"] = "Mob percentages are unavailable on this client because Blizzard's Mythic+ unit progress API is missing."
 L["MDT_LOADED"] = "Mythic Dungeon Tools carregado com sucesso."
 L["MDT_NOT_FOUND"] = "Mythic Dungeon Tools não encontrado. Percentagens de mobs não serão exibidas. Por favor, instale o MDT para que esta funcionalidade funcione."
 L["MDT_INTEGRATION"] = "Integração MDT"

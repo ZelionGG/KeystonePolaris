@@ -160,25 +160,29 @@ function KeystonePolaris:EnsureInformSecureButton(macroText)
 
         btn:Hide()
         self.informSecureButton = btn
+        btn:ClearAllPoints()
+        if self.displayFrame then
+            btn:SetPoint("TOP", self.displayFrame, "BOTTOM", 0, -6)
+        else
+            btn:SetPoint("CENTER")
+        end
         if self.UpdateInformButtonFrameLayer then
             self:UpdateInformButtonFrameLayer()
         end
     end
 
     local btn = self.informSecureButton
-    btn:ClearAllPoints()
-    if self.displayFrame then
-        btn:SetPoint("TOP", self.displayFrame, "BOTTOM", 0, -6)
-    else
-        btn:SetPoint("CENTER")
-    end
-    if self.UpdateInformButtonFrameLayer then
-        self:UpdateInformButtonFrameLayer()
-    end
 
     if macroText then
-        btn:SetAttribute("type", "macro")
-        btn:SetAttribute("macrotext", macroText)
+        if InCombatLockdown() then
+            self._pendingInformMacro = macroText
+            if self.EnsureInformWatcher then
+                self:EnsureInformWatcher()
+            end
+        else
+            btn:SetAttribute("type", "macro")
+            btn:SetAttribute("macrotext", macroText)
+        end
     end
 end
 
@@ -225,6 +229,12 @@ function KeystonePolaris:EnsureInformWatcher()
         if self._pendingInformMouseEnabled ~= nil and self.informSecureButton and not InCombatLockdown() then
             self.informSecureButton:EnableMouse(self._pendingInformMouseEnabled)
             self._pendingInformMouseEnabled = nil
+        end
+
+        if self._pendingInformMacro and self.informSecureButton and not InCombatLockdown() then
+            self.informSecureButton:SetAttribute("type", "macro")
+            self.informSecureButton:SetAttribute("macrotext", self._pendingInformMacro)
+            self._pendingInformMacro = nil
         end
     end)
 
@@ -342,9 +352,7 @@ function KeystonePolaris:PrepareInformMacro(message)
     else
         btn:EnableMouse(true) -- IMPORTANT
     end
-    btn:Hide() -- Will be shown only when conditions are met in UpdatePercentageText
-    -- Reset cooldown until click
-    btn.cooldownEndTime = nil
+    self:ApplyInformVisibility(false)
 end
 
 

@@ -19,6 +19,11 @@ L["COMPATIBILITY_WARNING_MESSAGE"] = "|cffff0000Certains fonctionnalités sont d
                                 "|cff8888ff• Valeurs projetées|r\n\n" ..
                                 "|cff8888ffCes fonctionnalités seront réactivées une fois que Blizzard aura sorti la nouvelle API Mythique+. Il n'y a actuellement pas de date de sortie connue.|r\n\n" ..
                                 "Toutes les autres fonctionnalités devraient rester disponibles, désolé pour le désagrément.\n"
+L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000Certains fonctionnalités sont désactivées sur Midnight en raison des restrictions de l'API:|r\n\n" ..
+                                "|cff8888ff• Suivi du pourcentage du pull actuel|r\n" ..
+                                "|cff8888ff• Valeurs projetées|r\n\n" ..
+                                "|cff8888ffCes fonctionnalités seront réactivées une fois que Blizzard aura sorti la nouvelle API Mythique+. Il n'y a actuellement pas de date de sortie connue.|r\n\n" ..
+                                "Toutes les autres fonctionnalités devraient rester disponibles, désolé pour le désagrément.\n" -- TODO: "|cffff0000Some features are disabled on Midnight for now due to API restrictions:|r\n\n|cff8888ff• Current pull tracking|r\n|cff8888ff• Projected values|r\n\n|cff8888ffThese features will be re-enabled once Blizzard releases the new Mythic+ API. There is currently no ETA for this.|r\n\nAll other features should remain available, sorry for the inconvenience.\n"
 
 -- Dungeons Group
 L["DUNGEONS"] = "Donjons"
@@ -262,15 +267,16 @@ L["MOB_INDICATOR_INFO"] = "• |cff00ff00Indicateurs des monstres|r: Ajoute des 
 -- Mob Percentages
 L["MOB_PERCENTAGES"] = "Pourcentage des monstres"
 L["ENABLE_MOB_PERCENTAGES"] = "Activer les pourcentages des monstres"
-L["ENABLE_MOB_PERCENTAGES_DESC"] = "Affiche le pourcentage de contribution de chaque monstre dans les donjons Mythique+"
+L["ENABLE_MOB_PERCENTAGES_DESC"] = "Affiche la contribution en forces ennemies de chaque monstre sur les barres de nom en Mythique+"
 L["MOB_PERCENTAGE_FONT_SIZE"] = "Taille de la police"
 L["MOB_PERCENTAGE_FONT_SIZE_DESC"] = "Taille de la police des pourcentages des monstres"
 L["MOB_PERCENTAGE_POSITION"] = "Position" -- @no-translate
 L["MOB_PERCENTAGE_POSITION_DESC"] = "Position des pourcentages des monstres par rapport aux barres d'informations"
 L["RIGHT"] = "Droite"
 L["LEFT"] = "Gauche"
-L["MDT_WARNING"] = "Cette fonctionnalité nécessite l'installation de l'addon Mythic Dungeon Tools (MDT)."
-L["MDT_FOUND"] = "Mythic Dungeon Tools trouvé. Les pourcentages des monstres utiliseront les données de MDT."
+L["MOB_PERCENTAGES_API_WARNING"] = "Cette fonctionnalité nécessite la nouvelle API Mythique+ de Blizzard, disponible à partir de WoW 12.0.5."
+L["MOB_PERCENTAGES_API_FOUND"] = "La nouvelle API Mythique+ de Blizzard est disponible. Les pourcentages des monstres utilisent les données du jeu."
+L["MOB_PERCENTAGES_API_UNAVAILABLE"] = "Les pourcentages des monstres ne sont pas disponibles sur ce client car l'API Mythique+ de Blizzard est absente."
 L["MDT_LOADED"] = "Mythic Dungeon Tools chargé avec succès."
 L["MDT_NOT_FOUND"] = "Mythic Dungeon Tools non trouvé. Les pourcentages des monstres ne seront pas affichés. Veuillez installer MDT pour que cette fonctionnalité fonctionne."
 L["MDT_INTEGRATION"] = "Intégration MDT"

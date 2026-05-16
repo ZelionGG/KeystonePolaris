@@ -19,6 +19,11 @@ if not L then return end
 -- TODO:                                 "|cff8888ff• Projected values|r\n\n" ..
 -- TODO:                                 "|cff8888ffThese features will be re-enabled once Blizzard releases the new Mythic+ API. There is currently no ETA for this.|r\n\n" ..
 -- TODO:                                 "All other features should remain available, sorry for the inconvenience.\n"
+-- TODO: L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000Some features are disabled on Midnight for now due to API restrictions:|r\n\n" ..
+-- TODO:                                 "|cff8888ff• Current pull tracking|r\n" ..
+-- TODO:                                 "|cff8888ff• Projected values|r\n\n" ..
+-- TODO:                                 "|cff8888ffThese features will be re-enabled once Blizzard releases the new Mythic+ API. There is currently no ETA for this.|r\n\n" ..
+-- TODO:                                 "All other features should remain available, sorry for the inconvenience.\n"
 
 -- Dungeons Group
 L["DUNGEONS"] = "Dungeons"
@@ -269,8 +274,9 @@ L["MOB_PERCENTAGE_FONT_SIZE_DESC"] = "Legt die Textgröße für die Gegner-Proze
 L["MOB_PERCENTAGE_POSITION_DESC"] = "Legt die Position des Prozenttextes relativ zur Namensplakette fest"
 L["RIGHT"] = "Rechts"
 L["LEFT"] = "Links"
-L["MDT_WARNING"] = "Für diese Funktion muss das Addon Mythic Dungeon Tools (MDT) installiert sein."
-L["MDT_FOUND"] = "Mythic Dungeon Tools gefunden. Gegner-Prozente verwenden nun MDT-Daten."
+-- TODO: L["MOB_PERCENTAGES_API_WARNING"] = "This feature requires Blizzard's Mythic+ unit progress API, available in WoW 12.0.5+."
+-- TODO: L["MOB_PERCENTAGES_API_FOUND"] = "Blizzard's Mythic+ unit progress API is available. Mob percentages will use live scenario data."
+-- TODO: L["MOB_PERCENTAGES_API_UNAVAILABLE"] = "Mob percentages are unavailable on this client because Blizzard's Mythic+ unit progress API is missing."
 L["MDT_LOADED"] = "Mythic Dungeon Tools erfolgreich geladen."
 L["MDT_NOT_FOUND"] = "Mythic Dungeon Tools nicht gefunden. Gegner-Prozente werden nicht angezeigt. Bitte MDT installieren, damit diese Funktion funktioniert."
 L["MDT_INTEGRATION"] = "MDT-Integration"

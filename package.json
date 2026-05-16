@@ -1,6 +1,8 @@
 {
   "private": true,
   "scripts": {
+    "generate-changelog-md": "tsx scripts/generate-changelog-md.ts",
+    "generate-changelog-xml": "tsx scripts/generate-changelog-xml.ts",
     "sync-locales": "tsx scripts/sync-locales.ts",
     "update-localization-issue": "tsx scripts/update-localization-issue.ts",
     "prepare": "git config core.hooksPath .githooks"
