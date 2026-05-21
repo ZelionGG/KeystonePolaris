@@ -1684,7 +1684,7 @@ function KeystonePolaris:GetProgressBarOptions()
                     },
                     colorOverrideHeader = {
                         type = "header",
-                        name = "",
+                        name = L["COLORS"],
                         order = 3,
                     },
                     useGradient = {
@@ -1703,6 +1703,7 @@ function KeystonePolaris:GetProgressBarOptions()
                     gradientColorRow = ColumnRow(3.6, {
                         name = L["PROGRESS_BAR_GRADIENT_START_COLOR"],
                         type = "color",
+                        width = 1,
                         hasAlpha = true,
                         hidden = function() return not self.db.profile.progressBar.useGradient end,
                         get = function()
@@ -1716,6 +1717,7 @@ function KeystonePolaris:GetProgressBarOptions()
                     }, {
                         name = L["PROGRESS_BAR_GRADIENT_END_COLOR"],
                         type = "color",
+                        width = 1,
                         hasAlpha = true,
                         hidden = function() return not self.db.profile.progressBar.useGradient end,
                         get = function()
