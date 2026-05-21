@@ -5,6 +5,7 @@ local pairs, select = pairs, select
 local format = string.format
 local gsub = string.gsub
 local strsplit = strsplit
+local HideUIPanel = _G.HideUIPanel
 local AceGUIWidgetLSMlists = _G.AceGUIWidgetLSMlists
 local CALENDAR_WEEKDAY_NAMES = _G.CALENDAR_WEEKDAY_NAMES
 
@@ -18,32 +19,49 @@ KeystonePolaris.mdtFeaturesEnabled = MDT_FEATURES_ENABLED
 
 -- Shared preview scenario index (persists across Display and Appearance pages)
 KeystonePolaris._previewScenario = 1
+
 local function PreviewScenarioValues()
     local scenarios = KeystonePolaris.PreviewScenarios
     if not scenarios then return {} end
     local vals = {}
     for i, s in ipairs(scenarios) do
-        vals[i] = s.name
+        if not s.requiresMDT or KeystonePolaris.mdtFeaturesEnabled then
+            vals[i] = s.name
+        end
     end
     return vals
 end
 
-local function PreviewScenarioDropdown(order)
+local function PreviewGroup(order)
     return {
-        name = L["PREVIEW_SCENARIO"],
-        type = "select",
+        type = "group",
+        inline = true,
+        name = "",
         order = order,
-        width = "full",
-        values = PreviewScenarioValues,
-        get = function() return KeystonePolaris._previewScenario or 1 end,
-        set = function(_, value)
-            KeystonePolaris._previewScenario = value
-            KeystonePolaris._testScenario = value
-            if KeystonePolaris.UpdatePercentageText then KeystonePolaris:UpdatePercentageText() end
-            if KeystonePolaris._progressBarPreview and KeystonePolaris.EnableProgressBarPreview then
-                KeystonePolaris:EnableProgressBarPreview()
-            end
-        end,
+        args = {
+            previewScenario = {
+                name = L["PREVIEW_SCENARIO"],
+                type = "select",
+                order = 1,
+                width = "full",
+                values = PreviewScenarioValues,
+                get = function() return KeystonePolaris._previewScenario or 1 end,
+                set = function(_, value)
+                    KeystonePolaris._previewScenario = value
+                    ACR:NotifyChange(AddOnName)
+                end,
+            },
+            preview = {
+                name = "",
+                type = "select",
+                dialogControl = "KeystonePolaris_Preview",
+                order = 2,
+                width = "full",
+                values = PreviewScenarioValues,
+                get = function() return KeystonePolaris._previewScenario or 1 end,
+                set = function() end,
+            },
+        },
     }
 end
 
@@ -76,8 +94,10 @@ local function MakeStatusColorOption(name, desc, colorKey, self, order)
         set = function(_, r, g, b, a)
             self.db.profile.color[colorKey] = { r = r, g = g, b = b, a = a }
             if self.UpdateColorCache then self:UpdateColorCache() end
-            self:Refresh()
             if self.UpdatePercentageText then self:UpdatePercentageText() end
+            self:Refresh()
+            local pw = self._previewWidget
+            if pw and pw.RefreshPreview then pw:RefreshPreview() end
         end
     }
 end
@@ -142,7 +162,6 @@ end
 KeystonePolaris.defaults = {
     profile = {
         general = {
-            textDisplayEnabled = true,
             fontSize = 12,
             textOpacity = 1,
             position = "CENTER",
@@ -190,32 +209,7 @@ KeystonePolaris.defaults = {
             missing = {r = 1, g = 0, b = 0, a = 1},
             prefix = {r = 1, g = 0.7960784, b = 0.2, a = 1}
         },
-        advanced = {},
-        progressBar = {
-            enabled = false,
-            width = 250,
-            height = 20,
-            position = "CENTER",
-            xOffset = 0,
-            yOffset = 0,
-            direction = "LEFT_TO_RIGHT",
-            barTexture = "Blizzard Raid Bar",
-            overrideColors = false,
-            completedColor = { r = 0, g = 1, b = 0, a = 1 },
-            inProgressColor = { r = 1, g = 1, b = 1, a = 1 },
-            missingColor = { r = 1, g = 0, b = 0, a = 1 },
-            backgroundColor = { r = 0, g = 0, b = 0, a = 0.7 },
-            borderStyle = "SOLID",
-            borderTexture = "Blizzard Dialog Gold",
-            borderColor = { r = 0, g = 0, b = 0, a = 1 },
-            borderSize = 2,
-            borderInsets = 1,
-            tickColor = { r = 1, g = 1, b = 1, a = 1 },
-            tickWidth = 2,
-            tickOverflow = 2,
-            showCallout = false,
-            calloutPosition = "ABOVE",
-        },
+        advanced = {}
     }
 }
 
@@ -242,39 +236,9 @@ function KeystonePolaris:GetPositioningOptions()
         type = "group",
         order = 3,
         args = {
-            enabledRow = ColumnRow(1, {
-                name = L["TEXT_DISPLAY_ENABLED"],
-                desc = L["TEXT_DISPLAY_ENABLED_DESC"],
-                type = "toggle",
-                width = 1.5,
-                get = function() return self.db.profile.general.textDisplayEnabled end,
-                set = function(_, value)
-                    self.db.profile.general.textDisplayEnabled = value
-                    if self.displayFrame then
-                        if value then
-                            self.displayFrame:Show()
-                        else
-                            self.displayFrame:Hide()
-                        end
-                    end
-                end,
-            }, {
-                name = L["SHOW_ANCHOR"],
-                type = "execute",
-                width = 1,
-                func = function()
-                    self:EnterPlacementMode()
-                end
-            }),
-            enabledHeader = {
-                type = "header",
-                name = "",
-                order = 1.5,
-            },
-            position = {
+            positionRow = ColumnRow(2, {
                 name = L["POSITION"],
                 type = "select",
-                order = 2,
                 sorting = { "TOP", "CENTER", "BOTTOM" },
                 values = {
                     TOP = L["TOP"],
@@ -290,7 +254,14 @@ function KeystonePolaris:GetPositioningOptions()
                     self.db.profile.general.yOffset = 0
                     self:Refresh()
                 end
-            },
+            }, {
+                name = L["SHOW_ANCHOR"],
+                type = "execute",
+                func = function()
+                    HideUIPanel(SettingsPanel)
+                    self:EnterPositioningMode()
+                end
+            }),
             offsetRow = ColumnRow(3, {
                 name = L["X_OFFSET"],
                 type = "range",
@@ -372,7 +343,7 @@ function KeystonePolaris:GetAppearanceOptions()
         type = "group",
         order = 2,
         args = {
-            previewScenario = PreviewScenarioDropdown(0.01),
+            previewGroup = PreviewGroup(0.01),
             fontRow = ColumnRow(1, {
                 name = L["FONT"],
                 type = "select",
@@ -503,6 +474,7 @@ function KeystonePolaris:GetDisplayOptions()
         type = "group",
         order = 1,
         args = {
+            previewGroup = PreviewGroup(0.01),
             formatMode = {
                 name = L["FORMAT_MODE"],
                 desc = L["FORMAT_MODE_DESC"],
@@ -712,7 +684,7 @@ function KeystonePolaris:GetInformGroupOptions()
     return {
         name = L["INFORM_GROUP"],
         type = "group",
-        order = 3,
+        order = 4,
         args = {
             informRow = ColumnRow(1, {
                 name = L["SHOW_INFORM_GROUP_BUTTON"],
@@ -794,7 +766,7 @@ function KeystonePolaris:GetInterfaceOptions()
     return {
         name = L["INTERFACE"],
         type = "group",
-        order = 4,
+        order = 5,
         args = {
             iconsRow = ColumnRow(1, {
                 type = "toggle",
@@ -1473,352 +1445,8 @@ function KeystonePolaris:GetAdvancedOptions()
         name = L["ADVANCED_SETTINGS"],
         type = "group",
         childGroups = "tree",
-        order = 5,
-        args = args
-    }
-end
-
-function KeystonePolaris:GetProgressBarOptions()
-    return {
-        name = L["PROGRESS_BAR"],
-        type = "group",
         order = 2,
-        childGroups = "tree",
-        args = {
-            positioning = {
-                name = L["POSITIONING"],
-                type = "group",
-                order = 2,
-                args = {
-                    enabledRow = ColumnRow(1, {
-                        name = L["PROGRESS_BAR_ENABLED"],
-                        desc = L["PROGRESS_BAR_ENABLED_DESC"],
-                        type = "toggle",
-                        width = 1.5,
-                        get = function() return self.db.profile.progressBar.enabled end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.enabled = value
-                            if self.UpdateProgressBar then self:UpdateProgressBar() end
-                        end,
-                    }, {
-                        name = L["PROGRESS_BAR_SHOW_ANCHOR"],
-                        type = "execute",
-                        width = 1,
-                        func = function()
-                            if self.EnterPlacementMode then
-                                self:EnterPlacementMode()
-                            end
-                        end,
-                    }),
-                    sizeHeader = {
-                        type = "header",
-                        name = "",
-                        order = 2,
-                    },
-                    widthRow = ColumnRow(3, {
-                        name = L["PROGRESS_BAR_WIDTH"],
-                        type = "range",
-                        min = 50, max = 800, step = 1,
-                        get = function() return self.db.profile.progressBar.width end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.width = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }, {
-                        name = L["PROGRESS_BAR_HEIGHT"],
-                        type = "range",
-                        min = 8, max = 60, step = 1,
-                        get = function() return self.db.profile.progressBar.height end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.height = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }),
-                    offsetRow = ColumnRow(4, {
-                        name = L["X_OFFSET"],
-                        type = "range",
-                        min = -math.ceil(GetScreenWidth()),
-                        max = math.ceil(GetScreenWidth()),
-                        step = 1,
-                        get = function() return self.db.profile.progressBar.xOffset end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.xOffset = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }, {
-                        name = L["Y_OFFSET"],
-                        type = "range",
-                        min = -math.ceil(GetScreenHeight()),
-                        max = math.ceil(GetScreenHeight()),
-                        step = 1,
-                        get = function() return self.db.profile.progressBar.yOffset end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.yOffset = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }),
-                    directionHeader = {
-                        type = "header",
-                        name = "",
-                        order = 5,
-                    },
-                    direction = {
-                        name = L["PROGRESS_BAR_DIRECTION"],
-                        type = "select",
-                        order = 6,
-                        values = {
-                            LEFT_TO_RIGHT = L["PROGRESS_BAR_DIRECTION_LTR"],
-                            RIGHT_TO_LEFT = L["PROGRESS_BAR_DIRECTION_RTL"],
-                        },
-                        get = function() return self.db.profile.progressBar.direction end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.direction = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    },
-                },
-            },
-            appearance = {
-                name = L["APPEARANCE"],
-                type = "group",
-                order = 1,
-                args = {
-                    previewScenario = PreviewScenarioDropdown(0.01),
-                    textureRow = ColumnRow(1, {
-                        name = L["PROGRESS_BAR_TEXTURE"],
-                        type = "select",
-                        dialogControl = "LSM30_Statusbar",
-                        values = AceGUIWidgetLSMlists.statusbar,
-                        style = "dropdown",
-                        width = 1.5,
-                        get = function() return self.db.profile.progressBar.barTexture end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.barTexture = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }, {
-                        name = L["PROGRESS_BAR_BG_ALPHA"],
-                        type = "range",
-                        min = 0, max = 1, step = 0.05,
-                        isPercent = true,
-                        width = 1,
-                        get = function() return self.db.profile.progressBar.backgroundColor.a or 0.7 end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.backgroundColor.a = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }),
-                    bgColor = {
-                        name = L["PROGRESS_BAR_BG_COLOR"],
-                        type = "color",
-                        hasAlpha = false,
-                        order = 2,
-                        width = 1.25,
-                        get = function()
-                            local c = self.db.profile.progressBar.backgroundColor
-                            return c.r, c.g, c.b
-                        end,
-                        set = function(_, r, g, b)
-                            local alpha = self.db.profile.progressBar.backgroundColor.a or 0.7
-                            self.db.profile.progressBar.backgroundColor = { r = r, g = g, b = b, a = alpha }
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    },
-                    colorOverrideHeader = {
-                        type = "header",
-                        name = "",
-                        order = 3,
-                    },
-                    overrideColors = {
-                        name = L["PROGRESS_BAR_OVERRIDE_COLORS"],
-                        desc = L["PROGRESS_BAR_OVERRIDE_COLORS_DESC"],
-                        type = "toggle",
-                        order = 4,
-                        width = "full",
-                        get = function() return self.db.profile.progressBar.overrideColors end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.overrideColors = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                            ACR:NotifyChange(AddOnName)
-                        end,
-                    },
-                    overrideColorRow = ColumnRow(5, {
-                        name = L["PROGRESS_BAR_COMPLETED_COLOR"],
-                        type = "color",
-                        hasAlpha = true,
-                        hidden = function() return not self.db.profile.progressBar.overrideColors end,
-                        get = function()
-                            local c = self.db.profile.progressBar.completedColor
-                            return c.r, c.g, c.b, c.a
-                        end,
-                        set = function(_, r, g, b, a)
-                            self.db.profile.progressBar.completedColor = { r = r, g = g, b = b, a = a }
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }, {
-                        name = L["PROGRESS_BAR_IN_PROGRESS_COLOR"],
-                        type = "color",
-                        hasAlpha = true,
-                        hidden = function() return not self.db.profile.progressBar.overrideColors end,
-                        get = function()
-                            local c = self.db.profile.progressBar.inProgressColor
-                            return c.r, c.g, c.b, c.a
-                        end,
-                        set = function(_, r, g, b, a)
-                            self.db.profile.progressBar.inProgressColor = { r = r, g = g, b = b, a = a }
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }),
-                    missingColor = {
-                        name = L["PROGRESS_BAR_MISSING_COLOR"],
-                        type = "color",
-                        hasAlpha = true,
-                        order = 6,
-                        hidden = function() return not self.db.profile.progressBar.overrideColors end,
-                        get = function()
-                            local c = self.db.profile.progressBar.missingColor
-                            return c.r, c.g, c.b, c.a
-                        end,
-                        set = function(_, r, g, b, a)
-                            self.db.profile.progressBar.missingColor = { r = r, g = g, b = b, a = a }
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    },
-                    borderHeader = {
-                        type = "header",
-                        name = "",
-                        order = 7,
-                    },
-                    borderStyleRow = ColumnRow(8, {
-                        name = L["PROGRESS_BAR_BORDER_STYLE"],
-                        type = "select",
-                        values = {
-                            NONE = L["PROGRESS_BAR_BORDER_NONE"],
-                            SOLID = L["PROGRESS_BAR_BORDER_SOLID"],
-                            LSM_BORDER = L["PROGRESS_BAR_BORDER_LSM"],
-                        },
-                        get = function() return self.db.profile.progressBar.borderStyle end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.borderStyle = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                            ACR:NotifyChange(AddOnName)
-                        end,
-                    }, {
-                        name = L["PROGRESS_BAR_BORDER_TEXTURE"],
-                        type = "select",
-                        dialogControl = "LSM30_Border",
-                        values = AceGUIWidgetLSMlists.border,
-                        style = "dropdown",
-                        hidden = function() return self.db.profile.progressBar.borderStyle ~= "LSM_BORDER" end,
-                        get = function() return self.db.profile.progressBar.borderTexture end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.borderTexture = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }),
-                    borderDetailRow = ColumnRow(9, {
-                        name = L["PROGRESS_BAR_BORDER_COLOR"],
-                        type = "color",
-                        hasAlpha = true,
-                        width = 1,
-                        hidden = function() return self.db.profile.progressBar.borderStyle == "NONE" end,
-                        get = function()
-                            local c = self.db.profile.progressBar.borderColor
-                            return c.r, c.g, c.b, c.a
-                        end,
-                        set = function(_, r, g, b, a)
-                            self.db.profile.progressBar.borderColor = { r = r, g = g, b = b, a = a }
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }, {
-                        name = L["PROGRESS_BAR_BORDER_SIZE"],
-                        type = "range",
-                        min = 1, max = 16, step = 1,
-                        width = 1,
-                        hidden = function() return self.db.profile.progressBar.borderStyle == "NONE" end,
-                        get = function() return self.db.profile.progressBar.borderSize end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.borderSize = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }),
-                    tickHeader = {
-                        type = "header",
-                        name = "",
-                        order = 10,
-                    },
-                    tickColorRow = ColumnRow(11, {
-                        name = L["PROGRESS_BAR_TICK_COLOR"],
-                        type = "color",
-                        hasAlpha = true,
-                        width = 1.25,
-                        get = function()
-                            local c = self.db.profile.progressBar.tickColor
-                            return c.r, c.g, c.b, c.a
-                        end,
-                        set = function(_, r, g, b, a)
-                            self.db.profile.progressBar.tickColor = { r = r, g = g, b = b, a = a }
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }, {
-                        name = L["PROGRESS_BAR_TICK_WIDTH"],
-                        type = "range",
-                        min = 1, max = 4, step = 1,
-                        width = 1,
-                        get = function() return self.db.profile.progressBar.tickWidth end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.tickWidth = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    }),
-                    tickOverflow = {
-                        name = L["PROGRESS_BAR_TICK_OVERFLOW"],
-                        desc = L["PROGRESS_BAR_TICK_OVERFLOW_DESC"],
-                        type = "range",
-                        order = 12,
-                        min = 0, max = 6, step = 1,
-                        width = 1,
-                        get = function() return self.db.profile.progressBar.tickOverflow end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.tickOverflow = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    },
-                    calloutHeader = {
-                        type = "header",
-                        name = "",
-                        order = 13,
-                    },
-                    showCallout = {
-                        name = L["PROGRESS_BAR_SHOW_CALLOUT"],
-                        desc = L["PROGRESS_BAR_SHOW_CALLOUT_DESC"],
-                        type = "toggle",
-                        order = 14,
-                        get = function() return self.db.profile.progressBar.showCallout end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.showCallout = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                            ACR:NotifyChange(AddOnName)
-                        end,
-                    },
-                    calloutPosition = {
-                        name = L["PROGRESS_BAR_CALLOUT_POSITION"],
-                        type = "select",
-                        order = 15,
-                        hidden = function() return not self.db.profile.progressBar.showCallout end,
-                        values = {
-                            ABOVE = L["PROGRESS_BAR_CALLOUT_ABOVE"],
-                            BELOW = L["PROGRESS_BAR_CALLOUT_BELOW"],
-                        },
-                        get = function() return self.db.profile.progressBar.calloutPosition end,
-                        set = function(_, value)
-                            self.db.profile.progressBar.calloutPosition = value
-                            if self.RefreshProgressBar then self:RefreshProgressBar() end
-                        end,
-                    },
-                },
-            },
-        },
+        args = args
     }
 end
 

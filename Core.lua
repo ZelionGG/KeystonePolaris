@@ -334,10 +334,6 @@ function KeystonePolaris:OnInitialize()
         self:InitializeDisplay()
     end
 
-    if self.InitializeProgressBar then
-        self:InitializeProgressBar()
-    end
-
     self:InitializeMinimapIcon()
     self:UpdateCompartmentIconVisibility()
 
@@ -350,7 +346,7 @@ function KeystonePolaris:OnInitialize()
         type = "group",
         args = {
             general = {
-                name = L["TEXT_DISPLAY"],
+                name = L["GENERAL_SETTINGS"],
                 type = "group",
                 order = 1,
                 childGroups = "tree",
@@ -370,12 +366,14 @@ function KeystonePolaris:OnInitialize()
                     display = self:GetDisplayOptions(),
                     appearance = self:GetAppearanceOptions(),
                     positioning = self:GetPositioningOptions(),
+                    informGroup = self:GetInformGroupOptions(),
+                    interface = self:GetInterfaceOptions(),
                 }
             },
             modules = {
                 name = L["MODULES"],
                 type = "group",
-                order = 6,
+                order = 2,
                 childGroups = "tree",
                 args = {
                     modulesSummaryHeader = {
@@ -393,10 +391,7 @@ function KeystonePolaris:OnInitialize()
                     groupReminder = self:GetGroupReminderOptions(),
                 }
             },
-            advanced = self:GetAdvancedOptions(),
-            progressBar = self:GetProgressBarOptions(),
-            informGroup = self:GetInformGroupOptions(),
-            interface = self:GetInterfaceOptions()
+            advanced = self:GetAdvancedOptions()
         }
     })
     AceConfig:RegisterOptionsTable(AddOnName .. "_Changelog", self.changelogOptions)
@@ -406,9 +401,6 @@ function KeystonePolaris:OnInitialize()
     self.changelogCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_Changelog", L["Changelog"], optionsAddonName))
     self.aboutCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_About", L["ABOUT"], optionsAddonName))
 
-
-    -- Hook SettingsPanel for preview management
-    self:HookSettingsPanel()
 
     -- Register chat command and events
     self:RegisterChatCommand('kpl', 'ToggleConfig')
@@ -447,9 +439,6 @@ function KeystonePolaris:ToggleConfig(input)
         return
     end
 
-    -- Lazy-hook SettingsPanel in case it wasn't available during init
-    self:HookSettingsPanel()
-
     Settings.OpenToCategory(self.optionsCategoryId or optionsAddonName)
 end
 
@@ -473,96 +462,6 @@ function KeystonePolaris:ShowHelp()
     for _, line in ipairs(lines) do
         addMessage(self:ColorizeCommands(line))
     end
-end
-
--- ---------------------------------------------------------------------------
--- Options Preview Manager
--- ---------------------------------------------------------------------------
-
-function KeystonePolaris:HookSettingsPanel()
-    if self._settingsPanelHooked then return end
-    local panel = _G.SettingsPanel
-    if not panel then return end
-    self._settingsPanelHooked = true
-
-    panel:HookScript("OnShow", function()
-        self:EnableOptionsPreview()
-    end)
-    panel:HookScript("OnHide", function()
-        self:DisableOptionsPreview()
-    end)
-end
-
-function KeystonePolaris:EnableOptionsPreview()
-    if self._optionsPreviewActive then return end
-    -- Don't activate if placement mode owns the state
-    if self._placementMode then return end
-    -- Don't activate preview if in an active M+ dungeon
-    if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID() then
-        return
-    end
-
-    self._optionsPreviewActive = true
-
-    -- Enable text display preview
-    self._testMode = true
-    self._testScenario = self._previewScenario or 1
-    self._testCombatContext = false
-    if self.displayFrame then
-        self.displayFrame:Show()
-        -- Enable drag during preview
-        self.displayFrame:SetMovable(true)
-        self.displayFrame:EnableMouse(true)
-        self.displayFrame:RegisterForDrag("LeftButton")
-        self.displayFrame:SetScript("OnDragStart", function() self.displayFrame:StartMoving() end)
-        self.displayFrame:SetScript("OnDragStop", function()
-            self.displayFrame:StopMovingOrSizing()
-            local centerX, centerY = self.displayFrame:GetCenter()
-            local screenWidth = _G.GetScreenWidth()
-            local screenHeight = _G.GetScreenHeight()
-            local position = self.db.profile.general.position
-            local h = self.displayFrame:GetHeight()
-            local xOffset = centerX - screenWidth / 2
-            local yOffset
-            if position == "TOP" then
-                yOffset = centerY + h / 2 - screenHeight
-            elseif position == "BOTTOM" then
-                yOffset = centerY - h / 2
-            else
-                yOffset = centerY - screenHeight / 2
-            end
-            self.db.profile.general.xOffset = xOffset
-            self.db.profile.general.yOffset = yOffset
-            LibStub("AceConfigRegistry-3.0"):NotifyChange(AddOnName)
-        end)
-    end
-    if self.UpdatePercentageText then self:UpdatePercentageText() end
-
-    -- Enable progress bar preview
-    if self.EnableProgressBarPreview then self:EnableProgressBarPreview() end
-end
-
-function KeystonePolaris:DisableOptionsPreview()
-    if not self._optionsPreviewActive then return end
-    -- Don't disable if placement mode is managing state
-    if self._placementMode then return end
-    self._optionsPreviewActive = false
-
-    -- Disable text display preview
-    self._testMode = false
-    self._testCombatContext = nil
-    self._testScenario = nil
-    if self.displayFrame then
-        self.displayFrame:SetMovable(false)
-        self.displayFrame:EnableMouse(false)
-        self.displayFrame:RegisterForDrag()
-        self.displayFrame:SetScript("OnDragStart", nil)
-        self.displayFrame:SetScript("OnDragStop", nil)
-    end
-    if self.UpdatePercentageText then self:UpdatePercentageText() end
-
-    -- Disable progress bar preview
-    if self.DisableProgressBarPreview then self:DisableProgressBarPreview() end
 end
 
 -- Refresh the addon display (called when options change)
@@ -751,9 +650,6 @@ function KeystonePolaris:OnEnable()
     if self.UpdatePercentageText then
         self:UpdatePercentageText()
     end
-    if self.UpdateProgressBar then
-        self:UpdateProgressBar()
-    end
 end
 
 -- Event handler for POI updates (boss positions)
@@ -766,13 +662,10 @@ end
 -- hanging the game when a large pack dies all at once.
 function KeystonePolaris:SCENARIO_CRITERIA_UPDATE()
     if self._QueuePullUpdate then self:_QueuePullUpdate() end
-    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 -- Event handler for starting a Mythic+ dungeon
 function KeystonePolaris:CHALLENGE_MODE_START()
-    if self._placementMode and self.ExitPlacementMode then self:ExitPlacementMode(true) end
-    if self._optionsPreviewActive then self:DisableOptionsPreview() end
     if self._testMode and self.DisableTestMode then self:DisableTestMode("started dungeon") end
     self.currentDungeonID = nil
 
@@ -786,16 +679,11 @@ function KeystonePolaris:CHALLENGE_MODE_START()
         end)
     end
     if self.UpdatePercentageText then self:UpdatePercentageText() end
-    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 function KeystonePolaris:CHALLENGE_MODE_COMPLETED()
     self.currentDungeonID = nil
     if self.HideInformButton then self:HideInformButton() end
-    if self.progressBarFrame then
-        self.progressBarFrame:Hide()
-        self._progressBarDungeonKey = nil
-    end
 end
 
 -- Event handler for entering the world or changing zones
@@ -812,7 +700,6 @@ function KeystonePolaris:PLAYER_ENTERING_WORLD()
         end)
     end
     if self.UpdatePercentageText then self:UpdatePercentageText() end
-    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 -- Update dungeon data with advanced options if enabled
