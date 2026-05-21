@@ -270,17 +270,22 @@ local function RenderPreview(widget, scenarioIndex)
     local displayWidth = math_min(pb.width, math_max(80, frameWidth - 20))
     local calloutExtra = pb.showCallout and 28 or 0
     local previewHeight = math_max(70, pb.height + calloutExtra + 24)
+    local contentOffsetY = 0
+
+    if pb.showCallout then
+        if pb.calloutPosition == "ABOVE" then
+            contentOffsetY = -(calloutExtra / 2)
+        else
+            contentOffsetY = calloutExtra / 2
+        end
+    end
 
     widget.frame:SetHeight(previewHeight)
     if widget.SetHeight then widget:SetHeight(previewHeight) end
 
     widget.barFrame:SetSize(displayWidth, pb.height)
     widget.barFrame:ClearAllPoints()
-    if pb.showCallout and pb.calloutPosition == "ABOVE" then
-        widget.barFrame:SetPoint("TOP", widget.frame, "TOP", 0, -calloutExtra - 8)
-    else
-        widget.barFrame:SetPoint("TOP", widget.frame, "TOP", 0, -10)
-    end
+    widget.barFrame:SetPoint("CENTER", widget.frame, "CENTER", 0, contentOffsetY)
 
     widget.background:SetColorTexture(pb.backgroundColor.r, pb.backgroundColor.g, pb.backgroundColor.b, pb.backgroundColor.a or 0.7)
     UpdateBorder(widget, pb)
