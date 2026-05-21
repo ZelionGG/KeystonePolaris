@@ -25,6 +25,11 @@ local function RefreshPreviewWidget()
     if previewWidget and previewWidget.RefreshPreview then
         previewWidget:RefreshPreview()
     end
+
+    local progressBarPreviewWidget = KeystonePolaris._progressBarPreviewWidget
+    if progressBarPreviewWidget and progressBarPreviewWidget.RefreshPreview then
+        progressBarPreviewWidget:RefreshPreview()
+    end
 end
 
 local function PreviewScenarioValues()
@@ -1543,7 +1548,7 @@ function KeystonePolaris:GetProgressBarOptions()
                             if self.UpdateProgressBar then self:UpdateProgressBar() end
                         end,
                     }, {
-                        name = L["PROGRESS_BAR_SHOW_ANCHOR"],
+                        name = L["SHOW_ANCHOR"],
                         type = "execute",
                         width = 1,
                         func = function()
@@ -1627,6 +1632,16 @@ function KeystonePolaris:GetProgressBarOptions()
                 order = 1,
                 args = {
                     previewScenario = PreviewScenarioDropdown(0.01),
+                    preview = {
+                        name = "",
+                        type = "select",
+                        dialogControl = "KeystonePolaris_ProgressBarPreview",
+                        order = 0.02,
+                        width = "full",
+                        values = PreviewScenarioValues,
+                        get = function() return KeystonePolaris._previewScenario or 1 end,
+                        set = function(_, value) SetPreviewScenario(value) end,
+                    },
                     textureRow = ColumnRow(1, {
                         name = L["PROGRESS_BAR_TEXTURE"],
                         type = "select",
