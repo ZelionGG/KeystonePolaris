@@ -484,13 +484,6 @@ function KeystonePolaris:HookSettingsPanel()
     local panel = _G.SettingsPanel
     if not panel then return end
     self._settingsPanelHooked = true
-
-    panel:HookScript("OnShow", function()
-        self:EnableOptionsPreview()
-    end)
-    panel:HookScript("OnHide", function()
-        self:DisableOptionsPreview()
-    end)
 end
 
 function KeystonePolaris:EnableOptionsPreview()
