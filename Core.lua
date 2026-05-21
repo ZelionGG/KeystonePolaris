@@ -334,6 +334,10 @@ function KeystonePolaris:OnInitialize()
         self:InitializeDisplay()
     end
 
+    if self.InitializeProgressBar then
+        self:InitializeProgressBar()
+    end
+
     self:InitializeMinimapIcon()
     self:UpdateCompartmentIconVisibility()
 
@@ -346,7 +350,7 @@ function KeystonePolaris:OnInitialize()
         type = "group",
         args = {
             general = {
-                name = L["GENERAL_SETTINGS"],
+                name = L["TEXT_DISPLAY"],
                 type = "group",
                 order = 1,
                 childGroups = "tree",
@@ -366,14 +370,15 @@ function KeystonePolaris:OnInitialize()
                     display = self:GetDisplayOptions(),
                     appearance = self:GetAppearanceOptions(),
                     positioning = self:GetPositioningOptions(),
-                    informGroup = self:GetInformGroupOptions(),
-                    interface = self:GetInterfaceOptions(),
                 }
             },
+            progressBar = self:GetProgressBarOptions(),
+            informGroup = self:GetInformGroupOptions(),
+            interface = self:GetInterfaceOptions(),
             modules = {
                 name = L["MODULES"],
                 type = "group",
-                order = 2,
+                order = 6,
                 childGroups = "tree",
                 args = {
                     modulesSummaryHeader = {
@@ -650,6 +655,9 @@ function KeystonePolaris:OnEnable()
     if self.UpdatePercentageText then
         self:UpdatePercentageText()
     end
+    if self.UpdateProgressBar then
+        self:UpdateProgressBar()
+    end
 end
 
 -- Event handler for POI updates (boss positions)
@@ -662,10 +670,12 @@ end
 -- hanging the game when a large pack dies all at once.
 function KeystonePolaris:SCENARIO_CRITERIA_UPDATE()
     if self._QueuePullUpdate then self:_QueuePullUpdate() end
+    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 -- Event handler for starting a Mythic+ dungeon
 function KeystonePolaris:CHALLENGE_MODE_START()
+    if self._positioningMode and self.ExitPositioningMode then self:ExitPositioningMode(true) end
     if self._testMode and self.DisableTestMode then self:DisableTestMode("started dungeon") end
     self.currentDungeonID = nil
 
@@ -679,11 +689,16 @@ function KeystonePolaris:CHALLENGE_MODE_START()
         end)
     end
     if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 function KeystonePolaris:CHALLENGE_MODE_COMPLETED()
     self.currentDungeonID = nil
     if self.HideInformButton then self:HideInformButton() end
+    if self.progressBarFrame then
+        self.progressBarFrame:Hide()
+        self._progressBarDungeonKey = nil
+    end
 end
 
 -- Event handler for entering the world or changing zones
@@ -700,6 +715,7 @@ function KeystonePolaris:PLAYER_ENTERING_WORLD()
         end)
     end
     if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 -- Update dungeon data with advanced options if enabled

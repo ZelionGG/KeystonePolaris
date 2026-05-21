@@ -13,38 +13,45 @@ local SCENARIOS = {
         name = L["PREVIEW_IDLE"] or "Mid-dungeon (idle)",
         currentPercent = 45.0, neededPercent = 50.0, pullPercent = 0.0,
         isBossKilled = false, colorKey = "inProgress", inCombat = false,
+        barPercent = 45, bossesKilled = 1,
     },
     {
         name = L["PREVIEW_PULLING"] or "Mid-dungeon (pulling)",
         currentPercent = 45.0, neededPercent = 50.0, pullPercent = 3.0,
         isBossKilled = false, colorKey = "inProgress", inCombat = true,
         requiresMDT = true,
+        barPercent = 45, bossesKilled = 1,
     },
     {
         name = L["PREVIEW_PROJECTED"] or "Projected completes section",
         currentPercent = 62.0, neededPercent = 68.0, pullPercent = 8.0,
         isBossKilled = false, colorKey = "inProgress", inCombat = true,
         requiresMDT = true,
+        barPercent = 62, bossesKilled = 2,
     },
     {
         name = L["PREVIEW_SECTION_DONE"] or "Section complete",
         currentPercent = 74.0, neededPercent = 70.0, pullPercent = 0.0,
         isBossKilled = false, colorKey = "finished", inCombat = false,
+        barPercent = 74, bossesKilled = 3,
     },
     {
         name = L["PREVIEW_MISSING"] or "Missing (boss killed)",
         currentPercent = 62.0, neededPercent = 68.0, pullPercent = 8.0,
         isBossKilled = true, colorKey = "missing", inCombat = true,
+        barPercent = 62, bossesKilled = 3,
     },
     {
         name = L["PREVIEW_ALMOST_DONE"] or "Almost done (pulling)",
         currentPercent = 98.0, neededPercent = 100.0, pullPercent = 3.0,
         isBossKilled = false, colorKey = "inProgress", inCombat = true,
         requiresMDT = true,
+        barPercent = 98, bossesKilled = 4,
     },
     {
         name = L["PREVIEW_DUNGEON_DONE"] or "Dungeon complete",
         isDungeonDone = true, colorKey = "finished", inCombat = false,
+        barPercent = 100, bossesKilled = 99,
     },
 }
 
@@ -237,3 +244,4 @@ AceGUI:RegisterWidgetType(widgetType, Constructor, widgetVersion)
 
 -- Export scenarios for the dropdown in Options.lua
 KeystonePolaris.PreviewScenarios = SCENARIOS
+KeystonePolaris.PREVIEW_TOTAL_COUNT = TOTAL_COUNT
