@@ -18,6 +18,14 @@ KeystonePolaris.mdtFeaturesEnabled = MDT_FEATURES_ENABLED
 
 -- Shared preview scenario index (persists across Display and Appearance pages)
 KeystonePolaris._previewScenario = 1
+
+local function RefreshPreviewWidget()
+    local previewWidget = KeystonePolaris._previewWidget
+    if previewWidget and previewWidget.RefreshPreview then
+        previewWidget:RefreshPreview()
+    end
+end
+
 local function PreviewScenarioValues()
     local scenarios = KeystonePolaris.PreviewScenarios
     if not scenarios then return {} end
@@ -28,6 +36,17 @@ local function PreviewScenarioValues()
     return vals
 end
 
+local function SetPreviewScenario(value)
+    KeystonePolaris._previewScenario = value
+    KeystonePolaris._testScenario = value
+    if KeystonePolaris.UpdatePercentageText then KeystonePolaris:UpdatePercentageText() end
+    if KeystonePolaris._progressBarPreview and KeystonePolaris.EnableProgressBarPreview then
+        KeystonePolaris:EnableProgressBarPreview()
+    end
+    RefreshPreviewWidget()
+    ACR:NotifyChange(AddOnName)
+end
+
 local function PreviewScenarioDropdown(order)
     return {
         name = L["PREVIEW_SCENARIO"],
@@ -36,14 +55,37 @@ local function PreviewScenarioDropdown(order)
         width = "full",
         values = PreviewScenarioValues,
         get = function() return KeystonePolaris._previewScenario or 1 end,
-        set = function(_, value)
-            KeystonePolaris._previewScenario = value
-            KeystonePolaris._testScenario = value
-            if KeystonePolaris.UpdatePercentageText then KeystonePolaris:UpdatePercentageText() end
-            if KeystonePolaris._progressBarPreview and KeystonePolaris.EnableProgressBarPreview then
-                KeystonePolaris:EnableProgressBarPreview()
-            end
-        end,
+        set = function(_, value) SetPreviewScenario(value) end,
+    }
+end
+
+local function PreviewGroup(order)
+    return {
+        type = "group",
+        inline = true,
+        name = "",
+        order = order,
+        args = {
+            previewScenario = {
+                name = L["PREVIEW_SCENARIO"],
+                type = "select",
+                order = 1,
+                width = "full",
+                values = PreviewScenarioValues,
+                get = function() return KeystonePolaris._previewScenario or 1 end,
+                set = function(_, value) SetPreviewScenario(value) end,
+            },
+            preview = {
+                name = "",
+                type = "select",
+                dialogControl = "KeystonePolaris_Preview",
+                order = 2,
+                width = "full",
+                values = PreviewScenarioValues,
+                get = function() return KeystonePolaris._previewScenario or 1 end,
+                set = function(_, value) SetPreviewScenario(value) end,
+            },
+        },
     }
 end
 
@@ -78,6 +120,7 @@ local function MakeStatusColorOption(name, desc, colorKey, self, order)
             if self.UpdateColorCache then self:UpdateColorCache() end
             self:Refresh()
             if self.UpdatePercentageText then self:UpdatePercentageText() end
+            RefreshPreviewWidget()
         end
     }
 end
@@ -375,7 +418,7 @@ function KeystonePolaris:GetAppearanceOptions()
         type = "group",
         order = 2,
         args = {
-            previewScenario = PreviewScenarioDropdown(0.01),
+            previewGroup = PreviewGroup(0.01),
             fontRow = ColumnRow(1, {
                 name = L["FONT"],
                 type = "select",
@@ -386,6 +429,7 @@ function KeystonePolaris:GetAppearanceOptions()
                 set = function(_, value)
                     self.db.profile.text.font = value
                     self:Refresh()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["FONT_ALIGN"],
@@ -439,6 +483,7 @@ function KeystonePolaris:GetAppearanceOptions()
                         setMulti(origMulti)
                         reapply()
                     end)
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.multiLine
@@ -457,6 +502,7 @@ function KeystonePolaris:GetAppearanceOptions()
                 set = function(_, value)
                     self.db.profile.general.fontSize = value
                     self:Refresh()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["TEXT_OPACITY"],
@@ -471,6 +517,7 @@ function KeystonePolaris:GetAppearanceOptions()
                     self.db.profile.general.textOpacity = value
                     if self.UpdatePercentageText then self:UpdatePercentageText() end
                     self:Refresh()
+                    RefreshPreviewWidget()
                 end,
             }),
             colorsSpacer = {
@@ -506,6 +553,7 @@ function KeystonePolaris:GetDisplayOptions()
         type = "group",
         order = 1,
         args = {
+            previewGroup = PreviewGroup(0.01),
             formatMode = {
                 name = L["FORMAT_MODE"],
                 desc = L["FORMAT_MODE_DESC"],
@@ -525,6 +573,7 @@ function KeystonePolaris:GetDisplayOptions()
                     if self.UpdatePercentageText then self:UpdatePercentageText() end
                     if self.ApplyTextLayout then self:ApplyTextLayout() end
                     if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
+                    RefreshPreviewWidget()
                 end
             },
             requiredRow = ColumnRow(3, {
@@ -535,6 +584,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showRequiredText = value
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["PREFIX"],
@@ -546,6 +596,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["REQUIRED_DEFAULT"]
                     self.db.profile.general.mainDisplay.requiredLabel = text
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showRequiredText
@@ -559,6 +610,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showSectionRequiredText = value
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["PREFIX"],
@@ -570,6 +622,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["SECTION_REQUIRED_DEFAULT"]
                     self.db.profile.general.mainDisplay.sectionRequiredLabel = text
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showSectionRequiredText
@@ -583,6 +636,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showCurrentPercent = value
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["PREFIX"],
@@ -594,6 +648,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["CURRENT_DEFAULT"]
                     self.db.profile.general.mainDisplay.currentLabel = text
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showCurrentPercent
@@ -623,6 +678,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showCurrentPullPercent = value
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
             },
             pullLabel = {
@@ -637,6 +693,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["PULL_DEFAULT"]
                     self.db.profile.general.mainDisplay.pullLabel = text
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 hidden = function()
                     return not self.db.profile.general.mainDisplay.showCurrentPullPercent or not IsMDTAvailable()
@@ -668,6 +725,7 @@ function KeystonePolaris:GetDisplayOptions()
                     if self.UpdatePercentageText then self:UpdatePercentageText() end
                     if self.ApplyTextLayout then self:ApplyTextLayout() end
                     if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
+                    RefreshPreviewWidget()
                 end,
             },
             multiLineRow = ColumnRow(9, {
@@ -693,6 +751,7 @@ function KeystonePolaris:GetDisplayOptions()
                     C_Timer.After(0.03, reapply)
                     C_Timer.After(0.08, reapply)
                     C_Timer.After(0.15, reapply)
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["SINGLE_LINE_SEPARATOR"],
@@ -702,6 +761,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.singleLineSeparator = tostring(value or " | ")
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return self.db.profile.general.mainDisplay.multiLine
