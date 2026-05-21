@@ -30,6 +30,7 @@ read_globals = {
     'ChatFontNormal',
     'CloseDropDownMenus',
     'CopyTable',
+    'CreateColor',
     'CreateFrame',
     'DAMAGER',
     'date',

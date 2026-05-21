@@ -3,6 +3,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName)
 
 -- Cache globals
 local CreateFrame = CreateFrame
+local CreateColor = CreateColor
 local GameTooltip = GameTooltip
 local C_ChallengeMode = C_ChallengeMode
 local C_ScenarioInfo = C_ScenarioInfo
@@ -14,6 +15,23 @@ local string_format = string.format
 local table_sort = table.sort
 local select = select
 local GetCursorPosition = GetCursorPosition
+
+local function Lerp(startValue, endValue, amount)
+    return startValue + (endValue - startValue) * amount
+end
+
+local function CreateColorFromTable(color)
+    return CreateColor(color.r, color.g, color.b, color.a or 1)
+end
+
+local function InterpolateColor(startColor, endColor, amount)
+    return CreateColor(
+        Lerp(startColor.r, endColor.r, amount),
+        Lerp(startColor.g, endColor.g, amount),
+        Lerp(startColor.b, endColor.b, amount),
+        Lerp(startColor.a or 1, endColor.a or 1, amount)
+    )
+end
 
 -- ---------------------------------------------------------------------------
 -- Progress Bar Initialization
@@ -32,6 +50,12 @@ function KeystonePolaris:InitializeProgressBar()
     frame:EnableMouse(true)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
+
+    local borderFrame = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    borderFrame:SetAllPoints(frame)
+    borderFrame:SetFrameLevel(frame:GetFrameLevel() + 10)
+    borderFrame:EnableMouse(false)
+    frame.borderFrame = borderFrame
 
     -- Drag to position
     frame:RegisterForDrag("LeftButton")
@@ -218,6 +242,14 @@ function KeystonePolaris:GetProgressBarColors()
     return textColors.finished, textColors.inProgress, textColors.missing
 end
 
+function KeystonePolaris:GetProgressBarGradientColor(positionPct)
+    local pb = self.db.profile.progressBar
+    local startColor = pb.gradientStartColor
+    local endColor = pb.gradientEndColor
+    local amount = math_max(0, math_min(positionPct / 100, 1))
+    return InterpolateColor(startColor, endColor, amount)
+end
+
 -- ---------------------------------------------------------------------------
 -- Segments
 -- ---------------------------------------------------------------------------
@@ -234,6 +266,7 @@ function KeystonePolaris:UpdateProgressBarSegments(currentPct, sectionStates)
     local completedColor, inProgressColor, missingColor = self:GetProgressBarColors()
     local barTexture = self.LSM:Fetch("statusbar", pb.barTexture)
     local isRTL = pb.direction == "RIGHT_TO_LEFT"
+    local useGradient = pb.useGradient
 
     -- Hide all existing segments
     for _, seg in pairs(frame.segments) do
@@ -290,13 +323,25 @@ function KeystonePolaris:UpdateProgressBarSegments(currentPct, sectionStates)
                 seg:SetPoint("LEFT", frame, "LEFT", xOffset, 0)
             end
 
-            -- Apply color based on state
-            if state == "completed" then
-                seg:SetVertexColor(completedColor.r, completedColor.g, completedColor.b, completedColor.a or 1)
-            elseif state == "missing" then
-                seg:SetVertexColor(missingColor.r, missingColor.g, missingColor.b, missingColor.a or 1)
-            else -- inProgress
-                seg:SetVertexColor(inProgressColor.r, inProgressColor.g, inProgressColor.b, inProgressColor.a or 1)
+            local fillEnd = segStart + ((fillWidth / barWidth) * 100)
+            local leftEdgePct = isRTL and fillEnd or segStart
+            local rightEdgePct = isRTL and segStart or fillEnd
+
+            if useGradient and state == "completed" then
+                seg:SetGradient(
+                    "HORIZONTAL",
+                    self:GetProgressBarGradientColor(leftEdgePct),
+                    self:GetProgressBarGradientColor(rightEdgePct)
+                )
+            else
+                local solidColor = inProgressColor
+                if state == "completed" then
+                    solidColor = completedColor
+                elseif state == "missing" then
+                    solidColor = missingColor
+                end
+                local color = CreateColorFromTable(solidColor)
+                seg:SetGradient("HORIZONTAL", color, color)
             end
 
             seg:Show()
@@ -312,10 +357,13 @@ function KeystonePolaris:ApplyProgressBarBorder()
     local frame = self.progressBarFrame
     if not frame then return end
 
+    local borderFrame = frame.borderFrame
+    if not borderFrame then return end
+
     local pb = self.db.profile.progressBar
 
     if pb.borderStyle == "NONE" then
-        frame:SetBackdrop(nil)
+        borderFrame:SetBackdrop(nil)
         return
     end
 
@@ -329,12 +377,12 @@ function KeystonePolaris:ApplyProgressBarBorder()
         edgeFile = self.LSM:Fetch("border", pb.borderTexture)
     end
 
-    frame:SetBackdrop({
+    borderFrame:SetBackdrop({
         edgeFile = edgeFile,
         edgeSize = edgeSize,
         insets = { left = insets, right = insets, top = insets, bottom = insets },
     })
-    frame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
+    borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
 end
 
 -- ---------------------------------------------------------------------------

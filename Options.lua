@@ -200,6 +200,9 @@ KeystonePolaris.defaults = {
             yOffset = 0,
             direction = "LEFT_TO_RIGHT",
             barTexture = "Blizzard Raid Bar",
+            useGradient = false,
+            gradientStartColor = { r = 1, g = 1, b = 1, a = 1 },
+            gradientEndColor = { r = 0, g = 1, b = 0, a = 1 },
             overrideColors = false,
             completedColor = { r = 0, g = 1, b = 0, a = 1 },
             inProgressColor = { r = 1, g = 1, b = 1, a = 1 },
@@ -1629,6 +1632,46 @@ function KeystonePolaris:GetProgressBarOptions()
                         name = "",
                         order = 3,
                     },
+                    useGradient = {
+                        name = L["PROGRESS_BAR_USE_GRADIENT"],
+                        desc = L["PROGRESS_BAR_USE_GRADIENT_DESC"],
+                        type = "toggle",
+                        order = 3.4,
+                        width = "full",
+                        get = function() return self.db.profile.progressBar.useGradient end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.useGradient = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                            ACR:NotifyChange(AddOnName)
+                        end,
+                    },
+                    gradientColorRow = ColumnRow(3.6, {
+                        name = L["PROGRESS_BAR_GRADIENT_START_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        hidden = function() return not self.db.profile.progressBar.useGradient end,
+                        get = function()
+                            local c = self.db.profile.progressBar.gradientStartColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.gradientStartColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_GRADIENT_END_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        hidden = function() return not self.db.profile.progressBar.useGradient end,
+                        get = function()
+                            local c = self.db.profile.progressBar.gradientEndColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.gradientEndColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
                     overrideColors = {
                         name = L["PROGRESS_BAR_OVERRIDE_COLORS"],
                         desc = L["PROGRESS_BAR_OVERRIDE_COLORS_DESC"],
@@ -1642,11 +1685,16 @@ function KeystonePolaris:GetProgressBarOptions()
                             ACR:NotifyChange(AddOnName)
                         end,
                     },
-                    overrideColorRow = ColumnRow(5, {
+                    completedColor = {
                         name = L["PROGRESS_BAR_COMPLETED_COLOR"],
                         type = "color",
+                        order = 4.5,
                         hasAlpha = true,
-                        hidden = function() return not self.db.profile.progressBar.overrideColors end,
+                        width = "full",
+                        hidden = function()
+                            local pb = self.db.profile.progressBar
+                            return not pb.overrideColors or pb.useGradient
+                        end,
                         get = function()
                             local c = self.db.profile.progressBar.completedColor
                             return c.r, c.g, c.b, c.a
@@ -1655,11 +1703,16 @@ function KeystonePolaris:GetProgressBarOptions()
                             self.db.profile.progressBar.completedColor = { r = r, g = g, b = b, a = a }
                             if self.RefreshProgressBar then self:RefreshProgressBar() end
                         end,
-                    }, {
+                    },
+                    inProgressColor = {
                         name = L["PROGRESS_BAR_IN_PROGRESS_COLOR"],
                         type = "color",
+                        order = 5,
                         hasAlpha = true,
-                        hidden = function() return not self.db.profile.progressBar.overrideColors end,
+                        hidden = function()
+                            local pb = self.db.profile.progressBar
+                            return not pb.overrideColors
+                        end,
                         get = function()
                             local c = self.db.profile.progressBar.inProgressColor
                             return c.r, c.g, c.b, c.a
@@ -1668,12 +1721,12 @@ function KeystonePolaris:GetProgressBarOptions()
                             self.db.profile.progressBar.inProgressColor = { r = r, g = g, b = b, a = a }
                             if self.RefreshProgressBar then self:RefreshProgressBar() end
                         end,
-                    }),
+                    },
                     missingColor = {
                         name = L["PROGRESS_BAR_MISSING_COLOR"],
                         type = "color",
-                        hasAlpha = true,
                         order = 6,
+                        hasAlpha = true,
                         hidden = function() return not self.db.profile.progressBar.overrideColors end,
                         get = function()
                             local c = self.db.profile.progressBar.missingColor
