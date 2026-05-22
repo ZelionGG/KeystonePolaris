@@ -30,6 +30,140 @@ local function InterpolateColor(startColor, endColor, amount)
     )
 end
 
+local function GetSectionBoundaries(thresholds)
+    local boundaries = { 0 }
+    for _, threshold in pairs(thresholds) do
+        boundaries[#boundaries + 1] = threshold.percent
+    end
+    boundaries[#boundaries + 1] = 100
+    return boundaries
+end
+
+local function GetActiveSectionIndex(sectionStates)
+    if not sectionStates or #sectionStates == 0 then return nil end
+
+    for idx = 1, #sectionStates do
+        if sectionStates[idx] ~= "completedBoss" then
+            return idx
+        end
+    end
+
+    return #sectionStates
+end
+
+local function PositionProgressSpan(texture, parent, totalWidth, height, isRTL, startPct, endPct)
+    local spanPct = math_max(0, endPct - startPct)
+    local spanWidth = (spanPct / 100) * totalWidth
+    if spanWidth <= 0 then
+        texture:Hide()
+        return false
+    end
+
+    texture:SetSize(spanWidth, height)
+    texture:ClearAllPoints()
+
+    local xOffset = (startPct / 100) * totalWidth
+    if isRTL then
+        local rightOffset = ((100 - startPct) / 100) * totalWidth
+        texture:SetPoint("RIGHT", parent, "RIGHT", -(rightOffset - spanWidth), 0)
+    else
+        texture:SetPoint("LEFT", parent, "LEFT", xOffset, 0)
+    end
+
+    return true
+end
+
+local function ApplyProgressSpanColor(texture, useGradient, isRTL, startPct, endPct, state, completedColor, inProgressColor, missingColor, gradientColorFn)
+    local leftEdgePct = isRTL and endPct or startPct
+    local rightEdgePct = isRTL and startPct or endPct
+
+    if useGradient and (state == "completed" or state == "completedBoss") then
+        texture:SetGradient(
+            "HORIZONTAL",
+            gradientColorFn(leftEdgePct),
+            gradientColorFn(rightEdgePct)
+        )
+        return
+    end
+
+    local solidColor = inProgressColor
+    if state == "completed" or state == "completedBoss" then
+        solidColor = completedColor
+    elseif state == "missing" then
+        solidColor = missingColor
+    end
+
+    local color = CreateColorFromTable(solidColor)
+    texture:SetGradient("HORIZONTAL", color, color)
+end
+
+local function GetCompletedVisualColor(pb, completedColor)
+    if pb.useGradient then
+        return pb.gradientStartColor
+    end
+
+    return completedColor
+end
+
+local function GetPreviewScenarioSectionIndex(sectionCount, mode)
+    if sectionCount <= 1 then return 1 end
+    if mode == "almostDone" then return sectionCount end
+    if sectionCount >= 3 then return 2 end
+    return 1
+end
+
+local function BuildPreviewScenarioState(thresholds, scenario)
+    local fallbackPct = (scenario and scenario.barPercent) or 0
+    local fallbackBossesKilled = (scenario and scenario.bossesKilled) or 0
+    local bossKillStates = {}
+
+    if not scenario then
+        return fallbackPct, bossKillStates
+    end
+
+    if not thresholds or #thresholds == 0 or not scenario.progressBarMode then
+        for idx = 1, fallbackBossesKilled do
+            bossKillStates[idx] = true
+        end
+        return fallbackPct, bossKillStates
+    end
+
+    local boundaries = GetSectionBoundaries(thresholds)
+    local sectionCount = #boundaries - 1
+    local sectionIdx = GetPreviewScenarioSectionIndex(sectionCount, scenario.progressBarMode)
+    local segStart = boundaries[sectionIdx]
+    local segEnd = boundaries[sectionIdx + 1]
+    local segMid = segStart + ((segEnd - segStart) * 0.5)
+    local segNearEnd = segStart + ((segEnd - segStart) * 0.9)
+
+    if scenario.progressBarMode == "dungeonDone" then
+        for idx = 1, #thresholds do
+            bossKillStates[idx] = true
+        end
+        return 100, bossKillStates
+    end
+
+    local bossesKilled = sectionIdx - 1
+    local currentPct = segMid
+
+    if scenario.progressBarMode == "sectionDone" then
+        bossesKilled = math_max(0, sectionIdx - 1)
+        currentPct = segEnd
+    elseif scenario.progressBarMode == "missing" then
+        bossesKilled = sectionIdx
+        currentPct = segMid
+    elseif scenario.progressBarMode == "almostDone" then
+        bossesKilled = math_max(0, sectionIdx - 1)
+        currentPct = segNearEnd
+    end
+
+    for idx = 1, bossesKilled do
+        bossKillStates[idx] = true
+    end
+
+    return currentPct, bossKillStates
+end
+
 local function GetProgressBarColors(addon)
     local pb = addon.db.profile.progressBar
     if pb.overrideColors then
@@ -105,15 +239,6 @@ local function BuildPreviewThresholds(addon, dungeonKey)
     return thresholds, dungeonData
 end
 
-local function BuildPreviewBossKillStates(scenario)
-    local states = {}
-    local bossesKilled = scenario and scenario.bossesKilled or 0
-    for idx = 1, bossesKilled do
-        states[idx] = true
-    end
-    return states
-end
-
 local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, dungeonData, currentPct, bossKillStates)
     if not thresholds or #thresholds == 0 then return {} end
 
@@ -145,9 +270,11 @@ local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, dungeonD
         local bossIdx = bossIndices[i]
         local isBossKilled = bossKillStates and bossIdx and bossKillStates[bossIdx] or false
 
-        if currentPct >= segEnd then
+        if currentPct >= segEnd and isBossKilled then
+            states[i] = "completedBoss"
+        elseif currentPct >= segEnd then
             states[i] = "completed"
-        elseif isBossKilled and currentPct < segEnd then
+        elseif isBossKilled then
             states[i] = "missing"
         elseif currentPct > boundaries[i] then
             states[i] = "inProgress"
@@ -185,7 +312,7 @@ local function UpdateBorder(widget, pb)
     widget.borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
 end
 
-local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey)
+local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates)
     local addon = KeystonePolaris
     local pb = addon.db.profile.progressBar
     if not pb.showCallout or not thresholds or #thresholds == 0 then
@@ -193,21 +320,19 @@ local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dunge
         return
     end
 
-    local boundaries = { 0 }
-    for _, t in pairs(thresholds) do
-        boundaries[#boundaries + 1] = t.percent
-    end
-    boundaries[#boundaries + 1] = 100
+    local boundaries = GetSectionBoundaries(thresholds)
 
-    local activeIdx
-    for i = 1, #boundaries - 1 do
-        if currentPct < boundaries[i + 1] then
-            activeIdx = i
-            break
-        end
-    end
+    local activeIdx = GetActiveSectionIndex(sectionStates)
     if not activeIdx then
-        activeIdx = #thresholds + 1
+        for i = 1, #boundaries - 1 do
+            if currentPct < boundaries[i + 1] then
+                activeIdx = i
+                break
+            end
+        end
+        if not activeIdx then
+            activeIdx = #thresholds + 1
+        end
     end
 
     if activeIdx > #boundaries - 1 then
@@ -259,8 +384,7 @@ local function RenderPreview(widget, scenarioIndex)
 
     local dungeonKey = ResolvePreviewDungeonKey(addon)
     local thresholds, dungeonData = BuildPreviewThresholds(addon, dungeonKey)
-    local bossKillStates = BuildPreviewBossKillStates(scenario)
-    local currentPct = scenario.barPercent or 0
+    local currentPct, bossKillStates = BuildPreviewScenarioState(thresholds, scenario)
     local sectionStates = BuildPreviewSectionStates(addon, dungeonKey, thresholds, dungeonData, currentPct, bossKillStates)
 
     local frameWidth = widget.frame:GetWidth()
@@ -300,84 +424,70 @@ local function RenderPreview(widget, scenarioIndex)
     local completedColor, inProgressColor, missingColor = GetProgressBarColors(addon)
     local barTexture = addon.LSM:Fetch("statusbar", pb.barTexture)
     local isRTL = pb.direction == "RIGHT_TO_LEFT"
+    local doneTickColor = GetCompletedVisualColor(pb, completedColor)
 
-    local boundaries = { 0 }
-    for _, t in pairs(thresholds) do
-        boundaries[#boundaries + 1] = t.percent
+    local boundaries = GetSectionBoundaries(thresholds)
+
+    local function drawSpan(segIdx, startPct, endPct, state)
+        if endPct <= startPct then return segIdx end
+
+        segIdx = segIdx + 1
+        local seg = widget.segments[segIdx]
+        if not seg then
+            seg = widget.barFrame:CreateTexture(nil, "ARTWORK")
+            widget.segments[segIdx] = seg
+        end
+
+        seg:SetTexture(barTexture)
+        if not PositionProgressSpan(seg, widget.barFrame, displayWidth, pb.height, isRTL, startPct, endPct) then
+            return segIdx
+        end
+
+        ApplyProgressSpanColor(
+            seg,
+            pb.useGradient,
+            isRTL,
+            startPct,
+            endPct,
+            state,
+            completedColor,
+            inProgressColor,
+            missingColor,
+            function(positionPct)
+                return GetProgressBarGradientColor(addon, positionPct)
+            end
+        )
+        seg:Show()
+        return segIdx
     end
-    boundaries[#boundaries + 1] = 100
 
     local segIdx = 0
     for i = 1, #boundaries - 1 do
         local segStart = boundaries[i]
         local segEnd = boundaries[i + 1]
         local state = sectionStates[i] or "upcoming"
-        local segWidth = (segEnd - segStart) / 100 * displayWidth
-        local fillWidth
 
-        if state == "upcoming" then
-            fillWidth = 0
+        if state == "completed" or state == "completedBoss" then
+            segIdx = drawSpan(segIdx, segStart, segEnd, "completed")
         elseif state == "inProgress" then
-            local fillPct = math_max(0, math_min(currentPct, segEnd) - segStart)
-            local segRange = segEnd - segStart
-            fillWidth = (segRange > 0) and (fillPct / segRange * segWidth) or 0
-        else
-            fillWidth = segWidth
-        end
-
-        if fillWidth > 0 then
-            segIdx = segIdx + 1
-            local seg = widget.segments[segIdx]
-            if not seg then
-                seg = widget.barFrame:CreateTexture(nil, "ARTWORK")
-                widget.segments[segIdx] = seg
-            end
-
-            seg:SetTexture(barTexture)
-            seg:SetSize(fillWidth, pb.height)
-            seg:ClearAllPoints()
-
-            local xOffset = segStart / 100 * displayWidth
-            if isRTL then
-                local rightOffset = (100 - segStart) / 100 * displayWidth
-                seg:SetPoint("RIGHT", widget.barFrame, "RIGHT", -(rightOffset - fillWidth), 0)
-            else
-                seg:SetPoint("LEFT", widget.barFrame, "LEFT", xOffset, 0)
-            end
-
-            local fillEnd = segStart + ((fillWidth / displayWidth) * 100)
-            local leftEdgePct = isRTL and fillEnd or segStart
-            local rightEdgePct = isRTL and segStart or fillEnd
-
-            if pb.useGradient and state == "completed" then
-                seg:SetGradient(
-                    "HORIZONTAL",
-                    GetProgressBarGradientColor(addon, leftEdgePct),
-                    GetProgressBarGradientColor(addon, rightEdgePct)
-                )
-            else
-                local solidColor = inProgressColor
-                if state == "completed" then
-                    solidColor = completedColor
-                elseif state == "missing" then
-                    solidColor = missingColor
-                end
-                local color = CreateColorFromTable(solidColor)
-                seg:SetGradient("HORIZONTAL", color, color)
-            end
-
-            seg:Show()
+            segIdx = drawSpan(segIdx, segStart, segEnd, "inProgress")
+        elseif state == "missing" then
+            local completedEnd = math_max(segStart, math_min(currentPct, segEnd))
+            segIdx = drawSpan(segIdx, segStart, completedEnd, "inProgress")
+            segIdx = drawSpan(segIdx, completedEnd, segEnd, "missing")
         end
     end
 
     for idx, threshold in pairs(thresholds) do
         local tick = widget.ticks[idx]
         if not tick then
-            tick = widget.barFrame:CreateTexture(nil, "OVERLAY")
+            tick = widget.borderFrame:CreateTexture(nil, "OVERLAY", nil, 7)
             widget.ticks[idx] = tick
         end
 
-        tick:SetColorTexture(pb.tickColor.r, pb.tickColor.g, pb.tickColor.b, pb.tickColor.a)
+        local bossKilled = threshold.bossIndex and bossKillStates and bossKillStates[threshold.bossIndex] or false
+        local tickColor = bossKilled and doneTickColor or pb.tickColor
+        tick:SetColorTexture(tickColor.r, tickColor.g, tickColor.b, tickColor.a)
         tick:SetSize(pb.tickWidth, pb.height + pb.tickOverflow * 2)
 
         local xPos = displayWidth * (threshold.percent / 100)
@@ -390,7 +500,7 @@ local function RenderPreview(widget, scenarioIndex)
         tick:Show()
     end
 
-    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey)
+    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates)
 end
 
 local methods = {}

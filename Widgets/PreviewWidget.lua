@@ -13,6 +13,7 @@ local SCENARIOS = {
         name = L["PREVIEW_IDLE"] or "Mid-dungeon (idle)",
         currentPercent = 45.0, neededPercent = 50.0, pullPercent = 0.0,
         isBossKilled = false, colorKey = "inProgress", inCombat = false,
+        progressBarMode = "idle",
         barPercent = 45, bossesKilled = 1,
     },
     {
@@ -20,6 +21,7 @@ local SCENARIOS = {
         currentPercent = 45.0, neededPercent = 50.0, pullPercent = 3.0,
         isBossKilled = false, colorKey = "inProgress", inCombat = true,
         requiresMDT = true,
+        progressBarMode = "pulling",
         barPercent = 45, bossesKilled = 1,
     },
     {
@@ -27,18 +29,21 @@ local SCENARIOS = {
         currentPercent = 62.0, neededPercent = 68.0, pullPercent = 8.0,
         isBossKilled = false, colorKey = "inProgress", inCombat = true,
         requiresMDT = true,
+        progressBarMode = "projected",
         barPercent = 62, bossesKilled = 2,
     },
     {
         name = L["PREVIEW_SECTION_DONE"] or "Section complete",
         currentPercent = 74.0, neededPercent = 70.0, pullPercent = 0.0,
         isBossKilled = false, colorKey = "finished", inCombat = false,
+        progressBarMode = "sectionDone",
         barPercent = 74, bossesKilled = 3,
     },
     {
         name = L["PREVIEW_MISSING"] or "Missing (boss killed)",
         currentPercent = 62.0, neededPercent = 68.0, pullPercent = 8.0,
         isBossKilled = true, colorKey = "missing", inCombat = true,
+        progressBarMode = "missing",
         barPercent = 62, bossesKilled = 3,
     },
     {
@@ -46,11 +51,13 @@ local SCENARIOS = {
         currentPercent = 98.0, neededPercent = 100.0, pullPercent = 3.0,
         isBossKilled = false, colorKey = "inProgress", inCombat = true,
         requiresMDT = true,
+        progressBarMode = "almostDone",
         barPercent = 98, bossesKilled = 4,
     },
     {
         name = L["PREVIEW_DUNGEON_DONE"] or "Dungeon complete",
         isDungeonDone = true, colorKey = "finished", inCombat = false,
+        progressBarMode = "dungeonDone",
         barPercent = 100, bossesKilled = 99,
     },
 }
