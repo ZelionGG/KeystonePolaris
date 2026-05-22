@@ -1796,7 +1796,7 @@ function KeystonePolaris:GetProgressBarOptions()
                     },
                     borderHeader = {
                         type = "header",
-                        name = "",
+                        name = L["BORDERS"],
                         order = 7,
                     },
                     borderStyleRow = ColumnRow(8, {
@@ -1854,7 +1854,7 @@ function KeystonePolaris:GetProgressBarOptions()
                     }),
                     tickHeader = {
                         type = "header",
-                        name = "",
+                        name = L["TICKS"],
                         order = 10,
                     },
                     tickColorRow = ColumnRow(11, {
@@ -1896,7 +1896,7 @@ function KeystonePolaris:GetProgressBarOptions()
                     },
                     calloutHeader = {
                         type = "header",
-                        name = "",
+                        name = L["CALLOUT"],
                         order = 13,
                     },
                     showCallout = {
