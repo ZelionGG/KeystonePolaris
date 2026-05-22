@@ -268,6 +268,10 @@ KeystonePolaris.defaults = {
             tickOverflow = 2,
             showCallout = false,
             calloutPosition = "ABOVE",
+            calloutFont = "Friz Quadrata TT",
+            calloutFontSize = 10,
+            calloutTextColor = { r = 1, g = 0.82, b = 0, a = 1 },
+            calloutBackgroundColor = { r = 0, g = 0, b = 0, a = 0.8 },
         },
     }
 }
@@ -1926,6 +1930,61 @@ function KeystonePolaris:GetProgressBarOptions()
                             if self.RefreshProgressBar then self:RefreshProgressBar() end
                         end,
                     },
+                    calloutFont = {
+                        name = L["PROGRESS_BAR_CALLOUT_FONT"],
+                        type = "select",
+                        dialogControl = 'LSM30_Font',
+                        values = AceGUIWidgetLSMlists.font,
+                        style = "dropdown",
+                        order = 15.5,
+                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        get = function() return self.db.profile.progressBar.calloutFont end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.calloutFont = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    calloutFontSize = {
+                        name = L["PROGRESS_BAR_CALLOUT_FONT_SIZE"],
+                        type = "range",
+                        order = 16,
+                        min = 8, max = 24, step = 1,
+                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        get = function() return self.db.profile.progressBar.calloutFontSize end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.calloutFontSize = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    calloutColorRow = ColumnRow(17, {
+                        name = L["PROGRESS_BAR_CALLOUT_TEXT_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        width = 1,
+                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        get = function()
+                            local c = self.db.profile.progressBar.calloutTextColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.calloutTextColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_CALLOUT_BG_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        width = 1,
+                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        get = function()
+                            local c = self.db.profile.progressBar.calloutBackgroundColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.calloutBackgroundColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
                 },
             },
         },

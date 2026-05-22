@@ -105,6 +105,26 @@ local function GetCompletedVisualColor(pb, completedColor)
     return completedColor
 end
 
+local function GetCalloutReservedHeight(pb)
+    if not pb.showCallout then return 0 end
+    return (pb.calloutFontSize or 10) + 18
+end
+
+local function ApplyCalloutStyle(callout, pb)
+    local currentFontFile, _, fontFlags = callout.text:GetFont()
+    local fontName = pb.calloutFont or KeystonePolaris.db.profile.text.font
+    local fontFile = KeystonePolaris.LSM and KeystonePolaris.LSM:Fetch("font", fontName, true)
+    if fontFile or currentFontFile then
+        callout.text:SetFont(fontFile or currentFontFile, pb.calloutFontSize or 10, fontFlags)
+    end
+
+    local textColor = pb.calloutTextColor or { r = 1, g = 0.82, b = 0, a = 1 }
+    callout.text:SetTextColor(textColor.r, textColor.g, textColor.b, textColor.a or 1)
+
+    local backgroundColor = pb.calloutBackgroundColor or { r = 0, g = 0, b = 0, a = 0.8 }
+    callout.bg:SetColorTexture(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a or 0.8)
+end
+
 local function GetPreviewScenarioSectionIndex(sectionCount, mode)
     if sectionCount <= 1 then return 1 end
     if mode == "almostDone" then return sectionCount end
@@ -239,6 +259,37 @@ local function BuildPreviewThresholds(addon, dungeonKey)
     return thresholds, dungeonData
 end
 
+local function GetBossProgressTargets(addon, dungeonKey, dungeonData)
+    dungeonData = dungeonData or (addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[dungeonKey])
+    if not dungeonData or not dungeonData.bosses then return {} end
+
+    local adv = addon.db and addon.db.profile and addon.db.profile.advanced and addon.db.profile.advanced[dungeonKey]
+    local targets = {}
+    for bossIdx, boss in pairs(dungeonData.bosses) do
+        local percent = adv and adv["Boss" .. tostring(boss[1])] or boss[2]
+        targets[#targets + 1] = {
+            bossIndex = bossIdx,
+            percent = percent or 100,
+        }
+    end
+
+    return targets
+end
+
+local function GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates, dungeonData)
+    local targets = GetBossProgressTargets(addon, dungeonKey, dungeonData)
+    if #targets == 0 then return nil end
+
+    for _, target in ipairs(targets) do
+        local bossKilled = bossKillStates and bossKillStates[target.bossIndex] or false
+        if not (bossKilled and currentPct >= target.percent) then
+            return target
+        end
+    end
+
+    return targets[#targets]
+end
+
 local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, dungeonData, currentPct, bossKillStates)
     if not thresholds or #thresholds == 0 then return {} end
 
@@ -312,7 +363,7 @@ local function UpdateBorder(widget, pb)
     widget.borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
 end
 
-local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates)
+local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, dungeonData)
     local addon = KeystonePolaris
     local pb = addon.db.profile.progressBar
     if not pb.showCallout or not thresholds or #thresholds == 0 then
@@ -344,10 +395,12 @@ local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dunge
     local segEnd = boundaries[activeIdx + 1]
     local segCenter = (segStart + segEnd) / 2
 
-    local bossIdx
-    if activeIdx <= #thresholds then
-        bossIdx = thresholds[activeIdx].bossIndex
-    else
+    local bossTarget = GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates, dungeonData)
+    local bossIdx = bossTarget and bossTarget.bossIndex
+    if bossTarget and bossTarget.percent then
+        segEnd = bossTarget.percent
+        segCenter = segEnd
+    elseif activeIdx > #thresholds then
         bossIdx = thresholds[#thresholds] and thresholds[#thresholds].bossIndex
     end
 
@@ -356,6 +409,7 @@ local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dunge
         bossName = addon:GetBossName(dungeonKey, bossIdx) or ("Boss " .. bossIdx)
     end
 
+    ApplyCalloutStyle(widget.callout, pb)
     widget.callout.text:SetText(string_format(L["PROGRESS_BAR_CALLOUT_FORMAT"], segEnd, bossName))
     widget.callout:SetSize(widget.callout.text:GetStringWidth() + 12, widget.callout.text:GetStringHeight() + 8)
     widget.callout.bg:SetAllPoints(widget.callout)
@@ -392,7 +446,7 @@ local function RenderPreview(widget, scenarioIndex)
         frameWidth = pb.width + 20
     end
     local displayWidth = math_min(pb.width, math_max(80, frameWidth - 20))
-    local calloutExtra = pb.showCallout and 28 or 0
+    local calloutExtra = GetCalloutReservedHeight(pb)
     local previewHeight = math_max(70, pb.height + calloutExtra + 24)
     local contentOffsetY = 0
 
@@ -470,7 +524,8 @@ local function RenderPreview(widget, scenarioIndex)
         if state == "completed" or state == "completedBoss" then
             segIdx = drawSpan(segIdx, segStart, segEnd, "completed")
         elseif state == "inProgress" then
-            segIdx = drawSpan(segIdx, segStart, segEnd, "inProgress")
+            local progressEnd = math_max(segStart, math_min(currentPct, segEnd))
+            segIdx = drawSpan(segIdx, segStart, progressEnd, "inProgress")
         elseif state == "missing" then
             local completedEnd = math_max(segStart, math_min(currentPct, segEnd))
             segIdx = drawSpan(segIdx, segStart, completedEnd, "inProgress")
@@ -500,7 +555,7 @@ local function RenderPreview(widget, scenarioIndex)
         tick:Show()
     end
 
-    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates)
+    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, dungeonData)
 end
 
 local methods = {}
@@ -574,8 +629,8 @@ local function Constructor()
     calloutText:SetPoint("CENTER", callout, "CENTER", 0, 0)
     callout.text = calloutText
     local calloutBg = callout:CreateTexture(nil, "BACKGROUND")
-    calloutBg:SetColorTexture(0, 0, 0, 0.8)
     callout.bg = calloutBg
+    ApplyCalloutStyle(callout, KeystonePolaris.db.profile.progressBar)
     callout:Hide()
 
     local widget = {

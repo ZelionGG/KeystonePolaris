@@ -107,6 +107,21 @@ local function GetCompletedVisualColor(pb, completedColor)
     return completedColor
 end
 
+local function ApplyCalloutStyle(callout, pb)
+    local currentFontFile, _, fontFlags = callout.text:GetFont()
+    local fontName = pb.calloutFont or KeystonePolaris.db.profile.text.font
+    local fontFile = KeystonePolaris.LSM and KeystonePolaris.LSM:Fetch("font", fontName, true)
+    if fontFile or currentFontFile then
+        callout.text:SetFont(fontFile or currentFontFile, pb.calloutFontSize or 10, fontFlags)
+    end
+
+    local textColor = pb.calloutTextColor or { r = 1, g = 0.82, b = 0, a = 1 }
+    callout.text:SetTextColor(textColor.r, textColor.g, textColor.b, textColor.a or 1)
+
+    local backgroundColor = pb.calloutBackgroundColor or { r = 0, g = 0, b = 0, a = 0.8 }
+    callout.bg:SetColorTexture(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a or 0.8)
+end
+
 local function GetPreviewScenarioSectionIndex(sectionCount, mode)
     if sectionCount <= 1 then return 1 end
     if mode == "almostDone" then return sectionCount end
@@ -164,6 +179,37 @@ local function BuildPreviewScenarioState(thresholds, scenario)
     end
 
     return currentPct, bossKillStates
+end
+
+local function GetBossProgressTargets(addon, dungeonKey)
+    local dungeonData = addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[dungeonKey]
+    if not dungeonData or not dungeonData.bosses then return {} end
+
+    local adv = addon.db and addon.db.profile and addon.db.profile.advanced and addon.db.profile.advanced[dungeonKey]
+    local targets = {}
+    for bossIdx, boss in pairs(dungeonData.bosses) do
+        local percent = adv and adv["Boss" .. tostring(boss[1])] or boss[2]
+        targets[#targets + 1] = {
+            bossIndex = bossIdx,
+            percent = percent or 100,
+        }
+    end
+
+    return targets
+end
+
+local function GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
+    local targets = GetBossProgressTargets(addon, dungeonKey)
+    if #targets == 0 then return nil end
+
+    for _, target in ipairs(targets) do
+        local bossKilled = bossKillStates and bossKillStates[target.bossIndex] or false
+        if not (bossKilled and currentPct >= target.percent) then
+            return target
+        end
+    end
+
+    return targets[#targets]
 end
 
 function KeystonePolaris:InitializeProgressBar()
@@ -234,8 +280,9 @@ function KeystonePolaris.CreateProgressBarCallout(_, parentFrame)
     callout.text = text
 
     local bg = callout:CreateTexture(nil, "BACKGROUND")
-    bg:SetColorTexture(0, 0, 0, 0.8)
     callout.bg = bg
+
+    ApplyCalloutStyle(callout, KeystonePolaris.db.profile.progressBar)
 
     callout:Hide()
     parentFrame.callout = callout
@@ -285,10 +332,13 @@ function KeystonePolaris:UpdateProgressBarCallout(segmentIndex, currentPct, sect
     local segEnd = boundaries[activeIdx + 1]
     local segCenter = (segStart + segEnd) / 2
 
-    local bossIdx
-    if activeIdx <= #thresholds then
-        bossIdx = thresholds[activeIdx].bossIndex
-    else
+    local bossKillStates = self:GetBossKillStates(self._progressBarDungeonKey)
+    local bossTarget = self._progressBarDungeonKey and GetCurrentBossTarget(self, self._progressBarDungeonKey, currentPct, bossKillStates)
+    local bossIdx = bossTarget and bossTarget.bossIndex
+    if bossTarget and bossTarget.percent then
+        segEnd = bossTarget.percent
+        segCenter = segEnd
+    elseif activeIdx > #thresholds then
         bossIdx = thresholds[#thresholds] and thresholds[#thresholds].bossIndex
     end
 
@@ -300,6 +350,7 @@ function KeystonePolaris:UpdateProgressBarCallout(segmentIndex, currentPct, sect
     local calloutText = string_format(L["PROGRESS_BAR_CALLOUT_FORMAT"], segEnd, bossName)
 
     local callout = frame.callout
+    ApplyCalloutStyle(callout, pb)
     callout.text:SetText(calloutText)
 
     local textWidth = callout.text:GetStringWidth() + 12
@@ -420,7 +471,8 @@ function KeystonePolaris:UpdateProgressBarSegments(currentPct, sectionStates)
         if state == "completed" or state == "completedBoss" then
             segIdx = drawSpan(segIdx, segStart, segEnd, "completed")
         elseif state == "inProgress" then
-            segIdx = drawSpan(segIdx, segStart, segEnd, "inProgress")
+            local progressEnd = math_max(segStart, math_min(currentPct, segEnd))
+            segIdx = drawSpan(segIdx, segStart, progressEnd, "inProgress")
         elseif state == "missing" then
             local completedEnd = math_max(segStart, math_min(currentPct, segEnd))
             segIdx = drawSpan(segIdx, segStart, completedEnd, "inProgress")
