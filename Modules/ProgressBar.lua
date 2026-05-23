@@ -6,12 +6,12 @@ local CreateColor = CreateColor
 local GameTooltip = GameTooltip
 local C_ChallengeMode = C_ChallengeMode
 local C_ScenarioInfo = C_ScenarioInfo
+local ipairs = ipairs
 local pairs = pairs
 local math_ceil = math.ceil
 local math_max = math.max
 local math_min = math.min
 local string_format = string.format
-local table_sort = table.sort
 local select = select
 local GetCursorPosition = GetCursorPosition
 
@@ -34,7 +34,7 @@ end
 
 local function GetSectionBoundaries(thresholds)
     local boundaries = { 0 }
-    for _, threshold in pairs(thresholds) do
+    for _, threshold in ipairs(thresholds) do
         boundaries[#boundaries + 1] = threshold.percent
     end
     boundaries[#boundaries + 1] = 100
@@ -181,21 +181,39 @@ local function BuildPreviewScenarioState(thresholds, scenario)
     return currentPct, bossKillStates
 end
 
-local function GetBossProgressTargets(addon, dungeonKey)
-    local dungeonData = addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[dungeonKey]
+function KeystonePolaris:GetOrderedBossTargets(dungeonKey)
+    local dungeonData = self.GlobalDungeonLookup and self.GlobalDungeonLookup[dungeonKey]
     if not dungeonData or not dungeonData.bosses then return {} end
 
-    local adv = addon.db and addon.db.profile and addon.db.profile.advanced and addon.db.profile.advanced[dungeonKey]
+    local dungeonId = self.GetDungeonIdByKey and self:GetDungeonIdByKey(dungeonKey) or nil
+    local order = self.GetDungeonSectionOrder and self:GetDungeonSectionOrder(dungeonId, dungeonKey)
+    local adv = self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey]
     local targets = {}
-    for bossIdx, boss in pairs(dungeonData.bosses) do
-        local percent = adv and adv["Boss" .. tostring(boss[1])] or boss[2]
-        targets[#targets + 1] = {
-            bossIndex = bossIdx,
-            percent = percent or 100,
-        }
+
+    if not order then
+        order = {}
+        for idx = 1, #dungeonData.bosses do
+            order[idx] = idx
+        end
+    end
+
+    for logicalIdx, bossIdx in ipairs(order) do
+        local boss = dungeonData.bosses[bossIdx]
+        if boss then
+            local percent = adv and adv["Boss" .. tostring(boss[1])] or boss[2]
+            targets[logicalIdx] = {
+                bossIndex = bossIdx,
+                bossNum = boss[1],
+                percent = percent or 100,
+            }
+        end
     end
 
     return targets
+end
+
+local function GetBossProgressTargets(addon, dungeonKey)
+    return addon:GetOrderedBossTargets(dungeonKey)
 end
 
 local function GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
@@ -401,7 +419,7 @@ function KeystonePolaris:UpdateProgressBarTickColors(bossKillStates)
     local completedColor = self:GetProgressBarColors()
     local doneColor = GetCompletedVisualColor(pb, completedColor)
 
-    for idx, tick in pairs(frame.ticks) do
+    for idx, tick in ipairs(frame.ticks) do
         local threshold = frame.tickThresholds[idx]
         local bossKilled = threshold and threshold.bossIndex and bossKillStates and bossKillStates[threshold.bossIndex] or false
         local color = bossKilled and doneColor or pb.tickColor
@@ -532,29 +550,20 @@ function KeystonePolaris:BuildProgressBarTicks(dungeonKey)
     local dungeonData = self.GlobalDungeonLookup and self.GlobalDungeonLookup[dungeonKey]
     if not dungeonData or not dungeonData.bosses then return end
 
-    local adv = self.db.profile.advanced[dungeonKey]
     local thresholds = {}
-    for i, boss in pairs(dungeonData.bosses) do
-        local pct
-        if adv then
-            pct = adv["Boss" .. tostring(boss[1])]
-        end
-        if not pct then
-            pct = boss[2]
-        end
+    for _, target in ipairs(self:GetOrderedBossTargets(dungeonKey)) do
+        local pct = target.percent
         if pct and pct > 0 and pct < 100 then
             thresholds[#thresholds + 1] = {
                 percent = pct,
-                bossIndex = i,
-                bossNum = boss[1],
+                bossIndex = target.bossIndex,
+                bossNum = target.bossNum,
             }
         end
     end
 
-    table_sort(thresholds, function(a, b) return a.percent < b.percent end)
-
     local tickParent = frame.borderFrame or frame
-    for idx, threshold in pairs(thresholds) do
+    for idx, threshold in ipairs(thresholds) do
         local tick = tickParent:CreateTexture(nil, "OVERLAY", nil, 7)
         tick:SetColorTexture(pb.tickColor.r, pb.tickColor.g, pb.tickColor.b, pb.tickColor.a)
         tick:SetSize(pb.tickWidth, barHeight + pb.tickOverflow * 2)
@@ -592,7 +601,7 @@ function KeystonePolaris:ShowProgressBarTooltip(frame)
     local segStart = 0
     local segEnd = 100
     local segBossIdx = nil
-    for _, t in pairs(thresholds) do
+    for _, t in ipairs(thresholds) do
         if cursorPct <= t.percent then
             segEnd = t.percent
             segBossIdx = t.bossIndex
@@ -601,10 +610,8 @@ function KeystonePolaris:ShowProgressBarTooltip(frame)
         segStart = t.percent
     end
     if not segBossIdx then
-        local dungeonData = self.GlobalDungeonLookup[self._progressBarDungeonKey]
-        if dungeonData and dungeonData.bosses then
-            segBossIdx = #dungeonData.bosses
-        end
+        local targets = self:GetOrderedBossTargets(self._progressBarDungeonKey)
+        segBossIdx = targets[#targets] and targets[#targets].bossIndex or nil
     end
 
     if not segBossIdx then return end
@@ -645,27 +652,15 @@ function KeystonePolaris:GetProgressBarSectionStates(dungeonKey, currentPct, bos
 
     local boundaries = { 0 }
     local bossIndices = {}
-    for i, t in pairs(thresholds) do
+    for i, t in ipairs(thresholds) do
         boundaries[#boundaries + 1] = t.percent
         bossIndices[i] = t.bossIndex
     end
     boundaries[#boundaries + 1] = 100
 
     if not bossIndices[#boundaries - 1] then
-        local dungeonData = self.GlobalDungeonLookup and self.GlobalDungeonLookup[dungeonKey]
-        if dungeonData and dungeonData.bosses then
-            local adv = self.db.profile.advanced and self.db.profile.advanced[dungeonKey]
-            for bi, boss in pairs(dungeonData.bosses) do
-                local pct = adv and adv["Boss" .. tostring(boss[1])] or boss[2]
-                if pct and pct >= 100 then
-                    bossIndices[#boundaries - 1] = bi
-                    break
-                end
-            end
-            if not bossIndices[#boundaries - 1] then
-                bossIndices[#boundaries - 1] = #dungeonData.bosses
-            end
-        end
+        local targets = self:GetOrderedBossTargets(dungeonKey)
+        bossIndices[#boundaries - 1] = targets[#targets] and targets[#targets].bossIndex or nil
     end
 
     for i = 1, #boundaries - 1 do

@@ -483,16 +483,15 @@ _G.KeystonePolaris_OnAddonCompartmentClick = function()
 end
 
 -- Build logical section order for the given dungeon, using advanced bossOrder when available
-function KeystonePolaris:BuildSectionOrder(dungeonId)
-    self.currentSectionOrder = nil
-    local dungeon = self.DUNGEONS[dungeonId]
-    if not dungeon then return end
+function KeystonePolaris:GetDungeonSectionOrder(dungeonId, dungeonKey)
+    local dungeon = dungeonId and self.DUNGEONS[dungeonId]
+    if not dungeon then return nil end
 
     local numBosses = #dungeon
-    if numBosses == 0 then return end
+    if numBosses == 0 then return nil end
 
     local order = {}
-    local dungeonKey = self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId) or nil
+    dungeonKey = dungeonKey or (self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId)) or nil
     if dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] then
         local adv = self.db.profile.advanced[dungeonKey]
         local advOrder = adv.bossOrder
@@ -507,13 +506,12 @@ function KeystonePolaris:BuildSectionOrder(dungeonId)
                 order[i] = math.floor(idx)
             end
             if valid then
-                self.currentSectionOrder = order
-                return
+                return order
             end
         end
     end
 
-    -- Fallback: order by required percentage ascending
+    -- Fallback: order by required percentage ascending.
     for i = 1, numBosses do
         order[i] = i
     end
@@ -522,9 +520,17 @@ function KeystonePolaris:BuildSectionOrder(dungeonId)
         local db = dungeon[b]
         local pa = da and da[2] or 0
         local pb = db and db[2] or 0
+        if pa == pb then
+            return a < b
+        end
         return pa < pb
     end)
-    self.currentSectionOrder = order
+
+    return order
+end
+
+function KeystonePolaris:BuildSectionOrder(dungeonId)
+    self.currentSectionOrder = self:GetDungeonSectionOrder(dungeonId)
 end
 
 -- Initialize dungeon tracking when entering a dungeon

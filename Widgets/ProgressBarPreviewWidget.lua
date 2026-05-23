@@ -7,10 +7,10 @@ local widgetVersion = 1
 
 local CreateFrame = CreateFrame
 local CreateColor = CreateColor
+local ipairs = ipairs
 local math_max = math.max
 local math_min = math.min
 local pairs = pairs
-local table_sort = table.sort
 local string_format = string.format
 
 local function Lerp(startValue, endValue, amount)
@@ -32,7 +32,7 @@ end
 
 local function GetSectionBoundaries(thresholds)
     local boundaries = { 0 }
-    for _, threshold in pairs(thresholds) do
+    for _, threshold in ipairs(thresholds) do
         boundaries[#boundaries + 1] = threshold.percent
     end
     boundaries[#boundaries + 1] = 100
@@ -236,48 +236,27 @@ local function BuildPreviewThresholds(addon, dungeonKey)
     local dungeonData = addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[dungeonKey]
     if not dungeonData or not dungeonData.bosses then return {}, nil end
 
-    local adv = addon.db and addon.db.profile and addon.db.profile.advanced and addon.db.profile.advanced[dungeonKey]
     local thresholds = {}
-    for i, boss in pairs(dungeonData.bosses) do
-        local pct
-        if adv then
-            pct = adv["Boss" .. tostring(boss[1])]
-        end
-        if not pct then
-            pct = boss[2]
-        end
+    for _, target in ipairs(addon:GetOrderedBossTargets(dungeonKey)) do
+        local pct = target.percent
         if pct and pct > 0 and pct < 100 then
             thresholds[#thresholds + 1] = {
                 percent = pct,
-                bossIndex = i,
-                bossNum = boss[1],
+                bossIndex = target.bossIndex,
+                bossNum = target.bossNum,
             }
         end
     end
 
-    table_sort(thresholds, function(a, b) return a.percent < b.percent end)
     return thresholds, dungeonData
 end
 
-local function GetBossProgressTargets(addon, dungeonKey, dungeonData)
-    dungeonData = dungeonData or (addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[dungeonKey])
-    if not dungeonData or not dungeonData.bosses then return {} end
-
-    local adv = addon.db and addon.db.profile and addon.db.profile.advanced and addon.db.profile.advanced[dungeonKey]
-    local targets = {}
-    for bossIdx, boss in pairs(dungeonData.bosses) do
-        local percent = adv and adv["Boss" .. tostring(boss[1])] or boss[2]
-        targets[#targets + 1] = {
-            bossIndex = bossIdx,
-            percent = percent or 100,
-        }
-    end
-
-    return targets
+local function GetBossProgressTargets(addon, dungeonKey)
+    return addon:GetOrderedBossTargets(dungeonKey)
 end
 
-local function GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates, dungeonData)
-    local targets = GetBossProgressTargets(addon, dungeonKey, dungeonData)
+local function GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
+    local targets = GetBossProgressTargets(addon, dungeonKey)
     if #targets == 0 then return nil end
 
     for _, target in ipairs(targets) do
@@ -290,30 +269,21 @@ local function GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillState
     return targets[#targets]
 end
 
-local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, dungeonData, currentPct, bossKillStates)
+local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentPct, bossKillStates)
     if not thresholds or #thresholds == 0 then return {} end
 
     local states = {}
     local boundaries = { 0 }
     local bossIndices = {}
-    for i, t in pairs(thresholds) do
+    for i, t in ipairs(thresholds) do
         boundaries[#boundaries + 1] = t.percent
         bossIndices[i] = t.bossIndex
     end
     boundaries[#boundaries + 1] = 100
 
-    if not bossIndices[#boundaries - 1] and dungeonData and dungeonData.bosses then
-        local adv = addon.db and addon.db.profile and addon.db.profile.advanced and addon.db.profile.advanced[dungeonKey]
-        for bi, boss in pairs(dungeonData.bosses) do
-            local pct = adv and adv["Boss" .. tostring(boss[1])] or boss[2]
-            if pct and pct >= 100 then
-                bossIndices[#boundaries - 1] = bi
-                break
-            end
-        end
-        if not bossIndices[#boundaries - 1] then
-            bossIndices[#boundaries - 1] = #dungeonData.bosses
-        end
+    if not bossIndices[#boundaries - 1] then
+        local targets = addon:GetOrderedBossTargets(dungeonKey)
+        bossIndices[#boundaries - 1] = targets[#targets] and targets[#targets].bossIndex or nil
     end
 
     for i = 1, #boundaries - 1 do
@@ -363,7 +333,7 @@ local function UpdateBorder(widget, pb)
     widget.borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
 end
 
-local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, dungeonData)
+local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates)
     local addon = KeystonePolaris
     local pb = addon.db.profile.progressBar
     if not pb.showCallout or not thresholds or #thresholds == 0 then
@@ -395,7 +365,7 @@ local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dunge
     local segEnd = boundaries[activeIdx + 1]
     local segCenter = (segStart + segEnd) / 2
 
-    local bossTarget = GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates, dungeonData)
+    local bossTarget = GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
     local bossIdx = bossTarget and bossTarget.bossIndex
     if bossTarget and bossTarget.percent then
         segEnd = bossTarget.percent
@@ -437,9 +407,9 @@ local function RenderPreview(widget, scenarioIndex)
     if not scenario then return end
 
     local dungeonKey = ResolvePreviewDungeonKey(addon)
-    local thresholds, dungeonData = BuildPreviewThresholds(addon, dungeonKey)
+    local thresholds = BuildPreviewThresholds(addon, dungeonKey)
     local currentPct, bossKillStates = BuildPreviewScenarioState(thresholds, scenario)
-    local sectionStates = BuildPreviewSectionStates(addon, dungeonKey, thresholds, dungeonData, currentPct, bossKillStates)
+    local sectionStates = BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentPct, bossKillStates)
 
     local frameWidth = widget.frame:GetWidth()
     if not frameWidth or frameWidth <= 20 then
@@ -533,7 +503,7 @@ local function RenderPreview(widget, scenarioIndex)
         end
     end
 
-    for idx, threshold in pairs(thresholds) do
+    for idx, threshold in ipairs(thresholds) do
         local tick = widget.ticks[idx]
         if not tick then
             tick = widget.borderFrame:CreateTexture(nil, "OVERLAY", nil, 7)
@@ -555,7 +525,7 @@ local function RenderPreview(widget, scenarioIndex)
         tick:Show()
     end
 
-    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, dungeonData)
+    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates)
 end
 
 local methods = {}
