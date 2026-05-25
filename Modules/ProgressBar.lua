@@ -188,6 +188,8 @@ function KeystonePolaris:GetOrderedBossTargets(dungeonKey)
     local dungeonId = self.GetDungeonIdByKey and self:GetDungeonIdByKey(dungeonKey) or nil
     local order = self.GetDungeonSectionOrder and self:GetDungeonSectionOrder(dungeonId, dungeonKey)
     local adv = self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey]
+    local useAdvancedRoutes = self.db and self.db.profile and self.db.profile.general
+        and self.db.profile.general.advancedOptionsEnabled
     local targets = {}
 
     if not order then
@@ -200,7 +202,8 @@ function KeystonePolaris:GetOrderedBossTargets(dungeonKey)
     for logicalIdx, bossIdx in ipairs(order) do
         local boss = dungeonData.bosses[bossIdx]
         if boss then
-            local percent = adv and adv["Boss" .. tostring(boss[1])] or boss[2]
+            local bossNumber = self.GetBossNumberString and self:GetBossNumberString(bossIdx) or tostring(bossIdx)
+            local percent = useAdvancedRoutes and adv and adv["Boss" .. bossNumber] or boss[2]
             targets[logicalIdx] = {
                 bossIndex = bossIdx,
                 bossNum = boss[1],

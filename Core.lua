@@ -492,7 +492,10 @@ function KeystonePolaris:GetDungeonSectionOrder(dungeonId, dungeonKey)
 
     local order = {}
     dungeonKey = dungeonKey or (self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId)) or nil
-    if dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] then
+    local useAdvancedRoutes = self.db and self.db.profile and self.db.profile.general
+        and self.db.profile.general.advancedOptionsEnabled
+    if useAdvancedRoutes and dungeonKey and self.db and self.db.profile
+        and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] then
         local adv = self.db.profile.advanced[dungeonKey]
         local advOrder = adv.bossOrder
         if type(advOrder) == "table" then
