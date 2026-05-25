@@ -107,6 +107,64 @@ local function GetCompletedVisualColor(pb, completedColor)
     return completedColor
 end
 
+local function GetProgressBarTooltipSection(addon, frame)
+    local thresholds = frame.tickThresholds
+    if not thresholds or #thresholds == 0 then return nil end
+    if not addon._progressBarDungeonKey then return nil end
+
+    local pb = addon.db.profile.progressBar
+    local barWidth = pb.width
+    local cursorX = select(1, GetCursorPosition()) / UIParent:GetEffectiveScale()
+    local frameLeft = frame:GetLeft() or 0
+    local relativeX = cursorX - frameLeft
+
+    if pb.direction == "RIGHT_TO_LEFT" then
+        relativeX = barWidth - relativeX
+    end
+
+    local cursorPct = (relativeX / barWidth) * 100
+    local segStart = 0
+    local segEnd = 100
+    local segBossIdx = nil
+    local tickPadding = math_max((pb.tickWidth or 0) * 0.5, 2)
+    local tickTolerancePct = (tickPadding / math_max(barWidth, 1)) * 100
+
+    for idx, threshold in ipairs(thresholds) do
+        if math.abs(cursorPct - threshold.percent) <= tickTolerancePct then
+            segEnd = threshold.percent
+            segStart = idx > 1 and thresholds[idx - 1].percent or 0
+            segBossIdx = threshold.bossIndex
+            break
+        end
+    end
+
+    if not segBossIdx then
+        for _, threshold in ipairs(thresholds) do
+            if cursorPct <= threshold.percent then
+                segEnd = threshold.percent
+                segBossIdx = threshold.bossIndex
+                break
+            end
+            segStart = threshold.percent
+        end
+    end
+
+    if not segBossIdx then
+        local targets = addon:GetOrderedBossTargets(addon._progressBarDungeonKey)
+        segBossIdx = targets[#targets] and targets[#targets].bossIndex or nil
+    end
+
+    if not segBossIdx then return nil end
+
+    return {
+        dungeonKey = addon._progressBarDungeonKey,
+        segStart = segStart,
+        segEnd = segEnd,
+        bossIndex = segBossIdx,
+        key = string_format("%d:%.2f:%.2f", segBossIdx, segStart, segEnd),
+    }
+end
+
 local function ApplyCalloutStyle(callout, pb)
     local currentFontFile, _, fontFlags = callout.text:GetFont()
     local fontName = pb.calloutFont or KeystonePolaris.db.profile.text.font
@@ -279,9 +337,15 @@ function KeystonePolaris:InitializeProgressBar()
     frame.tickThresholds = {}
 
     frame:SetScript("OnEnter", function(self_frame)
+        self_frame._lastTooltipSectionKey = nil
         KeystonePolaris:ShowProgressBarTooltip(self_frame)
+        self_frame:SetScript("OnUpdate", function(update_frame)
+            KeystonePolaris:ShowProgressBarTooltip(update_frame)
+        end)
     end)
-    frame:SetScript("OnLeave", function()
+    frame:SetScript("OnLeave", function(self_frame)
+        self_frame:SetScript("OnUpdate", nil)
+        self_frame._lastTooltipSectionKey = nil
         GameTooltip:Hide()
     end)
 
@@ -585,59 +649,39 @@ function KeystonePolaris:BuildProgressBarTicks(dungeonKey)
 end
 
 function KeystonePolaris:ShowProgressBarTooltip(frame)
-    local thresholds = frame.tickThresholds
-    if not thresholds or #thresholds == 0 then return end
-    if not self._progressBarDungeonKey then return end
-
-    local pb = self.db.profile.progressBar
-    local barWidth = pb.width
-    local cursorX = select(1, GetCursorPosition()) / UIParent:GetEffectiveScale()
-    local frameLeft = frame:GetLeft() or 0
-    local relativeX = cursorX - frameLeft
-
-    if pb.direction == "RIGHT_TO_LEFT" then
-        relativeX = barWidth - relativeX
+    local section = GetProgressBarTooltipSection(self, frame)
+    if not section then
+        GameTooltip:Hide()
+        frame._lastTooltipSectionKey = nil
+        return
     end
 
-    local cursorPct = (relativeX / barWidth) * 100
-
-    local segStart = 0
-    local segEnd = 100
-    local segBossIdx = nil
-    for _, t in ipairs(thresholds) do
-        if cursorPct <= t.percent then
-            segEnd = t.percent
-            segBossIdx = t.bossIndex
-            break
-        end
-        segStart = t.percent
-    end
-    if not segBossIdx then
-        local targets = self:GetOrderedBossTargets(self._progressBarDungeonKey)
-        segBossIdx = targets[#targets] and targets[#targets].bossIndex or nil
+    if frame._lastTooltipSectionKey == section.key and GameTooltip:IsOwned(frame) then
+        return
     end
 
-    if not segBossIdx then return end
+    frame._lastTooltipSectionKey = section.key
 
-    local dungeonKey = self._progressBarDungeonKey
-    local bossName = self:GetBossName(dungeonKey, segBossIdx)
+    local dungeonKey = section.dungeonKey
+    local bossName = self:GetBossName(dungeonKey, section.bossIndex)
 
     GameTooltip:SetOwner(frame, "ANCHOR_TOP")
-    GameTooltip:AddLine(bossName or ("Boss " .. segBossIdx), 1, 0.82, 0)
-    GameTooltip:AddLine(string_format(L["PROGRESS_BAR_THRESHOLD"], segEnd), 1, 1, 1)
+    GameTooltip:ClearLines()
+    GameTooltip:AddLine(bossName or ("Boss " .. section.bossIndex), 1, 0.82, 0)
+    GameTooltip:AddLine(string_format(L["PROGRESS_BAR_THRESHOLD"], section.segEnd), 1, 1, 1)
 
     local currentCount, totalCount = self:GetCurrentForcesInfo()
     if totalCount and totalCount > 0 then
-        local neededCount = math_ceil(totalCount * segEnd / 100)
+        local neededCount = math_ceil(totalCount * section.segEnd / 100)
         GameTooltip:AddLine(string_format(L["PROGRESS_BAR_COUNT"], neededCount), 1, 1, 1)
 
         local currentPct = (currentCount / totalCount) * 100
         local bossKillStates = self:GetBossKillStates(dungeonKey)
-        local isBossKilled = segBossIdx and bossKillStates[segBossIdx] or false
+        local isBossKilled = section.bossIndex and bossKillStates[section.bossIndex] or false
 
-        if currentPct >= segEnd and isBossKilled then
+        if currentPct >= section.segEnd and isBossKilled then
             GameTooltip:AddLine(L["PROGRESS_BAR_STATUS_COMPLETE"], 0, 1, 0)
-        elseif currentPct >= segStart or isBossKilled then
+        elseif currentPct >= section.segStart or isBossKilled then
             GameTooltip:AddLine(L["PROGRESS_BAR_STATUS_CURRENT"], 1, 1, 0)
         else
             GameTooltip:AddLine(L["PROGRESS_BAR_STATUS_UPCOMING"], 0.5, 0.5, 0.5)
