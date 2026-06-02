@@ -161,7 +161,7 @@ local function GetProgressBarTooltipSection(addon, frame)
         segStart = segStart,
         segEnd = segEnd,
         bossIndex = segBossIdx,
-        key = string_format("%d:%.2f:%.2f", segBossIdx, segStart, segEnd),
+        key = string_format("%.2f:%.2f", segStart, segEnd),
     }
 end
 
@@ -289,6 +289,49 @@ local function GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillState
     end
 
     return targets[#targets]
+end
+
+local function SplitTooltipLine(formattedText)
+    local label, value = formattedText:match("^(.-:%s*)(.+)$")
+    if label and value then
+        return label, value
+    end
+
+    return formattedText, ""
+end
+
+local function GetTooltipBossGroup(addon, dungeonKey, thresholdPercent, fallbackBossIndex)
+    local group = {}
+
+    for _, target in ipairs(addon:GetOrderedBossTargets(dungeonKey)) do
+        if target.percent == thresholdPercent then
+            group[#group + 1] = target
+        end
+    end
+
+    if #group == 0 and fallbackBossIndex then
+        group[1] = {
+            bossIndex = fallbackBossIndex,
+            percent = thresholdPercent,
+        }
+    end
+
+    return group
+end
+
+local function GetTooltipBossStatus(addon, dungeonKey, target, currentPct, bossKillStates)
+    local currentTarget = GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
+    local isBossKilled = target and target.bossIndex and bossKillStates[target.bossIndex] or false
+
+    if target and currentPct >= target.percent and isBossKilled then
+        return "Complete", "ff00ff00", 0, 1, 0
+    end
+
+    if currentTarget and target and currentTarget.bossIndex == target.bossIndex then
+        return "Current", "ffffff00", 1, 1, 0
+    end
+
+    return "Upcoming", "ff808080", 0.5, 0.5, 0.5
 end
 
 function KeystonePolaris:InitializeProgressBar()
@@ -663,29 +706,38 @@ function KeystonePolaris:ShowProgressBarTooltip(frame)
     frame._lastTooltipSectionKey = section.key
 
     local dungeonKey = section.dungeonKey
-    local bossName = self:GetBossName(dungeonKey, section.bossIndex)
+    local bossGroup = GetTooltipBossGroup(self, dungeonKey, section.segEnd, section.bossIndex)
+    local thresholdLabel, thresholdValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_THRESHOLD"], section.segEnd))
 
     GameTooltip:SetOwner(frame, "ANCHOR_TOP")
     GameTooltip:ClearLines()
-    GameTooltip:AddLine(bossName or ("Boss " .. section.bossIndex), 1, 0.82, 0)
-    GameTooltip:AddLine(string_format(L["PROGRESS_BAR_THRESHOLD"], section.segEnd), 1, 1, 1)
+    GameTooltip:AddDoubleLine(thresholdLabel, thresholdValue, 1, 0.82, 0, 1, 1, 1)
 
     local currentCount, totalCount = self:GetCurrentForcesInfo()
+    local currentPct = 0
+    local bossKillStates = self:GetBossKillStates(dungeonKey)
     if totalCount and totalCount > 0 then
         local neededCount = math_ceil(totalCount * section.segEnd / 100)
-        GameTooltip:AddLine(string_format(L["PROGRESS_BAR_COUNT"], neededCount), 1, 1, 1)
+        local countLabel, countValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_COUNT"], neededCount))
+        GameTooltip:AddDoubleLine(countLabel, countValue, 1, 0.82, 0, 1, 1, 1)
+        currentPct = (currentCount / totalCount) * 100
+    end
 
-        local currentPct = (currentCount / totalCount) * 100
-        local bossKillStates = self:GetBossKillStates(dungeonKey)
-        local isBossKilled = section.bossIndex and bossKillStates[section.bossIndex] or false
+    GameTooltip:AddLine(" ")
 
-        if currentPct >= section.segEnd and isBossKilled then
-            GameTooltip:AddLine(L["PROGRESS_BAR_STATUS_COMPLETE"], 0, 1, 0)
-        elseif currentPct >= section.segStart or isBossKilled then
-            GameTooltip:AddLine(L["PROGRESS_BAR_STATUS_CURRENT"], 1, 1, 0)
-        else
-            GameTooltip:AddLine(L["PROGRESS_BAR_STATUS_UPCOMING"], 0.5, 0.5, 0.5)
-        end
+    for _, target in ipairs(bossGroup) do
+        local bossName = self:GetBossName(dungeonKey, target.bossIndex) or ("Boss " .. tostring(target.bossIndex))
+        local statusText, indicatorColor, statusR, statusG, statusB = GetTooltipBossStatus(self, dungeonKey, target, currentPct, bossKillStates)
+        GameTooltip:AddDoubleLine(
+            "|c" .. indicatorColor .. "> |r" .. bossName,
+            statusText,
+            1,
+            1,
+            1,
+            statusR,
+            statusG,
+            statusB
+        )
     end
 
     GameTooltip:Show()
