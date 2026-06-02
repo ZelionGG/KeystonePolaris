@@ -255,18 +255,34 @@ local function GetBossProgressTargets(addon, dungeonKey)
     return addon:GetOrderedBossTargets(dungeonKey)
 end
 
-local function GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
-    local targets = GetBossProgressTargets(addon, dungeonKey)
-    if #targets == 0 then return nil end
+local function GetNextAliveBossTarget(targets, bossKillStates)
+    if not targets or #targets == 0 then return nil end
 
     for _, target in ipairs(targets) do
         local bossKilled = bossKillStates and bossKillStates[target.bossIndex] or false
-        if not (bossKilled and currentPct >= target.percent) then
+        if not bossKilled then
             return target
         end
     end
 
     return targets[#targets]
+end
+
+local function GetCalloutRemainingPercent(target, currentPct)
+    if not target or not target.percent then return 0 end
+
+    local remaining = target.percent - currentPct
+    if remaining < 0 then
+        remaining = 0
+    end
+    if remaining < 0.05 and remaining > 0 then
+        remaining = 0
+    end
+    return remaining
+end
+
+local function GetCurrentBossTarget(addon, dungeonKey, _currentPct, bossKillStates)
+    return GetNextAliveBossTarget(GetBossProgressTargets(addon, dungeonKey), bossKillStates)
 end
 
 local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentPct, bossKillStates)
@@ -368,8 +384,8 @@ local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dunge
     local bossTarget = GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
     local bossIdx = bossTarget and bossTarget.bossIndex
     if bossTarget and bossTarget.percent then
-        segEnd = bossTarget.percent
-        segCenter = segEnd
+        segCenter = bossTarget.percent
+        segEnd = GetCalloutRemainingPercent(bossTarget, currentPct)
     elseif activeIdx > #thresholds then
         bossIdx = thresholds[#thresholds] and thresholds[#thresholds].bossIndex
     end
