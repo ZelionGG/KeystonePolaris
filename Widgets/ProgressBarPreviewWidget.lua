@@ -105,8 +105,8 @@ local function GetCompletedVisualColor(pb, completedColor)
     return completedColor
 end
 
-local function GetCalloutReservedHeight(pb)
-    if not pb.showCallout then return 0 end
+local function GetCalloutReservedHeight(addon, pb)
+    if not addon:GetProgressBarValue("showCallout") then return 0 end
     return (pb.calloutFontSize or 10) + 18
 end
 
@@ -323,16 +323,18 @@ local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentP
     return states
 end
 
-local function UpdateBorder(widget, pb)
-    if pb.borderStyle == "NONE" then
+local function UpdateBorder(widget, addon)
+    local borderStyle = addon:GetProgressBarValue("borderStyle")
+    if borderStyle == "NONE" then
         widget.borderFrame:SetBackdrop(nil)
         return
     end
 
+    local pb = addon.db.profile.progressBar
     local edgeFile
-    if pb.borderStyle == "SOLID" then
+    if borderStyle == "SOLID" then
         edgeFile = "Interface\\Buttons\\WHITE8X8"
-    elseif pb.borderStyle == "LSM_BORDER" then
+    elseif borderStyle == "LSM_BORDER" then
         edgeFile = KeystonePolaris.LSM:Fetch("border", pb.borderTexture)
     end
 
@@ -352,7 +354,7 @@ end
 local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates)
     local addon = KeystonePolaris
     local pb = addon.db.profile.progressBar
-    if not pb.showCallout or not thresholds or #thresholds == 0 then
+    if not addon:GetProgressBarValue("showCallout") or not thresholds or #thresholds == 0 then
         widget.callout:Hide()
         return
     end
@@ -432,11 +434,11 @@ local function RenderPreview(widget, scenarioIndex)
         frameWidth = pb.width + 20
     end
     local displayWidth = math_min(pb.width, math_max(80, frameWidth - 20))
-    local calloutExtra = GetCalloutReservedHeight(pb)
+    local calloutExtra = GetCalloutReservedHeight(addon, pb)
     local previewHeight = math_max(70, pb.height + calloutExtra + 24)
     local contentOffsetY = 0
 
-    if pb.showCallout then
+    if addon:GetProgressBarValue("showCallout") then
         if pb.calloutPosition == "ABOVE" then
             contentOffsetY = -(calloutExtra / 2)
         else
@@ -452,7 +454,7 @@ local function RenderPreview(widget, scenarioIndex)
     widget.barFrame:SetPoint("CENTER", widget.frame, "CENTER", 0, contentOffsetY)
 
     widget.background:SetColorTexture(pb.backgroundColor.r, pb.backgroundColor.g, pb.backgroundColor.b, pb.backgroundColor.a or 0.7)
-    UpdateBorder(widget, pb)
+    UpdateBorder(widget, addon)
 
     for _, seg in pairs(widget.segments) do
         seg:Hide()

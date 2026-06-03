@@ -32,6 +32,17 @@ local function InterpolateColor(startColor, endColor, amount)
     )
 end
 
+function KeystonePolaris:GetProgressBarValue(key)
+    local pb = self.db and self.db.profile and self.db.profile.progressBar
+    if not pb then return nil end
+    local value = pb[key]
+    if value ~= nil then
+        return value
+    end
+    local defaults = self.defaults and self.defaults.profile and self.defaults.profile.progressBar
+    return defaults and defaults[key]
+end
+
 local function GetSectionBoundaries(thresholds)
     local boundaries = { 0 }
     for _, threshold in ipairs(thresholds) do
@@ -357,7 +368,7 @@ function KeystonePolaris:InitializeProgressBar()
 
     local frame = CreateFrame("Frame", "KeystonePolarisProgressBar", UIParent, "BackdropTemplate")
     frame:SetSize(pb.width, pb.height)
-    frame:SetPoint(pb.position, UIParent, pb.position, pb.xOffset, pb.yOffset)
+    frame:SetPoint(pb.position, UIParent, pb.position, pb.xOffset, self:GetProgressBarValue("yOffset"))
     frame:SetFrameStrata("MEDIUM")
     frame:EnableMouse(true)
     frame:SetMovable(true)
@@ -437,7 +448,7 @@ function KeystonePolaris:UpdateProgressBarCallout(segmentIndex, currentPct, sect
     if not frame or not frame.callout then return end
 
     local pb = self.db.profile.progressBar
-    if not pb.showCallout then
+    if not self:GetProgressBarValue("showCallout") then
         frame.callout:Hide()
         return
     end
@@ -634,7 +645,9 @@ function KeystonePolaris:ApplyProgressBarBorder()
 
     local pb = self.db.profile.progressBar
 
-    if pb.borderStyle == "NONE" then
+    local borderStyle = self:GetProgressBarValue("borderStyle")
+
+    if borderStyle == "NONE" then
         borderFrame:SetBackdrop(nil)
         return
     end
@@ -643,9 +656,9 @@ function KeystonePolaris:ApplyProgressBarBorder()
     local edgeSize = pb.borderSize
     local insets = pb.borderInsets
 
-    if pb.borderStyle == "SOLID" then
+    if borderStyle == "SOLID" then
         edgeFile = "Interface\\Buttons\\WHITE8X8"
-    elseif pb.borderStyle == "LSM_BORDER" then
+    elseif borderStyle == "LSM_BORDER" then
         edgeFile = self.LSM:Fetch("border", pb.borderTexture)
     end
 
@@ -817,8 +830,7 @@ function KeystonePolaris:UpdateProgressBar()
     local frame = self.progressBarFrame
     if not frame then return end
 
-    local pb = self.db.profile.progressBar
-    if not pb.enabled then
+    if not self:GetProgressBarValue("enabled") then
         frame:Hide()
         return
     end
@@ -864,7 +876,7 @@ function KeystonePolaris:RefreshProgressBar()
 
     if not self._progressBarDragging then
         frame:ClearAllPoints()
-        frame:SetPoint(pb.position, UIParent, pb.position, pb.xOffset, pb.yOffset)
+        frame:SetPoint(pb.position, UIParent, pb.position, pb.xOffset, self:GetProgressBarValue("yOffset"))
     end
 
     frame.background:SetColorTexture(pb.backgroundColor.r, pb.backgroundColor.g, pb.backgroundColor.b, pb.backgroundColor.a or 0.7)
@@ -958,7 +970,7 @@ function KeystonePolaris:DisableProgressBarPreview()
     if not self.progressBarFrame then return end
 
     local currentDungeonID = C_ChallengeMode.GetActiveChallengeMapID()
-    if not currentDungeonID or not self.db.profile.progressBar.enabled then
+    if not currentDungeonID or not self:GetProgressBarValue("enabled") then
         self.progressBarFrame:Hide()
         self._progressBarDungeonKey = nil
     end

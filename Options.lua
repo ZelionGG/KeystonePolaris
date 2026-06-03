@@ -55,6 +55,28 @@ local function SetPreviewScenario(value)
     ACR:NotifyChange(AddOnName)
 end
 
+-- Progress bar width: store UI units (GetScreenWidth), show physical pixels on the slider.
+local function GetProgressBarWidthSliderMax()
+    if GetPhysicalScreenSize then
+        return math.ceil((select(1, GetPhysicalScreenSize())))
+    end
+    return math.ceil(GetScreenWidth())
+end
+
+local function ProgressBarWidthUiToSlider(uiWidth)
+    local uiMax = GetScreenWidth()
+    local sliderMax = GetProgressBarWidthSliderMax()
+    if uiMax <= 0 or sliderMax <= 0 then return uiWidth end
+    return uiWidth * sliderMax / uiMax
+end
+
+local function ProgressBarWidthSliderToUi(sliderValue)
+    local uiMax = GetScreenWidth()
+    local sliderMax = GetProgressBarWidthSliderMax()
+    if sliderMax <= 0 then return sliderValue end
+    return sliderValue * uiMax / sliderMax
+end
+
 local function PreviewScenarioDropdown(order)
     return {
         name = L["PREVIEW_SCENARIO"],
@@ -242,12 +264,12 @@ KeystonePolaris.defaults = {
         },
         advanced = {},
         progressBar = {
-            enabled = false,
+            enabled = true,
             width = 250,
             height = 20,
             position = "CENTER",
             xOffset = 0,
-            yOffset = 0,
+            yOffset = 350,
             direction = "LEFT_TO_RIGHT",
             barTexture = "Blizzard Raid Bar",
             useGradient = false,
@@ -258,7 +280,7 @@ KeystonePolaris.defaults = {
             inProgressColor = { r = 1, g = 1, b = 1, a = 1 },
             missingColor = { r = 1, g = 0, b = 0, a = 1 },
             backgroundColor = { r = 0, g = 0, b = 0, a = 0.7 },
-            borderStyle = "SOLID",
+            borderStyle = "NONE",
             borderTexture = "Blizzard Dialog Gold",
             borderColor = { r = 0, g = 0, b = 0, a = 1 },
             borderSize = 2,
@@ -266,7 +288,7 @@ KeystonePolaris.defaults = {
             tickColor = { r = 1, g = 1, b = 1, a = 1 },
             tickWidth = 2,
             tickOverflow = 2,
-            showCallout = false,
+            showCallout = true,
             calloutPosition = "ABOVE",
             calloutFont = "Friz Quadrata TT",
             calloutFontSize = 10,
@@ -1546,7 +1568,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         desc = L["PROGRESS_BAR_ENABLED_DESC"],
                         type = "toggle",
                         width = 1.5,
-                        get = function() return self.db.profile.progressBar.enabled end,
+                        get = function() return self:GetProgressBarValue("enabled") end,
                         set = function(_, value)
                             self.db.profile.progressBar.enabled = value
                             if self.UpdateProgressBar then self:UpdateProgressBar() end
@@ -1570,10 +1592,14 @@ function KeystonePolaris:GetProgressBarOptions()
                     widthRow = ColumnRow(3, {
                         name = L["PROGRESS_BAR_WIDTH"],
                         type = "range",
-                        min = 50, max = 800, step = 1,
-                        get = function() return self.db.profile.progressBar.width end,
+                        min = 50,
+                        max = GetProgressBarWidthSliderMax(),
+                        step = 1,
+                        get = function()
+                            return math.floor(ProgressBarWidthUiToSlider(self.db.profile.progressBar.width) + 0.5)
+                        end,
                         set = function(_, value)
-                            self.db.profile.progressBar.width = value
+                            self.db.profile.progressBar.width = ProgressBarWidthSliderToUi(value)
                             if self.RefreshProgressBar then self:RefreshProgressBar() end
                         end,
                     }, {
@@ -1603,7 +1629,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         min = -math.ceil(GetScreenHeight()),
                         max = math.ceil(GetScreenHeight()),
                         step = 1,
-                        get = function() return self.db.profile.progressBar.yOffset end,
+                        get = function() return self:GetProgressBarValue("yOffset") end,
                         set = function(_, value)
                             self.db.profile.progressBar.yOffset = value
                             if self.RefreshProgressBar then self:RefreshProgressBar() end
@@ -1811,7 +1837,7 @@ function KeystonePolaris:GetProgressBarOptions()
                             SOLID = L["PROGRESS_BAR_BORDER_SOLID"],
                             LSM_BORDER = L["PROGRESS_BAR_BORDER_LSM"],
                         },
-                        get = function() return self.db.profile.progressBar.borderStyle end,
+                        get = function() return self:GetProgressBarValue("borderStyle") end,
                         set = function(_, value)
                             self.db.profile.progressBar.borderStyle = value
                             if self.RefreshProgressBar then self:RefreshProgressBar() end
@@ -1823,7 +1849,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         dialogControl = "LSM30_Border",
                         values = AceGUIWidgetLSMlists.border,
                         style = "dropdown",
-                        hidden = function() return self.db.profile.progressBar.borderStyle ~= "LSM_BORDER" end,
+                        hidden = function() return self:GetProgressBarValue("borderStyle") ~= "LSM_BORDER" end,
                         get = function() return self.db.profile.progressBar.borderTexture end,
                         set = function(_, value)
                             self.db.profile.progressBar.borderTexture = value
@@ -1835,7 +1861,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         type = "color",
                         hasAlpha = true,
                         width = 1,
-                        hidden = function() return self.db.profile.progressBar.borderStyle == "NONE" end,
+                        hidden = function() return self:GetProgressBarValue("borderStyle") == "NONE" end,
                         get = function()
                             local c = self.db.profile.progressBar.borderColor
                             return c.r, c.g, c.b, c.a
@@ -1849,7 +1875,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         type = "range",
                         min = 1, max = 16, step = 1,
                         width = 1,
-                        hidden = function() return self.db.profile.progressBar.borderStyle == "NONE" end,
+                        hidden = function() return self:GetProgressBarValue("borderStyle") == "NONE" end,
                         get = function() return self.db.profile.progressBar.borderSize end,
                         set = function(_, value)
                             self.db.profile.progressBar.borderSize = value
@@ -1908,7 +1934,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         desc = L["PROGRESS_BAR_SHOW_CALLOUT_DESC"],
                         type = "toggle",
                         order = 14,
-                        get = function() return self.db.profile.progressBar.showCallout end,
+                        get = function() return self:GetProgressBarValue("showCallout") end,
                         set = function(_, value)
                             self.db.profile.progressBar.showCallout = value
                             if self.RefreshProgressBar then self:RefreshProgressBar() end
@@ -1919,7 +1945,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         name = L["PROGRESS_BAR_CALLOUT_POSITION"],
                         type = "select",
                         order = 15,
-                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
                         values = {
                             ABOVE = L["PROGRESS_BAR_CALLOUT_ABOVE"],
                             BELOW = L["PROGRESS_BAR_CALLOUT_BELOW"],
@@ -1937,7 +1963,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         values = AceGUIWidgetLSMlists.font,
                         style = "dropdown",
                         order = 15.5,
-                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
                         get = function() return self.db.profile.progressBar.calloutFont end,
                         set = function(_, value)
                             self.db.profile.progressBar.calloutFont = value
@@ -1949,7 +1975,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         type = "range",
                         order = 16,
                         min = 8, max = 24, step = 1,
-                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
                         get = function() return self.db.profile.progressBar.calloutFontSize end,
                         set = function(_, value)
                             self.db.profile.progressBar.calloutFontSize = value
@@ -1961,7 +1987,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         type = "color",
                         hasAlpha = true,
                         width = 1,
-                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
                         get = function()
                             local c = self.db.profile.progressBar.calloutTextColor
                             return c.r, c.g, c.b, c.a
@@ -1975,7 +2001,7 @@ function KeystonePolaris:GetProgressBarOptions()
                         type = "color",
                         hasAlpha = true,
                         width = 1,
-                        hidden = function() return not self.db.profile.progressBar.showCallout end,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
                         get = function()
                             local c = self.db.profile.progressBar.calloutBackgroundColor
                             return c.r, c.g, c.b, c.a
