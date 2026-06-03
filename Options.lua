@@ -158,14 +158,27 @@ end
 -- ---------------------------------------------------------------------------
 -- Helper utilities
 -- ---------------------------------------------------------------------------
--- Shallow-clone a table. If the WoW utility `CopyTable` exists we use it,
--- otherwise fall back to manual copy. This is needed so that changing the
--- `order` field for one AceConfig option group does not overwrite the value
--- used in another section.
-local function CloneTable(tbl)
-    if type(CopyTable) == "function" then return CopyTable(tbl) end
+-- Shallow-clone a table (one level only). Used for AceConfig dungeon groups so
+-- each section keeps its own `order` while sharing nested `args` references.
+-- Do not use WoW CopyTable here: it deep-copies nested tables, which breaks
+-- live milestone add/remove updates in the options UI.
+local function ShallowCloneTable(tbl)
     local t = {}
     for k, v in pairs(tbl) do t[k] = v end
+    return t
+end
+
+-- Deep-clone nested tables (e.g. advanced defaults copied into saved variables).
+local function CloneTable(tbl)
+    if type(tbl) ~= "table" then return tbl end
+    local t = {}
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            t[k] = CloneTable(v)
+        else
+            t[k] = v
+        end
+    end
     return t
 end
 
@@ -206,7 +219,7 @@ local function InsertSortedDungeonOptions(addon, dungeonKeys, sharedOptions, tar
     table.sort(sortable, function(a, b) return a.name < b.name end)
 
     for idx, entry in ipairs(sortable) do
-        local opt = CloneTable(sharedOptions[entry.key])
+        local opt = ShallowCloneTable(sharedOptions[entry.key])
         opt.order = baseOrder + idx
         targetArgs[entry.key] = opt
     end
@@ -2043,6 +2056,14 @@ function KeystonePolaris:GetProgressBarOptions()
     }
 end
 
+function KeystonePolaris:RefreshAdvancedOptionsTree(dungeonKey)
+    local rebuilder = self._dungeonMilestoneRebuilders
+        and self._dungeonMilestoneRebuilders[dungeonKey]
+    if rebuilder then rebuilder() end
+
+    ACR:NotifyChange(AddOnName)
+end
+
 function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
     local numBosses = #self.DUNGEONS[self:GetDungeonIdByKey(dungeonKey)]
 
@@ -2101,13 +2122,20 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
         return advanced.milestones
     end
 
-    local function RefreshDungeonRouting()
+    local function RefreshMilestoneRuntime()
         self:UpdateDungeonData()
         local dungeonId = self:GetDungeonIdByKey(dungeonKey)
+        if dungeonId and self.ResetMilestoneRuntimeState then
+            self:ResetMilestoneRuntimeState(dungeonId)
+        end
         if dungeonId and self.BuildSectionOrder then
             self:BuildSectionOrder(dungeonId)
         end
         if self.UpdatePercentageText then self:UpdatePercentageText() end
+    end
+
+    local function RefreshDungeonRouting()
+        RefreshMilestoneRuntime()
         ACR:NotifyChange(AddOnName)
     end
 
@@ -2237,10 +2265,17 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
 
                         -- Update the display
                         self:UpdateDungeonData()
+                        if dungeonId and self.ResetMilestoneRuntimeState then
+                            self:ResetMilestoneRuntimeState(dungeonId)
+                        end
                         if self.currentDungeonID and self.BuildSectionOrder then
                             self:BuildSectionOrder(self.currentDungeonID)
                         end
-                        ACR:NotifyChange(AddOnName)
+                        if self.RefreshAdvancedOptionsTree then
+                            self:RefreshAdvancedOptionsTree(dungeonKey)
+                        else
+                            ACR:NotifyChange(AddOnName)
+                        end
                         if self.UpdatePercentageText then self:UpdatePercentageText() end
                     end
                 end,
@@ -2462,7 +2497,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
                         current.label = tostring(value or "")
-                        RefreshDungeonRouting()
+                        RefreshMilestoneRuntime()
                     end
                 },
                 threshold = {
@@ -2481,7 +2516,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
                         current.thresholdPercent = tonumber(value) or 0
-                        RefreshDungeonRouting()
+                        RefreshMilestoneRuntime()
                     end
                 },
                 triggerType = {
@@ -2525,7 +2560,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
                         current.matchText = tostring(value or "")
-                        RefreshDungeonRouting()
+                        RefreshMilestoneRuntime()
                     end
                 },
                 captureZone = {
@@ -2541,7 +2576,8 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
                         current.matchText = tostring(GetZoneText() or "")
-                        RefreshDungeonRouting()
+                        RefreshMilestoneRuntime()
+                        ACR:NotifyChange(AddOnName)
                     end
                 },
                 captureSubzone = {
@@ -2557,7 +2593,8 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
                         current.matchText = tostring(GetSubZoneText() or "")
-                        RefreshDungeonRouting()
+                        RefreshMilestoneRuntime()
+                        ACR:NotifyChange(AddOnName)
                     end
                 },
                 informRow = ColumnRow(7, {
@@ -2577,7 +2614,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
                         current.inform = value == true
-                        RefreshDungeonRouting()
+                        RefreshMilestoneRuntime()
                     end
                 }, {
                     type = "input",
@@ -2596,7 +2633,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
                         current.informSuffix = tostring(value or "")
-                        RefreshDungeonRouting()
+                        RefreshMilestoneRuntime()
                     end
                 }),
                 remove = {
@@ -2635,6 +2672,9 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
     end
 
     RebuildMilestoneOptionGroups()
+
+    self._dungeonMilestoneRebuilders = self._dungeonMilestoneRebuilders or {}
+    self._dungeonMilestoneRebuilders[dungeonKey] = RebuildMilestoneOptionGroups
 
     return options
 end

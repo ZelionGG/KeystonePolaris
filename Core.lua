@@ -822,6 +822,29 @@ function KeystonePolaris:HasMilestoneCompletionShown(section)
     return runtimeKey ~= "" and dungeonState[runtimeKey] == true or false
 end
 
+function KeystonePolaris:ResetMilestoneRuntimeState(dungeonId)
+    if not dungeonId then return end
+
+    if type(self.currentMilestoneTriggerState) ~= "table" then
+        self.currentMilestoneTriggerState = {}
+    end
+    self.currentMilestoneTriggerState[dungeonId] = {}
+
+    if type(self.currentMilestoneCompletionState) ~= "table" then
+        self.currentMilestoneCompletionState = {}
+    end
+    self.currentMilestoneCompletionState[dungeonId] = {}
+
+    if type(self.currentMilestoneInformState) ~= "table" then
+        self.currentMilestoneInformState = {}
+    end
+    self.currentMilestoneInformState[dungeonId] = {}
+
+    if self.currentDungeonID == dungeonId then
+        self._milestoneDoneTextUntil = nil
+    end
+end
+
 function KeystonePolaris:GetSortedMilestones(dungeonId)
     local dungeonKey = self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId) or nil
     local advancedData = dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] or nil

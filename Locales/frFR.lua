@@ -63,6 +63,7 @@ L["DONE"] = "Pourcentage de la section atteint"
 L["DUNGEON_DONE"] = "Donjon terminé"
 L["OPTIONS"] = "Options" -- @no-translate
 L["GENERAL_SETTINGS"] = "Paramètres généraux"
+-- TODO: L["TEXT_DISPLAY"] = "Text Display"
 L["DISPLAY"] = "Affichage"
 L["APPEARANCE"] = "Apparence"
 L["INTERFACE"] = "Interface" -- @no-translate

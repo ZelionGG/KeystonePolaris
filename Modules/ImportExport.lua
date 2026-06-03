@@ -878,6 +878,14 @@ function KeystonePolaris:TryImportMDTRoute(importPayload)
     return false
 end
 
+local function RefreshImportedDungeonMilestoneOptions(addon, dungeonKey)
+    if addon.RefreshAdvancedOptionsTree then
+        addon:RefreshAdvancedOptionsTree(dungeonKey)
+    else
+        LibStub("AceConfigRegistry-3.0"):NotifyChange("KeystonePolaris")
+    end
+end
+
 local function ImportKeystoneData(addon, importData, sectionName, dungeonFilter)
     local prefix = (addon.GetChatPrefix and addon:GetChatPrefix()) or "Keystone Polaris"
     local importCount = 0
@@ -931,8 +939,7 @@ local function ImportKeystoneData(addon, importData, sectionName, dungeonFilter)
             if addon.currentDungeonID and addon.BuildSectionOrder then
                 addon:BuildSectionOrder(addon.currentDungeonID)
             end
-            LibStub("AceConfigRegistry-3.0"):NotifyChange(
-                "KeystonePolaris")
+            RefreshImportedDungeonMilestoneOptions(addon, dungeonKey)
             if addon.UpdatePercentageText then addon:UpdatePercentageText() end
             local openedOptions = OpenOptionsForDungeon(addon, dungeonKey)
             local messageKey = openedOptions and "IMPORT_SUCCESS_OPENED" or "IMPORT_SUCCESS"
@@ -956,7 +963,14 @@ local function ImportKeystoneData(addon, importData, sectionName, dungeonFilter)
         if addon.currentDungeonID and addon.BuildSectionOrder then
             addon:BuildSectionOrder(addon.currentDungeonID)
         end
-        LibStub("AceConfigRegistry-3.0"):NotifyChange("KeystonePolaris")
+        if importData.data then
+            for dungeonKey, dungeonData in pairs(importData.data) do
+                if (not dungeonFilter or dungeonFilter[dungeonKey])
+                    and type(dungeonData) == "table" then
+                    RefreshImportedDungeonMilestoneOptions(addon, dungeonKey)
+                end
+            end
+        end
         if addon.UpdatePercentageText then addon:UpdatePercentageText() end
 
         -- Determine success message based on import type
