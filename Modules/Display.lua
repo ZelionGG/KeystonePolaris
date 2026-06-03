@@ -131,25 +131,29 @@ function KeystonePolaris:EnsureInformSecureButton(macroText)
 
         btn:Hide()
         self.informSecureButton = btn
+        btn:ClearAllPoints()
+        if self.displayFrame then
+            btn:SetPoint("TOP", self.displayFrame, "BOTTOM", 0, -6)
+        else
+            btn:SetPoint("CENTER")
+        end
         if self.UpdateInformButtonFrameLayer then
             self:UpdateInformButtonFrameLayer()
         end
     end
 
     local btn = self.informSecureButton
-    btn:ClearAllPoints()
-    if self.displayFrame then
-        btn:SetPoint("TOP", self.displayFrame, "BOTTOM", 0, -6)
-    else
-        btn:SetPoint("CENTER")
-    end
-    if self.UpdateInformButtonFrameLayer then
-        self:UpdateInformButtonFrameLayer()
-    end
 
     if macroText then
-        btn:SetAttribute("type", "macro")
-        btn:SetAttribute("macrotext", macroText)
+        if InCombatLockdown() then
+            self._pendingInformMacro = macroText
+            if self.EnsureInformWatcher then
+                self:EnsureInformWatcher()
+            end
+        else
+            btn:SetAttribute("type", "macro")
+            btn:SetAttribute("macrotext", macroText)
+        end
     end
 end
 
@@ -196,6 +200,12 @@ function KeystonePolaris:EnsureInformWatcher()
         if self._pendingInformMouseEnabled ~= nil and self.informSecureButton and not InCombatLockdown() then
             self.informSecureButton:EnableMouse(self._pendingInformMouseEnabled)
             self._pendingInformMouseEnabled = nil
+        end
+
+        if self._pendingInformMacro and self.informSecureButton and not InCombatLockdown() then
+            self.informSecureButton:SetAttribute("type", "macro")
+            self.informSecureButton:SetAttribute("macrotext", self._pendingInformMacro)
+            self._pendingInformMacro = nil
         end
     end)
 
@@ -313,9 +323,7 @@ function KeystonePolaris:PrepareInformMacro(message)
     else
         btn:EnableMouse(true) -- IMPORTANT
     end
-    btn:Hide() -- Will be shown only when conditions are met in UpdatePercentageText
-    -- Reset cooldown until click
-    btn.cooldownEndTime = nil
+    self:ApplyInformVisibility(false)
 end
 
 
@@ -475,9 +483,17 @@ function KeystonePolaris:EnterPositioningMode()
         xOffset = self.db.profile.general.xOffset,
         yOffset = self.db.profile.general.yOffset,
     }
+    if self.db.profile.progressBar then
+        self._savedProgressBarPosition = {
+            position = self.db.profile.progressBar.position,
+            xOffset = self.db.profile.progressBar.xOffset,
+            yOffset = self.db.profile.progressBar.yOffset,
+        }
+    end
 
     self._testMode = true
     self._positioningMode = true
+    self._progressBarPositioning = true
     self:StartTestModeTicker()
     self:UpdatePercentageText()
 
@@ -508,6 +524,7 @@ function KeystonePolaris:EnterPositioningMode()
     end)
 
     self.displayFrame:Show()
+    if self.EnableProgressBarPreview then self:EnableProgressBarPreview() end
     self:ShowPositioningBorder()
     self.displayFrame:SetScript("OnSizeChanged", function() self:RefreshPositioningBorder() end)
 
@@ -534,6 +551,7 @@ end
 function KeystonePolaris:ExitPositioningMode(save)
     self._testMode = false
     self._positioningMode = false
+    self._progressBarPositioning = false
     self:StopTestModeTicker()
 
     if self.displayFrame then
@@ -550,7 +568,13 @@ function KeystonePolaris:ExitPositioningMode(save)
         self.db.profile.general.xOffset = self._savedPosition.xOffset
         self.db.profile.general.yOffset = self._savedPosition.yOffset
     end
+    if not save and self._savedProgressBarPosition and self.db.profile.progressBar then
+        self.db.profile.progressBar.position = self._savedProgressBarPosition.position
+        self.db.profile.progressBar.xOffset = self._savedProgressBarPosition.xOffset
+        self.db.profile.progressBar.yOffset = self._savedProgressBarPosition.yOffset
+    end
     self._savedPosition = nil
+    self._savedProgressBarPosition = nil
 
     self:HidePositioningBorder()
 
@@ -560,9 +584,14 @@ function KeystonePolaris:ExitPositioningMode(save)
         self.displayFrame:SetFrameStrata(self._prevDisplayStrata)
         self._prevDisplayStrata = nil
     end
+    if self.progressBarFrame and self._prevProgressBarStrata then
+        self.progressBarFrame:SetFrameStrata(self._prevProgressBarStrata)
+        self._prevProgressBarStrata = nil
+    end
 
     if self.positioningToolbar then self.positioningToolbar:Hide() end
 
+    if self.DisableProgressBarPreview then self:DisableProgressBarPreview() end
     self:UpdatePercentageText()
     self:Refresh()
 
@@ -738,12 +767,20 @@ function KeystonePolaris:UpdatePositioningDim()
             self._prevDisplayStrata = self._prevDisplayStrata or self.displayFrame:GetFrameStrata()
             self.displayFrame:SetFrameStrata("TOOLTIP")
         end
+        if self.progressBarFrame then
+            self._prevProgressBarStrata = self._prevProgressBarStrata or self.progressBarFrame:GetFrameStrata()
+            self.progressBarFrame:SetFrameStrata("TOOLTIP")
+        end
     else
         if self.testDimOverlay then self.testDimOverlay:Hide() end
         if not (self.db.profile.general.positioningShowGrid and self._positioningMode) then
             if self.displayFrame and self._prevDisplayStrata then
                 self.displayFrame:SetFrameStrata(self._prevDisplayStrata)
                 self._prevDisplayStrata = nil
+            end
+            if self.progressBarFrame and self._prevProgressBarStrata then
+                self.progressBarFrame:SetFrameStrata(self._prevProgressBarStrata)
+                self._prevProgressBarStrata = nil
             end
         end
     end
@@ -826,6 +863,10 @@ function KeystonePolaris:UpdatePositioningGrid()
         if self.displayFrame then
             self._prevDisplayStrata = self._prevDisplayStrata or self.displayFrame:GetFrameStrata()
             self.displayFrame:SetFrameStrata("TOOLTIP")
+        end
+        if self.progressBarFrame then
+            self._prevProgressBarStrata = self._prevProgressBarStrata or self.progressBarFrame:GetFrameStrata()
+            self.progressBarFrame:SetFrameStrata("TOOLTIP")
         end
     else
         if self.gridOverlay then self.gridOverlay:Hide() end

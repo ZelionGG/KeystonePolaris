@@ -374,7 +374,27 @@ local function EnsureGroupReminderStyledFrame(self)
     return f
 end
 
+function KeystonePolaris:EnsureGroupReminderCombatWatcher()
+    if self._groupReminderCombatWatcher then return end
+    local f = CreateFrame("Frame")
+    f:RegisterEvent("PLAYER_REGEN_ENABLED")
+    f:SetScript("OnEvent", function()
+        if self._pendingGroupReminderArgs and not InCombatLockdown() then
+            local args = self._pendingGroupReminderArgs
+            self._pendingGroupReminderArgs = nil
+            self:ShowStyledGroupReminderPopup(args[1], args[2], args[3], args[4], args[5], args[6], args[7])
+        end
+    end)
+    self._groupReminderCombatWatcher = f
+end
+
 function KeystonePolaris:ShowStyledGroupReminderPopup(zone, groupName, groupComment, roleText, teleportSpellID, teleportSpellUnknown, playstyleText)
+    if InCombatLockdown() then
+        self._pendingGroupReminderArgs = { zone, groupName, groupComment, roleText, teleportSpellID, teleportSpellUnknown, playstyleText }
+        self:EnsureGroupReminderCombatWatcher()
+        return
+    end
+
     local db = self.db.profile.groupReminder
     local f = EnsureGroupReminderStyledFrame(self)
     f.Title:SetText(GetGroupReminderHeaderLabel())
