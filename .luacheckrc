@@ -42,6 +42,7 @@ read_globals = {
     'GetLFGRoles',
     'GetLocale',
     'GetNumGroupMembers',
+    'GetPhysicalScreenSize',
     'GetScreenHeight',
     'GetScreenWidth',
     'GetSpellInfo',
