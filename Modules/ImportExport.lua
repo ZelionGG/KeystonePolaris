@@ -21,6 +21,8 @@ local function CloneTable(tbl)
     return t
 end
 
+local IsProfileImportPayload
+
 local function IsKeystoneImportPayload(importData)
     if type(importData) ~= "table" then return false end
     if importData.type == "all_dungeons" or importData.type == "section" then
@@ -1186,6 +1188,12 @@ function KeystonePolaris:ImportDungeonSettings(importString,
     end
 
     local importData = DecodeSerializedPayload(importPayload)
+    if IsProfileImportPayload(importData) then
+        local chatPrefix = (addon.GetChatPrefix and addon:GetChatPrefix()) or "Keystone Polaris"
+        print(chatPrefix .. ": " .. L["IMPORT_PROFILE_USE_INTERFACE"])
+        return false
+    end
+
     local routeLike = FindRouteLikeTable(importData)
     if routeLike then return addon:TryImportMDTRoute(importPayload, dungeonFilter) end
 
@@ -1228,4 +1236,281 @@ function KeystonePolaris:ShowImportDialog(sectionName, dungeonFilter)
         hideOnEscape = true
     }
     StaticPopup_Show("KPL_IMPORT_DIALOG")
+end
+
+-- ---------------------------------------------------------------------------
+-- Profile export / import (shareable strings)
+-- ---------------------------------------------------------------------------
+
+local PROFILE_EXPORT_SCHEMA = 1
+
+local EXCLUDED_GENERAL_KEYS = {
+    lastSeasonCheck = true,
+    lastVersionCheck = true,
+    mobPercentagesMigrationVersion = true,
+}
+
+local EXCLUDED_GROUP_REMINDER_KEYS = {
+    lastReminder = true,
+}
+
+local function DeepCloneTable(tbl, excludeKeys)
+    if type(tbl) ~= "table" then return tbl end
+    local out = {}
+    for k, v in pairs(tbl) do
+        if not (excludeKeys and excludeKeys[k]) then
+            if type(v) == "table" then
+                out[k] = DeepCloneTable(v, nil)
+            else
+                out[k] = v
+            end
+        end
+    end
+    return out
+end
+
+local function StripExportPrefix(payload)
+    if type(payload) ~= "string" then return payload end
+    payload = payload:match("^%s*(.-)%s*$")
+    if payload:sub(1, #EXPORT_PREFIX) == EXPORT_PREFIX then
+        return payload:sub(#EXPORT_PREFIX + 1)
+    end
+    return payload
+end
+
+local function EncodeExportPayload(exportData)
+    local serialized = LibStub("AceSerializer-3.0"):Serialize(exportData)
+    local compressed = LibStub("LibDeflate"):CompressDeflate(serialized)
+    local encoded = LibStub("LibDeflate"):EncodeForPrint(compressed)
+    return EXPORT_PREFIX .. encoded
+end
+
+IsProfileImportPayload = function(importData)
+    return type(importData) == "table"
+        and importData.type == "profile"
+        and type(importData.data) == "table"
+        and importData.schemaVersion ~= nil
+end
+
+local function DefaultImportProfileName(sourceName)
+    local dateStr = date("%Y-%m-%d")
+    if sourceName and sourceName ~= "" then
+        return sourceName .. " (" .. dateStr .. ")"
+    end
+    return "Import " .. dateStr
+end
+
+local function GetProfileScopeLabel(scope)
+    if scope == "full" then
+        return L["PROFILE_SCOPE_FULL"]
+    end
+    return L["PROFILE_SCOPE_SETTINGS"]
+end
+
+function KeystonePolaris:BuildProfileSnapshot(scope)
+    local profile = self.db and self.db.profile
+    if not profile then return nil end
+
+    local data = {}
+    if profile.general then
+        data.general = DeepCloneTable(profile.general, EXCLUDED_GENERAL_KEYS)
+    end
+    if profile.text then
+        data.text = DeepCloneTable(profile.text, nil)
+    end
+    if profile.color then
+        data.color = DeepCloneTable(profile.color, nil)
+    end
+    if profile.progressBar then
+        data.progressBar = DeepCloneTable(profile.progressBar, nil)
+    end
+    if profile.groupReminder then
+        data.groupReminder = DeepCloneTable(profile.groupReminder, EXCLUDED_GROUP_REMINDER_KEYS)
+    end
+    if profile.mobPercentages then
+        data.mobPercentages = DeepCloneTable(profile.mobPercentages, nil)
+    end
+    if scope == "full" and profile.advanced then
+        data.advanced = DeepCloneTable(profile.advanced, nil)
+    end
+    return data
+end
+
+function KeystonePolaris:ApplyProfileSnapshot(targetName, importPayload, switchAfter)
+    local db = self.db
+    if not db or not importPayload or type(importPayload.data) ~= "table" then
+        return false
+    end
+
+    local data = importPayload.data
+    local scope = importPayload.scope
+    local defaults = db.defaults and db.defaults.profile
+
+    if not db.profiles[targetName] then
+        db.profiles[targetName] = defaults and DeepCloneTable(defaults, nil) or {}
+    end
+
+    local target = db.profiles[targetName]
+
+    if data.general then target.general = DeepCloneTable(data.general, nil) end
+    if data.text then target.text = DeepCloneTable(data.text, nil) end
+    if data.color then target.color = DeepCloneTable(data.color, nil) end
+    if data.progressBar then target.progressBar = DeepCloneTable(data.progressBar, nil) end
+    if data.groupReminder then target.groupReminder = DeepCloneTable(data.groupReminder, nil) end
+    if data.mobPercentages then target.mobPercentages = DeepCloneTable(data.mobPercentages, nil) end
+    if scope == "full" and data.advanced then
+        target.advanced = DeepCloneTable(data.advanced, nil)
+    end
+
+    local currentProfile = db:GetCurrentProfile()
+    if switchAfter then
+        db:SetProfile(targetName)
+    end
+
+    if switchAfter or targetName == currentProfile then
+        self:RefreshForActiveProfile()
+    end
+
+    return true
+end
+
+function KeystonePolaris:ExportProfileSettings(scope)
+    local exportData = {
+        type = "profile",
+        scope = scope,
+        schemaVersion = PROFILE_EXPORT_SCHEMA,
+        profileName = self.db:GetCurrentProfile(),
+        data = self:BuildProfileSnapshot(scope),
+    }
+    local exportString = EncodeExportPayload(exportData)
+
+    local dialogText = (scope == "full") and L["EXPORT_PROFILE_FULL_DIALOG_TEXT"]
+        or L["EXPORT_PROFILE_SETTINGS_DIALOG_TEXT"]
+
+    StaticPopupDialogs["KPL_EXPORT_PROFILE_DIALOG"] = {
+        text = dialogText,
+        button1 = OKAY,
+        hasEditBox = true,
+        editBoxWidth = 350,
+        maxLetters = 999999,
+        OnShow = function(dialog)
+            dialog.EditBox:SetText(exportString)
+            dialog.EditBox:HighlightText()
+            dialog.EditBox:SetFocus()
+        end,
+        EditBoxOnEscapePressed = function(editBox)
+            editBox:GetParent():Hide()
+        end,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+    }
+    StaticPopup_Show("KPL_EXPORT_PROFILE_DIALOG")
+end
+
+function KeystonePolaris:ShowProfileImportConfirmDialog(importPayload)
+    local addon = self
+    local currentProfile = self.db:GetCurrentProfile()
+    local scopeLabel = GetProfileScopeLabel(importPayload.scope)
+    local defaultName = DefaultImportProfileName(importPayload.profileName)
+    local targetExists = self.db.profiles[defaultName] ~= nil
+
+    local warning = ""
+    if targetExists then
+        warning = "\n\n" .. (L["IMPORT_PROFILE_EXISTS"]):format(defaultName)
+    end
+
+    local text = (L["IMPORT_PROFILE_CONFIRM_TEXT"]):format(
+        scopeLabel,
+        defaultName,
+        currentProfile or "Default"
+    ) .. warning
+
+    StaticPopupDialogs["KPL_IMPORT_PROFILE_CONFIRM"] = {
+        text = text,
+        button1 = L["IMPORT_PROFILE_ACTIVATE"],
+        button2 = L["IMPORT_PROFILE_ONLY"],
+        button3 = CANCEL,
+        hasEditBox = true,
+        editBoxWidth = 220,
+        maxLetters = 64,
+        OnShow = function(dialog)
+            dialog.EditBox:SetText(defaultName)
+            dialog.EditBox:HighlightText()
+            dialog.EditBox:SetFocus()
+        end,
+        OnAccept = function(dialog)
+            local targetName = dialog.EditBox:GetText():match("^%s*(.-)%s*$")
+            if targetName == "" then
+                targetName = defaultName
+            end
+            addon:ApplyProfileSnapshot(targetName, importPayload, true)
+            local prefix = (addon.GetChatPrefix and addon:GetChatPrefix()) or "Keystone Polaris"
+            print(prefix .. ": " .. (L["IMPORT_PROFILE_SUCCESS"]):format(targetName))
+        end,
+        OnButton2 = function(dialog)
+            local targetName = dialog.EditBox:GetText():match("^%s*(.-)%s*$")
+            if targetName == "" then
+                targetName = defaultName
+            end
+            addon:ApplyProfileSnapshot(targetName, importPayload, false)
+            local prefix = (addon.GetChatPrefix and addon:GetChatPrefix()) or "Keystone Polaris"
+            print(prefix .. ": " .. (L["IMPORT_PROFILE_SUCCESS"]):format(targetName))
+        end,
+        EditBoxOnEscapePressed = function(editBox)
+            editBox:GetParent():Hide()
+        end,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+    }
+    StaticPopup_Show("KPL_IMPORT_PROFILE_CONFIRM")
+end
+
+function KeystonePolaris:ImportProfileSettings(importString)
+    local prefix = (self.GetChatPrefix and self:GetChatPrefix()) or "Keystone Polaris"
+    local importPayload = StripExportPrefix(importString)
+    local importData = DecodeSerializedPayload(importPayload)
+
+    if not IsProfileImportPayload(importData) then
+        print(prefix .. ": " .. L["IMPORT_PROFILE_ERROR"])
+        return false
+    end
+
+    if importData.schemaVersion ~= PROFILE_EXPORT_SCHEMA then
+        print(prefix .. ": " .. L["IMPORT_PROFILE_UNKNOWN_VERSION"])
+        return false
+    end
+
+    if importData.scope ~= "full" and importData.scope ~= "settings" then
+        print(prefix .. ": " .. L["IMPORT_PROFILE_ERROR"])
+        return false
+    end
+
+    self:ShowProfileImportConfirmDialog(importData)
+    return true
+end
+
+function KeystonePolaris:ShowProfileImportDialog()
+    local addon = self
+
+    StaticPopupDialogs["KPL_IMPORT_PROFILE_DIALOG"] = {
+        text = L["IMPORT_PROFILE_DIALOG_TEXT"],
+        button1 = OKAY,
+        button2 = CANCEL,
+        hasEditBox = true,
+        editBoxWidth = 350,
+        maxLetters = 999999,
+        OnAccept = function(dialog)
+            local importString = dialog.EditBox:GetText()
+            addon:ImportProfileSettings(importString)
+        end,
+        EditBoxOnEscapePressed = function(editBox)
+            editBox:GetParent():Hide()
+        end,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+    }
+    StaticPopup_Show("KPL_IMPORT_PROFILE_DIALOG")
 end

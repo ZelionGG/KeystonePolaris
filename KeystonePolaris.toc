@@ -42,9 +42,11 @@ Modules/DungeonManager.lua
 Modules/PullTracker.lua
 Modules/GroupReminder.lua
 Modules/Display.lua
+Modules/ProgressBar.lua
 Modules/About.lua
 Modules/Changelog/Changelog.lua
 Widgets/PreviewWidget.lua
+Widgets/ProgressBarPreviewWidget.lua
 Options.lua
 Modules/ImportExport.lua
 Modules/MobPercentages.lua

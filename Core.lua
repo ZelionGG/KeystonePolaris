@@ -5,8 +5,6 @@ local _G = _G;
 local pairs, select = pairs, select
 local C_Scenario = _G.C_Scenario
 local C_ScenarioInfo = _G.C_ScenarioInfo
-local GetZoneText = _G.GetZoneText
-local GetSubZoneText = _G.GetSubZoneText
 
 -- Initialize Ace3 libraries
 local AceAddon = LibStub("AceAddon-3.0")
@@ -337,19 +335,26 @@ function KeystonePolaris:OnInitialize()
         self:InitializeDisplay()
     end
 
+    if self.InitializeProgressBar then
+        self:InitializeProgressBar()
+    end
+
     self:InitializeMinimapIcon()
     self:UpdateCompartmentIconVisibility()
+
+    self.db.RegisterCallback(self, "OnProfileChanged", "RefreshForActiveProfile")
+    self.db.RegisterCallback(self, "OnProfileCopied", "RefreshForActiveProfile")
 
     -- Register options with Ace3 config system
     local optionsAddonName = (self.GetGradientAddonNameFromSecondLetter and self:GetGradientAddonNameFromSecondLetter()) or "Keystone Polaris"
     local optionsAddonDisplayName = (self.GetGradientAddonName and self:GetGradientAddonName()) or optionsAddonName
     local modulesSummaryDescription = BuildModulesOverviewDescription(L)
-    self.optionsTable = {
+    AceConfig:RegisterOptionsTable(AddOnName, {
         name = optionsAddonDisplayName,
         type = "group",
         args = {
             general = {
-                name = L["GENERAL_SETTINGS"],
+                name = L["TEXT_DISPLAY"],
                 type = "group",
                 order = 1,
                 childGroups = "tree",
@@ -360,7 +365,7 @@ function KeystonePolaris:OnInitialize()
                         name = "|TInterface\\OptionsFrame\\UI-OptionsFrame-NewFeatureIcon:16:16:0:0|t " .. L["COMPATIBILITY_WARNING"],
                     },
                     warningMessage = {
-                        name = L["COMPATIBILITY_WARNING_MESSAGE"],
+                        name = L["COMPATIBILITY_WARNING_MESSAGE_CORE"],
                         type = "description",
                         order = 0.15,
                         width = "full",
@@ -369,14 +374,15 @@ function KeystonePolaris:OnInitialize()
                     display = self:GetDisplayOptions(),
                     appearance = self:GetAppearanceOptions(),
                     positioning = self:GetPositioningOptions(),
-                    informGroup = self:GetInformGroupOptions(),
-                    interface = self:GetInterfaceOptions(),
                 }
             },
+            progressBar = self:GetProgressBarOptions(),
+            informGroup = self:GetInformGroupOptions(),
+            interface = self:GetInterfaceOptions(),
             modules = {
                 name = L["MODULES"],
                 type = "group",
-                order = 2,
+                order = 6,
                 childGroups = "tree",
                 args = {
                     modulesSummaryHeader = {
@@ -396,14 +402,17 @@ function KeystonePolaris:OnInitialize()
             },
             advanced = self:GetAdvancedOptions()
         }
-    }
-    AceConfig:RegisterOptionsTable(AddOnName, self.optionsTable)
+    })
     AceConfig:RegisterOptionsTable(AddOnName .. "_Changelog", self.changelogOptions)
     AceConfig:RegisterOptionsTable(AddOnName .. "_About", self.aboutOptions)
+
+    local profileOptions = self:GetProfileOptions()
+    AceConfig:RegisterOptionsTable(AddOnName .. "_Profiles", profileOptions)
 
     self.optionsCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName, optionsAddonName))
     self.changelogCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_Changelog", L["Changelog"], optionsAddonName))
     self.aboutCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_About", L["ABOUT"], optionsAddonName))
+    self.profilesCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_Profiles", profileOptions.name, optionsAddonName))
 
 
     -- Register chat command and events
@@ -482,17 +491,19 @@ _G.KeystonePolaris_OnAddonCompartmentClick = function()
 end
 
 -- Build logical section order for the given dungeon, using advanced bossOrder when available
-function KeystonePolaris:BuildSectionOrder(dungeonId)
-    self.currentSectionOrder = nil
-    local dungeon = self.DUNGEONS[dungeonId]
-    if not dungeon then return end
+function KeystonePolaris:GetDungeonSectionOrder(dungeonId, dungeonKey)
+    local dungeon = dungeonId and self.DUNGEONS[dungeonId]
+    if not dungeon then return nil end
 
     local numBosses = #dungeon
-    if numBosses == 0 then return end
+    if numBosses == 0 then return nil end
 
     local order = {}
-    local dungeonKey = self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId) or nil
-    if dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] then
+    dungeonKey = dungeonKey or (self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId)) or nil
+    local useAdvancedRoutes = self.db and self.db.profile and self.db.profile.general
+        and self.db.profile.general.advancedOptionsEnabled
+    if useAdvancedRoutes and dungeonKey and self.db and self.db.profile
+        and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] then
         local adv = self.db.profile.advanced[dungeonKey]
         local advOrder = adv.bossOrder
         if type(advOrder) == "table" then
@@ -506,13 +517,12 @@ function KeystonePolaris:BuildSectionOrder(dungeonId)
                 order[i] = math.floor(idx)
             end
             if valid then
-                self.currentSectionOrder = order
-                return
+                return order
             end
         end
     end
 
-    -- Fallback: order by required percentage ascending
+    -- Fallback: order by required percentage ascending.
     for i = 1, numBosses do
         order[i] = i
     end
@@ -521,9 +531,17 @@ function KeystonePolaris:BuildSectionOrder(dungeonId)
         local db = dungeon[b]
         local pa = da and da[2] or 0
         local pb = db and db[2] or 0
+        if pa == pb then
+            return a < b
+        end
         return pa < pb
     end)
-    self.currentSectionOrder = order
+
+    return order
+end
+
+function KeystonePolaris:BuildSectionOrder(dungeonId)
+    self.currentSectionOrder = self:GetDungeonSectionOrder(dungeonId)
 end
 
 -- Initialize dungeon tracking when entering a dungeon
@@ -634,14 +652,7 @@ function KeystonePolaris:GetDungeonData()
     end
 
     local dungeonData = dungeon[sectionIndex]
-    return {
-        kind = "boss",
-        bossIndex = sectionIndex,
-        bossID = dungeonData[1],
-        neededPercent = dungeonData[2] or 0,
-        shouldInform = dungeonData[3] ~= false,
-        haveInformed = dungeonData[4] == true,
-    }
+    return dungeonData[1], dungeonData[2], dungeonData[3], dungeonData[4]
 end
 
 local function NormalizeMilestoneText(value)
@@ -657,6 +668,18 @@ local function TrimString(value)
         return ""
     end
     return value:match("^%s*(.-)%s*$") or ""
+end
+
+-- Send a chat message to inform the group about missing percentage
+function KeystonePolaris:InformGroup(percentage)
+    if not self.db.profile.general.informGroup then return end
+
+    local percentageStr = string.format("%.2f%%", percentage)
+    -- Don't send message if percentage is 0
+    if percentageStr == "0.00%" then return end
+    local prefix = (self.GetChatPrefix and self:GetChatPrefix(true, true)) or "[Keystone Polaris]"
+    self:PrepareInformMacro(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr)
+    -- SendChatMessage(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr, channel)
 end
 
 function KeystonePolaris.IsSectionTriggerMet(_, section)
@@ -951,6 +974,72 @@ function KeystonePolaris:InformGroup(percentage)
     -- SendChatMessage(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr, channel)
 end
 
+function KeystonePolaris:GetProfileOptions()
+    local profileOptions = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
+    local args = CopyTable(profileOptions.args)
+
+    args.shareHeader = {
+        order = 85,
+        type = "header",
+        name = L["PROFILE_SHARE_HEADER"],
+    }
+    args.shareDesc = {
+        order = 86,
+        type = "description",
+        name = L["PROFILE_SHARE_DESC"],
+        fontSize = "medium",
+    }
+    args.exportProfileFull = {
+        order = 87,
+        type = "execute",
+        name = L["EXPORT_PROFILE_FULL"],
+        desc = L["EXPORT_PROFILE_FULL_DESC"],
+        func = function()
+            self:ExportProfileSettings("full")
+        end,
+    }
+    args.exportProfileSettings = {
+        order = 88,
+        type = "execute",
+        name = L["EXPORT_PROFILE_SETTINGS"],
+        desc = L["EXPORT_PROFILE_SETTINGS_DESC"],
+        func = function()
+            self:ExportProfileSettings("settings")
+        end,
+    }
+    args.importProfile = {
+        order = 89,
+        type = "execute",
+        name = L["IMPORT_PROFILE"],
+        desc = L["IMPORT_PROFILE_DESC"],
+        func = function()
+            self:ShowProfileImportDialog()
+        end,
+    }
+
+    profileOptions.args = args
+    return profileOptions
+end
+
+function KeystonePolaris:RefreshForActiveProfile()
+    if self.UpdateDungeonData then self:UpdateDungeonData() end
+    if self.currentDungeonID and self.BuildSectionOrder then
+        self:BuildSectionOrder(self.currentDungeonID)
+    end
+    LibStub("AceConfigRegistry-3.0"):NotifyChange(AddOnName)
+    LibStub("AceConfigRegistry-3.0"):NotifyChange(AddOnName .. "_Profiles")
+    if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.RefreshProgressBar then self:RefreshProgressBar() end
+    if self.UpdateMinimapIconVisibility then self:UpdateMinimapIconVisibility() end
+    if self.UpdateCompartmentIconVisibility then self:UpdateCompartmentIconVisibility() end
+
+    if self.db.profile.mobPercentages and self.db.profile.mobPercentages.enabled then
+        if self.InitializeMobPercentages then self:InitializeMobPercentages() end
+    end
+    if self.db.profile.groupReminder and self.db.profile.groupReminder.enabled then
+        if self.InitializeGroupReminder then self:InitializeGroupReminder() end
+    end
+end
 
 -- Called when the addon is enabled
 function KeystonePolaris:OnEnable()
@@ -981,6 +1070,9 @@ function KeystonePolaris:OnEnable()
     if self.UpdatePercentageText then
         self:UpdatePercentageText()
     end
+    if self.UpdateProgressBar then
+        self:UpdateProgressBar()
+    end
 end
 
 -- Event handler for POI updates (boss positions)
@@ -993,40 +1085,35 @@ end
 -- hanging the game when a large pack dies all at once.
 function KeystonePolaris:SCENARIO_CRITERIA_UPDATE()
     if self._QueuePullUpdate then self:_QueuePullUpdate() end
-end
-
-function KeystonePolaris:QueueDeferredDisplayRefresh()
-    if not self.UpdatePercentageText then
-        return
-    end
-
-    local function refreshDisplay()
-        if self.UpdatePercentageText then
-            self:UpdatePercentageText()
-        end
-    end
-
-    refreshDisplay()
-    C_Timer.After(0.2, refreshDisplay)
-    C_Timer.After(1, refreshDisplay)
+    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 -- Event handler for starting a Mythic+ dungeon
 function KeystonePolaris:CHALLENGE_MODE_START()
+    if self._positioningMode and self.ExitPositioningMode then self:ExitPositioningMode(true) end
     if self._testMode and self.DisableTestMode then self:DisableTestMode("started dungeon") end
     self.currentDungeonID = nil
 
     self:InitiateDungeon()
     if self.HideInformButton then self:HideInformButton() end
-    if self.QueueDeferredDisplayRefresh then
-        self:QueueDeferredDisplayRefresh()
+    if self.PrepareInformMacro then
+        C_Timer.After(5, function()
+            if self.PrepareInformMacro then
+                self:PrepareInformMacro(nil) -- init macro without fake percent text
+            end
+        end)
     end
     if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 function KeystonePolaris:CHALLENGE_MODE_COMPLETED()
     self.currentDungeonID = nil
     if self.HideInformButton then self:HideInformButton() end
+    if self.progressBarFrame then
+        self.progressBarFrame:Hide()
+        self._progressBarDungeonKey = nil
+    end
 end
 
 -- Event handler for entering the world or changing zones
@@ -1034,8 +1121,13 @@ function KeystonePolaris:PLAYER_ENTERING_WORLD()
     if self._testMode and self.DisableTestMode then self:DisableTestMode("changed zone") end
     self:InitiateDungeon()
     if self.HideInformButton then self:HideInformButton() end
-    if self.QueueDeferredDisplayRefresh then
-        self:QueueDeferredDisplayRefresh()
+    if self.PrepareInformMacro then
+        -- Utilise le message par défaut (WE_STILL_NEED + % fictif)
+        C_Timer.After(10, function()
+            if self.PrepareInformMacro then
+                self:PrepareInformMacro(nil)
+            end
+        end)
     end
 end
 

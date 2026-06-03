@@ -8,13 +8,10 @@ local strsplit = strsplit
 local HideUIPanel = _G.HideUIPanel
 local AceGUIWidgetLSMlists = _G.AceGUIWidgetLSMlists
 local CALENDAR_WEEKDAY_NAMES = _G.CALENDAR_WEEKDAY_NAMES
-local GetZoneText = _G.GetZoneText
-local GetSubZoneText = _G.GetSubZoneText
 
 -- Get localization table
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, true)
 local ACR = LibStub("AceConfigRegistry-3.0")
-local ACD = LibStub("AceConfigDialog-3.0", true)
 
 -- MDT integration unavailable due to Blizzard API changes in Midnight
 local MDT_FEATURES_ENABLED = false
@@ -22,6 +19,18 @@ KeystonePolaris.mdtFeaturesEnabled = MDT_FEATURES_ENABLED
 
 -- Shared preview scenario index (persists across Display and Appearance pages)
 KeystonePolaris._previewScenario = 1
+
+local function RefreshPreviewWidget()
+    local previewWidget = KeystonePolaris._previewWidget
+    if previewWidget and previewWidget.RefreshPreview then
+        previewWidget:RefreshPreview()
+    end
+
+    local progressBarPreviewWidget = KeystonePolaris._progressBarPreviewWidget
+    if progressBarPreviewWidget and progressBarPreviewWidget.RefreshPreview then
+        progressBarPreviewWidget:RefreshPreview()
+    end
+end
 
 local function PreviewScenarioValues()
     local scenarios = KeystonePolaris.PreviewScenarios
@@ -33,6 +42,51 @@ local function PreviewScenarioValues()
         end
     end
     return vals
+end
+
+local function SetPreviewScenario(value)
+    KeystonePolaris._previewScenario = value
+    KeystonePolaris._testScenario = value
+    if KeystonePolaris.UpdatePercentageText then KeystonePolaris:UpdatePercentageText() end
+    if KeystonePolaris._progressBarPreview and KeystonePolaris.EnableProgressBarPreview then
+        KeystonePolaris:EnableProgressBarPreview()
+    end
+    RefreshPreviewWidget()
+    ACR:NotifyChange(AddOnName)
+end
+
+-- Progress bar width: store UI units (GetScreenWidth), show physical pixels on the slider.
+local function GetProgressBarWidthSliderMax()
+    if GetPhysicalScreenSize then
+        return math.ceil((select(1, GetPhysicalScreenSize())))
+    end
+    return math.ceil(GetScreenWidth())
+end
+
+local function ProgressBarWidthUiToSlider(uiWidth)
+    local uiMax = GetScreenWidth()
+    local sliderMax = GetProgressBarWidthSliderMax()
+    if uiMax <= 0 or sliderMax <= 0 then return uiWidth end
+    return uiWidth * sliderMax / uiMax
+end
+
+local function ProgressBarWidthSliderToUi(sliderValue)
+    local uiMax = GetScreenWidth()
+    local sliderMax = GetProgressBarWidthSliderMax()
+    if sliderMax <= 0 then return sliderValue end
+    return sliderValue * uiMax / sliderMax
+end
+
+local function PreviewScenarioDropdown(order)
+    return {
+        name = L["PREVIEW_SCENARIO"],
+        type = "select",
+        order = order,
+        width = "full",
+        values = PreviewScenarioValues,
+        get = function() return KeystonePolaris._previewScenario or 1 end,
+        set = function(_, value) SetPreviewScenario(value) end,
+    }
 end
 
 local function PreviewGroup(order)
@@ -49,10 +103,7 @@ local function PreviewGroup(order)
                 width = "full",
                 values = PreviewScenarioValues,
                 get = function() return KeystonePolaris._previewScenario or 1 end,
-                set = function(_, value)
-                    KeystonePolaris._previewScenario = value
-                    ACR:NotifyChange(AddOnName)
-                end,
+                set = function(_, value) SetPreviewScenario(value) end,
             },
             preview = {
                 name = "",
@@ -62,7 +113,7 @@ local function PreviewGroup(order)
                 width = "full",
                 values = PreviewScenarioValues,
                 get = function() return KeystonePolaris._previewScenario or 1 end,
-                set = function() end,
+                set = function(_, value) SetPreviewScenario(value) end,
             },
         },
     }
@@ -99,8 +150,7 @@ local function MakeStatusColorOption(name, desc, colorKey, self, order)
             if self.UpdateColorCache then self:UpdateColorCache() end
             if self.UpdatePercentageText then self:UpdatePercentageText() end
             self:Refresh()
-            local pw = self._previewWidget
-            if pw and pw.RefreshPreview then pw:RefreshPreview() end
+            RefreshPreviewWidget()
         end
     }
 end
@@ -214,7 +264,39 @@ KeystonePolaris.defaults = {
             missing = {r = 1, g = 0, b = 0, a = 1},
             prefix = {r = 1, g = 0.7960784, b = 0.2, a = 1}
         },
-        advanced = {}
+        advanced = {},
+        progressBar = {
+            enabled = true,
+            width = 250,
+            height = 20,
+            position = "CENTER",
+            xOffset = 0,
+            yOffset = 350,
+            direction = "LEFT_TO_RIGHT",
+            barTexture = "Blizzard Raid Bar",
+            useGradient = false,
+            gradientStartColor = { r = 1, g = 1, b = 1, a = 1 },
+            gradientEndColor = { r = 0, g = 1, b = 0, a = 1 },
+            overrideColors = false,
+            completedColor = { r = 0, g = 1, b = 0, a = 1 },
+            inProgressColor = { r = 1, g = 1, b = 1, a = 1 },
+            missingColor = { r = 1, g = 0, b = 0, a = 1 },
+            backgroundColor = { r = 0, g = 0, b = 0, a = 0.7 },
+            borderStyle = "NONE",
+            borderTexture = "Blizzard Dialog Gold",
+            borderColor = { r = 0, g = 0, b = 0, a = 1 },
+            borderSize = 2,
+            borderInsets = 1,
+            tickColor = { r = 1, g = 1, b = 1, a = 1 },
+            tickWidth = 2,
+            tickOverflow = 2,
+            showCallout = true,
+            calloutPosition = "ABOVE",
+            calloutFont = "Friz Quadrata TT",
+            calloutFontSize = 10,
+            calloutTextColor = { r = 1, g = 0.82, b = 0, a = 1 },
+            calloutBackgroundColor = { r = 0, g = 0, b = 0, a = 0.8 },
+        },
     }
 }
 
@@ -359,6 +441,7 @@ function KeystonePolaris:GetAppearanceOptions()
                 set = function(_, value)
                     self.db.profile.text.font = value
                     self:Refresh()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["FONT_ALIGN"],
@@ -412,6 +495,7 @@ function KeystonePolaris:GetAppearanceOptions()
                         setMulti(origMulti)
                         reapply()
                     end)
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.multiLine
@@ -430,6 +514,7 @@ function KeystonePolaris:GetAppearanceOptions()
                 set = function(_, value)
                     self.db.profile.general.fontSize = value
                     self:Refresh()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["TEXT_OPACITY"],
@@ -444,6 +529,7 @@ function KeystonePolaris:GetAppearanceOptions()
                     self.db.profile.general.textOpacity = value
                     if self.UpdatePercentageText then self:UpdatePercentageText() end
                     self:Refresh()
+                    RefreshPreviewWidget()
                 end,
             }),
             colorsSpacer = {
@@ -499,6 +585,7 @@ function KeystonePolaris:GetDisplayOptions()
                     if self.UpdatePercentageText then self:UpdatePercentageText() end
                     if self.ApplyTextLayout then self:ApplyTextLayout() end
                     if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
+                    RefreshPreviewWidget()
                 end
             },
             requiredRow = ColumnRow(3, {
@@ -509,6 +596,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showRequiredText = value
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["PREFIX"],
@@ -520,6 +608,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["REQUIRED_DEFAULT"]
                     self.db.profile.general.mainDisplay.requiredLabel = text
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showRequiredText
@@ -533,6 +622,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showSectionRequiredText = value
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["PREFIX"],
@@ -544,6 +634,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["SECTION_REQUIRED_DEFAULT"]
                     self.db.profile.general.mainDisplay.sectionRequiredLabel = text
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showSectionRequiredText
@@ -557,6 +648,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showCurrentPercent = value
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["PREFIX"],
@@ -568,6 +660,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["CURRENT_DEFAULT"]
                     self.db.profile.general.mainDisplay.currentLabel = text
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showCurrentPercent
@@ -597,6 +690,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showCurrentPullPercent = value
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
             },
             pullLabel = {
@@ -611,6 +705,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["PULL_DEFAULT"]
                     self.db.profile.general.mainDisplay.pullLabel = text
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 hidden = function()
                     return not self.db.profile.general.mainDisplay.showCurrentPullPercent or not IsMDTAvailable()
@@ -666,6 +761,7 @@ function KeystonePolaris:GetDisplayOptions()
                     if self.UpdatePercentageText then self:UpdatePercentageText() end
                     if self.ApplyTextLayout then self:ApplyTextLayout() end
                     if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
+                    RefreshPreviewWidget()
                 end,
             },
             multiLineRow = ColumnRow(9, {
@@ -691,6 +787,7 @@ function KeystonePolaris:GetDisplayOptions()
                     C_Timer.After(0.03, reapply)
                     C_Timer.After(0.08, reapply)
                     C_Timer.After(0.15, reapply)
+                    RefreshPreviewWidget()
                 end
             }, {
                 name = L["SINGLE_LINE_SEPARATOR"],
@@ -700,6 +797,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.singleLineSeparator = tostring(value or " | ")
                     self:UpdatePercentageText()
+                    RefreshPreviewWidget()
                 end,
                 disabled = function()
                     return self.db.profile.general.mainDisplay.multiLine
@@ -713,7 +811,7 @@ function KeystonePolaris:GetInformGroupOptions()
     return {
         name = L["INFORM_GROUP"],
         type = "group",
-        order = 4,
+        order = 3,
         args = {
             informRow = ColumnRow(1, {
                 name = L["SHOW_INFORM_GROUP_BUTTON"],
@@ -743,13 +841,13 @@ function KeystonePolaris:GetInformGroupOptions()
             rolesHeader = {
                 type = "header",
                 name = "",
-                order = 2,
+                order = 3,
             },
             rolesEnabled = {
                 name = L["ROLES_ENABLED"],
                 desc = L["ROLES_ENABLED_DESC"],
                 type = "multiselect",
-                order = 3,
+                order = 4,
                 values = {
                     LEADER = LEADER,
                     TANK = TANK,
@@ -795,7 +893,7 @@ function KeystonePolaris:GetInterfaceOptions()
     return {
         name = L["INTERFACE"],
         type = "group",
-        order = 5,
+        order = 4,
         args = {
             iconsRow = ColumnRow(1, {
                 type = "toggle",
@@ -1474,42 +1572,475 @@ function KeystonePolaris:GetAdvancedOptions()
         name = L["ADVANCED_SETTINGS"],
         type = "group",
         childGroups = "tree",
-        order = 2,
+        order = 5,
         args = args
     }
 end
 
-function KeystonePolaris:RefreshAdvancedOptionsTree(selectedDungeonKey)
-    if not self.optionsTable or not self.optionsTable.args then return end
-
-    self.optionsTable.args.advanced = self:GetAdvancedOptions()
-    ACR:NotifyChange(AddOnName)
-
-    if not ACD or not ACD.SelectGroup then return end
-
-    if not selectedDungeonKey then
-        C_Timer.After(0, function()
-            ACD:SelectGroup(AddOnName, "advanced")
-        end)
-        return
-    end
-
-    local expansionSectionKey
-    for _, expansion in ipairs(expansions) do
-        local dungeonIds = self[expansion.id .. "_DUNGEON_IDS"]
-        if dungeonIds and dungeonIds[selectedDungeonKey] then
-            expansionSectionKey = expansion.id:lower()
-            break
-        end
-    end
-
-    C_Timer.After(0, function()
-        if expansionSectionKey then
-            ACD:SelectGroup(AddOnName, "advanced", expansionSectionKey, selectedDungeonKey)
-        else
-            ACD:SelectGroup(AddOnName, "advanced")
-        end
-    end)
+function KeystonePolaris:GetProgressBarOptions()
+    return {
+        name = L["PROGRESS_BAR"],
+        type = "group",
+        order = 2,
+        childGroups = "tree",
+        args = {
+            positioning = {
+                name = L["POSITIONING"],
+                type = "group",
+                order = 2,
+                args = {
+                    enabledRow = ColumnRow(1, {
+                        name = L["PROGRESS_BAR_ENABLED"],
+                        desc = L["PROGRESS_BAR_ENABLED_DESC"],
+                        type = "toggle",
+                        width = 1.5,
+                        get = function() return self:GetProgressBarValue("enabled") end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.enabled = value
+                            if self.UpdateProgressBar then self:UpdateProgressBar() end
+                        end,
+                    }, {
+                        name = L["SHOW_ANCHOR"],
+                        type = "execute",
+                        width = 1,
+                        func = function()
+                            HideUIPanel(SettingsPanel)
+                            if self.EnterPositioningMode then
+                                self:EnterPositioningMode()
+                            end
+                        end,
+                    }),
+                    sizeHeader = {
+                        type = "header",
+                        name = "",
+                        order = 2,
+                    },
+                    widthRow = ColumnRow(3, {
+                        name = L["PROGRESS_BAR_WIDTH"],
+                        type = "range",
+                        min = 50,
+                        max = GetProgressBarWidthSliderMax(),
+                        step = 1,
+                        get = function()
+                            return math.floor(ProgressBarWidthUiToSlider(self.db.profile.progressBar.width) + 0.5)
+                        end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.width = ProgressBarWidthSliderToUi(value)
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_HEIGHT"],
+                        type = "range",
+                        min = 8, max = 60, step = 1,
+                        get = function() return self.db.profile.progressBar.height end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.height = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
+                    offsetRow = ColumnRow(4, {
+                        name = L["X_OFFSET"],
+                        type = "range",
+                        min = -math.ceil(GetScreenWidth()),
+                        max = math.ceil(GetScreenWidth()),
+                        step = 1,
+                        get = function() return self.db.profile.progressBar.xOffset end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.xOffset = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["Y_OFFSET"],
+                        type = "range",
+                        min = -math.ceil(GetScreenHeight()),
+                        max = math.ceil(GetScreenHeight()),
+                        step = 1,
+                        get = function() return self:GetProgressBarValue("yOffset") end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.yOffset = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
+                    directionHeader = {
+                        type = "header",
+                        name = "",
+                        order = 5,
+                    },
+                    direction = {
+                        name = L["PROGRESS_BAR_DIRECTION"],
+                        type = "select",
+                        order = 6,
+                        values = {
+                            LEFT_TO_RIGHT = L["PROGRESS_BAR_DIRECTION_LTR"],
+                            RIGHT_TO_LEFT = L["PROGRESS_BAR_DIRECTION_RTL"],
+                        },
+                        get = function() return self.db.profile.progressBar.direction end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.direction = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                },
+            },
+            appearance = {
+                name = L["APPEARANCE"],
+                type = "group",
+                order = 1,
+                args = {
+                    previewScenario = PreviewScenarioDropdown(0.01),
+                    preview = {
+                        name = "",
+                        type = "select",
+                        dialogControl = "KeystonePolaris_ProgressBarPreview",
+                        order = 0.02,
+                        width = "full",
+                        values = PreviewScenarioValues,
+                        get = function() return KeystonePolaris._previewScenario or 1 end,
+                        set = function(_, value) SetPreviewScenario(value) end,
+                    },
+                    textureRow = ColumnRow(1, {
+                        name = L["PROGRESS_BAR_TEXTURE"],
+                        type = "select",
+                        dialogControl = "LSM30_Statusbar",
+                        values = AceGUIWidgetLSMlists.statusbar,
+                        style = "dropdown",
+                        width = 1.5,
+                        get = function() return self.db.profile.progressBar.barTexture end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.barTexture = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_BG_ALPHA"],
+                        type = "range",
+                        min = 0, max = 1, step = 0.05,
+                        isPercent = true,
+                        width = 1,
+                        get = function() return self.db.profile.progressBar.backgroundColor.a or 0.7 end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.backgroundColor.a = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
+                    bgColor = {
+                        name = L["PROGRESS_BAR_BG_COLOR"],
+                        type = "color",
+                        hasAlpha = false,
+                        order = 2,
+                        width = 1.25,
+                        get = function()
+                            local c = self.db.profile.progressBar.backgroundColor
+                            return c.r, c.g, c.b
+                        end,
+                        set = function(_, r, g, b)
+                            local alpha = self.db.profile.progressBar.backgroundColor.a or 0.7
+                            self.db.profile.progressBar.backgroundColor = { r = r, g = g, b = b, a = alpha }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    colorOverrideHeader = {
+                        type = "header",
+                        name = L["COLORS"],
+                        order = 3,
+                    },
+                    useGradient = {
+                        name = L["PROGRESS_BAR_USE_GRADIENT"],
+                        desc = L["PROGRESS_BAR_USE_GRADIENT_DESC"],
+                        type = "toggle",
+                        order = 3.4,
+                        width = "full",
+                        get = function() return self.db.profile.progressBar.useGradient end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.useGradient = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                            ACR:NotifyChange(AddOnName)
+                        end,
+                    },
+                    gradientColorRow = ColumnRow(3.6, {
+                        name = L["PROGRESS_BAR_GRADIENT_START_COLOR"],
+                        type = "color",
+                        width = 1,
+                        hasAlpha = true,
+                        hidden = function() return not self.db.profile.progressBar.useGradient end,
+                        get = function()
+                            local c = self.db.profile.progressBar.gradientStartColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.gradientStartColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_GRADIENT_END_COLOR"],
+                        type = "color",
+                        width = 1,
+                        hasAlpha = true,
+                        hidden = function() return not self.db.profile.progressBar.useGradient end,
+                        get = function()
+                            local c = self.db.profile.progressBar.gradientEndColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.gradientEndColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
+                    overrideColors = {
+                        name = L["PROGRESS_BAR_OVERRIDE_COLORS"],
+                        desc = L["PROGRESS_BAR_OVERRIDE_COLORS_DESC"],
+                        type = "toggle",
+                        order = 4,
+                        width = "full",
+                        get = function() return self.db.profile.progressBar.overrideColors end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.overrideColors = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                            ACR:NotifyChange(AddOnName)
+                        end,
+                    },
+                    completedColor = {
+                        name = L["PROGRESS_BAR_COMPLETED_COLOR"],
+                        type = "color",
+                        order = 4.5,
+                        hasAlpha = true,
+                        width = "full",
+                        hidden = function()
+                            local pb = self.db.profile.progressBar
+                            return not pb.overrideColors or pb.useGradient
+                        end,
+                        get = function()
+                            local c = self.db.profile.progressBar.completedColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.completedColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    inProgressColor = {
+                        name = L["PROGRESS_BAR_IN_PROGRESS_COLOR"],
+                        type = "color",
+                        order = 5,
+                        hasAlpha = true,
+                        hidden = function()
+                            local pb = self.db.profile.progressBar
+                            return not pb.overrideColors
+                        end,
+                        get = function()
+                            local c = self.db.profile.progressBar.inProgressColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.inProgressColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    missingColor = {
+                        name = L["PROGRESS_BAR_MISSING_COLOR"],
+                        type = "color",
+                        order = 6,
+                        hasAlpha = true,
+                        hidden = function() return not self.db.profile.progressBar.overrideColors end,
+                        get = function()
+                            local c = self.db.profile.progressBar.missingColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.missingColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    borderHeader = {
+                        type = "header",
+                        name = L["BORDERS"],
+                        order = 7,
+                    },
+                    borderStyleRow = ColumnRow(8, {
+                        name = L["PROGRESS_BAR_BORDER_STYLE"],
+                        type = "select",
+                        values = {
+                            NONE = L["PROGRESS_BAR_BORDER_NONE"],
+                            SOLID = L["PROGRESS_BAR_BORDER_SOLID"],
+                            LSM_BORDER = L["PROGRESS_BAR_BORDER_LSM"],
+                        },
+                        get = function() return self:GetProgressBarValue("borderStyle") end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.borderStyle = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                            ACR:NotifyChange(AddOnName)
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_BORDER_TEXTURE"],
+                        type = "select",
+                        dialogControl = "LSM30_Border",
+                        values = AceGUIWidgetLSMlists.border,
+                        style = "dropdown",
+                        hidden = function() return self:GetProgressBarValue("borderStyle") ~= "LSM_BORDER" end,
+                        get = function() return self.db.profile.progressBar.borderTexture end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.borderTexture = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
+                    borderDetailRow = ColumnRow(9, {
+                        name = L["PROGRESS_BAR_BORDER_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        width = 1,
+                        hidden = function() return self:GetProgressBarValue("borderStyle") == "NONE" end,
+                        get = function()
+                            local c = self.db.profile.progressBar.borderColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.borderColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_BORDER_SIZE"],
+                        type = "range",
+                        min = 1, max = 16, step = 1,
+                        width = 1,
+                        hidden = function() return self:GetProgressBarValue("borderStyle") == "NONE" end,
+                        get = function() return self.db.profile.progressBar.borderSize end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.borderSize = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
+                    tickHeader = {
+                        type = "header",
+                        name = L["TICKS"],
+                        order = 10,
+                    },
+                    tickColorRow = ColumnRow(11, {
+                        name = L["PROGRESS_BAR_TICK_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        width = 1.25,
+                        get = function()
+                            local c = self.db.profile.progressBar.tickColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.tickColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_TICK_WIDTH"],
+                        type = "range",
+                        min = 1, max = 4, step = 1,
+                        width = 1,
+                        get = function() return self.db.profile.progressBar.tickWidth end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.tickWidth = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
+                    tickOverflow = {
+                        name = L["PROGRESS_BAR_TICK_OVERFLOW"],
+                        desc = L["PROGRESS_BAR_TICK_OVERFLOW_DESC"],
+                        type = "range",
+                        order = 12,
+                        min = 0, max = 6, step = 1,
+                        width = 1,
+                        get = function() return self.db.profile.progressBar.tickOverflow end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.tickOverflow = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    calloutHeader = {
+                        type = "header",
+                        name = L["CALLOUT"],
+                        order = 13,
+                    },
+                    showCallout = {
+                        name = L["PROGRESS_BAR_SHOW_CALLOUT"],
+                        desc = L["PROGRESS_BAR_SHOW_CALLOUT_DESC"],
+                        type = "toggle",
+                        order = 14,
+                        get = function() return self:GetProgressBarValue("showCallout") end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.showCallout = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                            ACR:NotifyChange(AddOnName)
+                        end,
+                    },
+                    calloutPosition = {
+                        name = L["PROGRESS_BAR_CALLOUT_POSITION"],
+                        type = "select",
+                        order = 15,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
+                        values = {
+                            ABOVE = L["PROGRESS_BAR_CALLOUT_ABOVE"],
+                            BELOW = L["PROGRESS_BAR_CALLOUT_BELOW"],
+                        },
+                        get = function() return self.db.profile.progressBar.calloutPosition end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.calloutPosition = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    calloutFont = {
+                        name = L["PROGRESS_BAR_CALLOUT_FONT"],
+                        type = "select",
+                        dialogControl = 'LSM30_Font',
+                        values = AceGUIWidgetLSMlists.font,
+                        style = "dropdown",
+                        order = 15.5,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
+                        get = function() return self.db.profile.progressBar.calloutFont end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.calloutFont = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    calloutFontSize = {
+                        name = L["PROGRESS_BAR_CALLOUT_FONT_SIZE"],
+                        type = "range",
+                        order = 16,
+                        min = 8, max = 24, step = 1,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
+                        get = function() return self.db.profile.progressBar.calloutFontSize end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.calloutFontSize = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    calloutColorRow = ColumnRow(17, {
+                        name = L["PROGRESS_BAR_CALLOUT_TEXT_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        width = 1,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
+                        get = function()
+                            local c = self.db.profile.progressBar.calloutTextColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.calloutTextColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_CALLOUT_BG_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        width = 1,
+                        hidden = function() return not self:GetProgressBarValue("showCallout") end,
+                        get = function()
+                            local c = self.db.profile.progressBar.calloutBackgroundColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.calloutBackgroundColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
+                },
+            },
+        },
+    }
 end
 
 function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
@@ -1790,7 +2321,14 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     self.db.profile.advanced[dungeonKey].bossOrder = {}
                 end
                 self.db.profile.advanced[dungeonKey].bossOrder[section] = value
-                RefreshDungeonRouting()
+                local dungeonId = self:GetDungeonIdByKey(dungeonKey)
+                if dungeonId then
+                    if self.BuildSectionOrder then
+                        self:BuildSectionOrder(dungeonId)
+                    end
+                    self:UpdateDungeonData()
+                    if self.UpdatePercentageText then self:UpdatePercentageText() end
+                end
             end
         }
     end
@@ -1821,7 +2359,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     set = function(_, value)
                         self.db.profile.advanced[dungeonKey]["Boss" ..
                             bossNumStr] = value
-                        RefreshDungeonRouting()
+                        self:UpdateDungeonData()
                     end
                 },
                 inform = {
@@ -1837,7 +2375,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     set = function(_, value)
                         self.db.profile.advanced[dungeonKey]["Boss" ..
                             bossNumStr .. "Inform"] = value
-                        RefreshDungeonRouting()
+                        self:UpdateDungeonData()
                     end
                 }
             }
@@ -2100,4 +2638,3 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
 
     return options
 end
-

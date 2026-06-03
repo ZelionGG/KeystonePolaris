@@ -9,12 +9,17 @@ if not L then return end
 -- Some strings below are sourced from BlizzardInterfaceResources.
 -- Source: https://github.com/Ketho/BlizzardInterfaceResources/blob/live/Resources/GlobalStrings/frFR.lua
 -- @Translation Team: If you find a false positive (a string that should stay identical),
--- add `-- @no-translate` at the end of the line so the locale sync script ignores it.
+-- add `-- @no-translate` at the end of the line so the locale sync script ignores untranslated detection and stale marking when enUS changes.
 
 -- Temporary locales for Midnight Compatibility Warning
 L["COMPATIBILITY_WARNING"] = "Avertissement de compatibilité avec Midnight"
 L["COMPATIBILITY_WARNING_MESSAGE"] = "|cffff0000Certains fonctionnalités sont désactivées sur Midnight en raison des restrictions de l'API:|r\n\n" ..
                                 "|cff8888ff• Pourcentages des monstres sur les plaques de nom (Intégration MythicDungeonTools)|r\n" ..
+                                "|cff8888ff• Suivi du pourcentage du pull actuel|r\n" ..
+                                "|cff8888ff• Valeurs projetées|r\n\n" ..
+                                "|cff8888ffCes fonctionnalités seront réactivées une fois que Blizzard aura sorti la nouvelle API Mythique+. Il n'y a actuellement pas de date de sortie connue.|r\n\n" ..
+                                "Toutes les autres fonctionnalités devraient rester disponibles, désolé pour le désagrément.\n"
+L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000Certains fonctionnalités sont désactivées sur Midnight en raison des restrictions de l'API:|r\n\n" ..
                                 "|cff8888ff• Suivi du pourcentage du pull actuel|r\n" ..
                                 "|cff8888ff• Valeurs projetées|r\n\n" ..
                                 "|cff8888ffCes fonctionnalités seront réactivées une fois que Blizzard aura sorti la nouvelle API Mythique+. Il n'y a actuellement pas de date de sortie connue.|r\n\n" ..
@@ -70,6 +75,54 @@ L["PREVIEW_SECTION_DONE"] = "Section terminée"
 L["PREVIEW_MISSING"] = "Manquant (boss tué)"
 L["PREVIEW_ALMOST_DONE"] = "Presque terminé (en combat)"
 L["PREVIEW_DUNGEON_DONE"] = "Donjon terminé"
+L["PROGRESS_BAR"] = "Barre de progression"
+L["PROGRESS_BAR_ENABLED"] = "Activer la barre de progression"
+L["PROGRESS_BAR_ENABLED_DESC"] = "Afficher une barre de progression pour le pourcentage des forces ennemies."
+L["PROGRESS_BAR_WIDTH"] = "Largeur"
+L["PROGRESS_BAR_HEIGHT"] = "Hauteur"
+L["PROGRESS_BAR_DIRECTION"] = "Direction de remplissage"
+L["PROGRESS_BAR_DIRECTION_LTR"] = "De gauche à droite"
+L["PROGRESS_BAR_DIRECTION_RTL"] = "De droite à gauche"
+L["PROGRESS_BAR_TEXTURE"] = "Texture de la barre"
+L["PROGRESS_BAR_USE_GRADIENT"] = "Utiliser un gradient"
+L["PROGRESS_BAR_USE_GRADIENT_DESC"] = "Mélanger les sections terminées entre une couleur de début et une couleur de fin sur la barre complète. Les sections en cours et manquantes gardent leur couleur dédiée."
+L["PROGRESS_BAR_GRADIENT_START_COLOR"] = "Couleur de début du gradient"
+L["PROGRESS_BAR_GRADIENT_END_COLOR"] = "Couleur de fin du gradient"
+L["PROGRESS_BAR_OVERRIDE_COLORS"] = "Utiliser des couleurs personnalisées"
+L["PROGRESS_BAR_OVERRIDE_COLORS_DESC"] = "Utiliser des couleurs personnalisées pour la barre de progression au lieu des couleurs affichées par le texte."
+L["PROGRESS_BAR_COMPLETED_COLOR"] = "Couleur des sections terminées"
+L["PROGRESS_BAR_IN_PROGRESS_COLOR"] = "Couleur des sections en cours"
+L["PROGRESS_BAR_MISSING_COLOR"] = "Couleur du pourcentage manquant"
+L["PROGRESS_BAR_BG_COLOR"] = "Couleur de fond de la barre"
+L["PROGRESS_BAR_BG_ALPHA"] = "Opacité du fond de la barre"
+L["PROGRESS_BAR_BORDER_STYLE"] = "Style du bord de la barre"
+L["PROGRESS_BAR_BORDER_NONE"] = "Aucun"
+L["PROGRESS_BAR_BORDER_SOLID"] = "Solide"
+L["PROGRESS_BAR_BORDER_LSM"] = "Texture du bord de la barre"
+L["PROGRESS_BAR_BORDER_TEXTURE"] = "Texture du bord de la barre"
+L["PROGRESS_BAR_BORDER_COLOR"] = "Couleur du bord de la barre"
+L["PROGRESS_BAR_BORDER_SIZE"] = "Taille du bord de la barre"
+L["PROGRESS_BAR_BORDER_INSETS"] = "Insets du bord de la barre"
+L["PROGRESS_BAR_TICK_COLOR"] = "Couleur des repères"
+L["PROGRESS_BAR_TICK_WIDTH"] = "Largeur des repères"
+L["PROGRESS_BAR_TICK_OVERFLOW"] = "Dépassement vertical des repères"
+L["PROGRESS_BAR_TICK_OVERFLOW_DESC"] = "Détermine le dépassement vertical maximal des repères par rapport aux bords de la barre."
+L["PROGRESS_BAR_SHOW_CALLOUT"] = "Afficher l'étiquette"
+L["PROGRESS_BAR_SHOW_CALLOUT_DESC"] = "Afficher une étiquette au-dessus ou en dessous de la barre affichant la cible de la section en cours."
+L["PROGRESS_BAR_CALLOUT_POSITION"] = "Position de l'étiquette"
+L["PROGRESS_BAR_CALLOUT_ABOVE"] = "Au-dessus"
+L["PROGRESS_BAR_CALLOUT_BELOW"] = "En dessous"
+L["PROGRESS_BAR_CALLOUT_FONT"] = "Police de l'étiquette"
+L["PROGRESS_BAR_CALLOUT_FONT_SIZE"] = "Taille de la police de l'étiquette"
+L["PROGRESS_BAR_CALLOUT_TEXT_COLOR"] = "Couleur du texte de l'étiquette"
+L["PROGRESS_BAR_CALLOUT_BG_COLOR"] = "Couleur de fond de l'étiquette"
+L["PROGRESS_BAR_CALLOUT_FORMAT"] = "%.2f%% • %s" -- @no-translate
+L["PROGRESS_BAR_THRESHOLD"] = "Seuil: %.2f%%"
+L["PROGRESS_BAR_COUNT"] = "Compte: %d"
+L["PROGRESS_BAR_STATUS_COMPLETE"] = "Statut: Terminé"
+L["PROGRESS_BAR_STATUS_CURRENT"] = "Statut: Section en cours"
+L["PROGRESS_BAR_STATUS_UPCOMING"] = "Statut: Section à venir"
+L["PROGRESS_BAR_TICKS"] = "Ticks"
 L["Changelog"] = "Mises à jour"
 L["Version"] = "Version" -- @no-translate
 L["Important"] = "Important" -- @no-translate
@@ -121,6 +174,9 @@ L["FONT_SIZE"] = "Taille de la police"
 L["FONT_SIZE_DESC"] = "Ajuster la taille du texte"
 L["POSITIONING"] = "Positionnement"
 L["COLORS"] = "Couleurs"
+L["BORDERS"] = "Bordures"
+L["TICKS"] = "Repères"
+L["CALLOUT"] = "Étiquette"
 L["IN_PROGRESS"] = "En cours"
 L["IN_PROGRESS_COLOR_DESC"] = "Couleur pour les valeurs de section qui ne sont pas encore terminées."
 L["MISSING"] = "Manquant"
@@ -140,7 +196,7 @@ L["X_OFFSET"] = "Décalage X"
 L["X_OFFSET_DESC"] = "Ajuster la position horizontale du texte"
 L["Y_OFFSET"] = "Décalage Y"
 L["Y_OFFSET_DESC"] = "Ajuster la position verticale du texte"
-L["SHOW_ANCHOR"] = "Afficher l'ancrage"
+L["SHOW_ANCHOR"] = "Afficher l'ancrage" -- TODO: "Show Anchor"
 L["RESET_DUNGEON"] = "Réinitialiser aux valeurs par défaut"
 L["RESET_DUNGEON_DESC"] = "Réinitialiser tous les pourcentages des boss de ce donjon à leurs valeurs par défaut"
 L["RESET_DUNGEON_CONFIRM"] = "Êtes-vous sûr de vouloir réinitialiser tous les pourcentages des boss de ce donjon à leurs valeurs par défaut ?"
@@ -277,6 +333,29 @@ L["IMPORT_MDT_SUCCESS"] = "Route MDT importée pour %s. %d pourcentages de boss 
 L["IMPORT_MDT_SUCCESS_OPENED"] = "Route MDT importée pour %s. %d pourcentages de boss et l'ordre des boss ont été mis à jour. Ouverture des options pour ce donjon."
 L["IMPORT_MDT_INCOMPLETE"] = "L'import MDT a été annulé : tous les boss n'ont pas été détectés dans la route. Aucun changement n'a été appliqué."
 
+-- Profile export/import
+L["PROFILE_SHARE_HEADER"] = "Partager le profil"
+L["PROFILE_SHARE_DESC"] = "Copiez une chaîne pour partager vos réglages entre comptes ou machines. Utilisez Importer pour charger dans un profil nommé."
+L["EXPORT_PROFILE_FULL"] = "Exporter le profil complet"
+L["EXPORT_PROFILE_FULL_DESC"] = "Exporter tous les réglages de l'addon, y compris les routes personnalisées."
+L["EXPORT_PROFILE_SETTINGS"] = "Exporter les réglages uniquement"
+L["EXPORT_PROFILE_SETTINGS_DESC"] = "Exporter l'affichage, la barre de progression et les modules sans les routes personnalisées."
+L["IMPORT_PROFILE"] = "Importer un profil"
+L["IMPORT_PROFILE_DESC"] = "Importer une chaîne de profil et choisir un nom de profil cible."
+L["EXPORT_PROFILE_FULL_DIALOG_TEXT"] = "Copiez la chaîne ci-dessous pour partager votre profil Keystone Polaris complet :"
+L["EXPORT_PROFILE_SETTINGS_DIALOG_TEXT"] = "Copiez la chaîne ci-dessous pour partager vos réglages Keystone Polaris (sans routes personnalisées) :"
+L["IMPORT_PROFILE_DIALOG_TEXT"] = "Collez une chaîne de profil Keystone Polaris ci-dessous :"
+L["IMPORT_PROFILE_CONFIRM_TEXT"] = "Importer %s ?\n\nProfil cible : %s\nProfil actif : %s"
+L["IMPORT_PROFILE_ACTIVATE"] = "Importer et activer"
+L["IMPORT_PROFILE_ONLY"] = "Importer seulement"
+L["PROFILE_SCOPE_FULL"] = "profil complet"
+L["PROFILE_SCOPE_SETTINGS"] = "réglages uniquement"
+L["IMPORT_PROFILE_SUCCESS"] = "Profil importé dans « %s »."
+L["IMPORT_PROFILE_ERROR"] = "Chaîne d'import de profil non valide."
+L["IMPORT_PROFILE_UNKNOWN_VERSION"] = "Version d'export de profil non prise en charge."
+L["IMPORT_PROFILE_EXISTS"] = "Le profil « %s » existe déjà et sera écrasé."
+L["IMPORT_PROFILE_USE_INTERFACE"] = "Utilisez Profils > Importer un profil pour les chaînes de profil."
+
 -- MDT Integration
 L["MDT_INTEGRATION_FEATURES"] = "Intégration MDT"
 L["MOB_PERCENTAGES_INFO"] = "• |cff00ff00Pourcentage des monstres|r: Affiche le pourcentage de contribution des forces ennemies sur les barres d'informations dans les donjons Mythique+"
@@ -285,16 +364,16 @@ L["MOB_INDICATOR_INFO"] = "• |cff00ff00Indicateurs des monstres|r: Ajoute des 
 -- Mob Percentages
 L["MOB_PERCENTAGES"] = "Pourcentage des monstres"
 L["ENABLE_MOB_PERCENTAGES"] = "Activer les pourcentages des monstres"
-L["ENABLE_MOB_PERCENTAGES_DESC"] = "Affiche la contribution en forces ennemies de chaque monstre sur les barres de nom en Mythique+" -- TODO: "Show live enemy-forces contribution for each mob on Mythic+ nameplates"
+L["ENABLE_MOB_PERCENTAGES_DESC"] = "Affiche la contribution en forces ennemies de chaque monstre sur les barres de nom en Mythique+"
 L["MOB_PERCENTAGE_FONT_SIZE"] = "Taille de la police"
 L["MOB_PERCENTAGE_FONT_SIZE_DESC"] = "Taille de la police des pourcentages des monstres"
 L["MOB_PERCENTAGE_POSITION"] = "Position" -- @no-translate
 L["MOB_PERCENTAGE_POSITION_DESC"] = "Position des pourcentages des monstres par rapport aux barres d'informations"
 L["RIGHT"] = "Droite"
 L["LEFT"] = "Gauche"
-L["MOB_PERCENTAGES_API_WARNING"] = "Cette fonctionnalité nécessite la nouvelle API Mythique+ de Blizzard, disponible à partir de WoW 12.0.5." -- TODO: "This feature requires Blizzard's Mythic+ unit progress API, available in WoW 12.0.5+."
-L["MOB_PERCENTAGES_API_FOUND"] = "La nouvelle API Mythique+ de Blizzard est disponible. Les pourcentages des monstres utilisent les données du jeu." -- TODO: "Blizzard's Mythic+ unit progress API is available. Mob percentages will use live scenario data."
-L["MOB_PERCENTAGES_API_UNAVAILABLE"] = "Les pourcentages des monstres ne sont pas disponibles sur ce client car l'API Mythique+ de Blizzard est absente." -- TODO: "Mob percentages are unavailable on this client because Blizzard's Mythic+ unit progress API is missing."
+L["MOB_PERCENTAGES_API_WARNING"] = "Cette fonctionnalité nécessite la nouvelle API Mythique+ de Blizzard, disponible à partir de WoW 12.0.5."
+L["MOB_PERCENTAGES_API_FOUND"] = "La nouvelle API Mythique+ de Blizzard est disponible. Les pourcentages des monstres utilisent les données du jeu."
+L["MOB_PERCENTAGES_API_UNAVAILABLE"] = "Les pourcentages des monstres ne sont pas disponibles sur ce client car l'API Mythique+ de Blizzard est absente."
 L["MDT_LOADED"] = "Mythic Dungeon Tools chargé avec succès."
 L["MDT_NOT_FOUND"] = "Mythic Dungeon Tools non trouvé. Les pourcentages des monstres ne seront pas affichés. Veuillez installer MDT pour que cette fonctionnalité fonctionne."
 L["MDT_INTEGRATION"] = "Intégration MDT"

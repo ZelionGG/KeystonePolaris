@@ -50,6 +50,7 @@ interface LocaleEntry {
   status: LocaleEntryStatus;
   rawLines: string[];
   todoValue?: string;
+  noTranslate: boolean;
 }
 
 interface LocaleReport {
@@ -68,7 +69,7 @@ const L_KEY_RE = /^L\["([^"]+)"\]\s*=/;
 const TODO_L_KEY_RE = /^\s*--\s*TODO:\s*L\["([^"]+)"\]\s*=/;
 const DIFF_L_KEY_RE = /^\+\s*(?:--\s*TODO:\s*)?L\["([^"]+)"\]\s*=/;
 const TO_TRANSLATE_RE = /--\s*(?:TODO:\s*)?To Translate\s*$/;
-const NO_TRANSLATE_RE = /--\s*@no-translate\s*$/;
+const NO_TRANSLATE_RE = /--\s*@no-translate\b/;
 
 // ── Parsing helpers ────────────────────────────────────────────────────────────
 
@@ -312,7 +313,14 @@ function parseLocale(
       const key = todoMatch[1];
       const { rawLines, endIndex } = collectContinuationLines(lines, i);
       const value = extractValueString(rawLines);
-      entries.set(key, { key, value, status: "todo-commented", rawLines });
+      const lastLine = rawLines[rawLines.length - 1];
+      entries.set(key, {
+        key,
+        value,
+        status: "todo-commented",
+        rawLines,
+        noTranslate: NO_TRANSLATE_RE.test(lastLine),
+      });
       i = endIndex + 1;
       continue;
     }
@@ -322,7 +330,7 @@ function parseLocale(
       const key = assignMatch[1];
       const { rawLines, endIndex } = collectContinuationLines(lines, i);
       const lastLine = rawLines[rawLines.length - 1];
-      const hasNoTranslateMarker = NO_TRANSLATE_RE.test(lastLine);
+      const noTranslate = NO_TRANSLATE_RE.test(lastLine);
 
       const staleMatch = lastLine.match(/--\s*TODO:\s*"([^"]*)"$/);
       if (staleMatch) {
@@ -333,6 +341,7 @@ function parseLocale(
           status: "stale-flagged",
           rawLines,
           todoValue: staleMatch[1],
+          noTranslate,
         });
         i = endIndex + 1;
         continue;
@@ -343,18 +352,18 @@ function parseLocale(
       const value = extractValueString(rawLines);
 
       if (hasToTranslateMarker) {
-        entries.set(key, { key, value, status: "untranslated-marked", rawLines });
+        entries.set(key, { key, value, status: "untranslated-marked", rawLines, noTranslate });
       } else {
         const baseEntry = baseEntries.get(key);
         if (
           baseEntry !== undefined &&
           value === baseEntry.value &&
           !SAME_VALUE_ALLOWLIST.has(key) &&
-          !hasNoTranslateMarker
+          !noTranslate
         ) {
-          entries.set(key, { key, value, status: "untranslated-marked", rawLines });
+          entries.set(key, { key, value, status: "untranslated-marked", rawLines, noTranslate });
         } else {
-          entries.set(key, { key, value, status: "translated", rawLines });
+          entries.set(key, { key, value, status: "translated", rawLines, noTranslate });
         }
       }
 
@@ -374,11 +383,17 @@ function formatTodoEntry(baseEntry: BaseEntry): string[] {
   return baseEntry.rawLines.map((line) => `-- TODO: ${line}`);
 }
 
-function formatStaleEntry(localeEntry: LocaleEntry, newBaseValue: string): string[] {
-  const lines = [...localeEntry.rawLines];
+function stripStaleTodoSuffix(rawLines: string[]): string[] {
+  const lines = [...rawLines];
   const lastIdx = lines.length - 1;
-  const lastLine = lines[lastIdx].replace(/\s*--\s*TODO:.*$/, "");
-  lines[lastIdx] = `${lastLine} -- TODO: "${newBaseValue}"`;
+  lines[lastIdx] = lines[lastIdx].replace(/\s*--\s*TODO:.*$/, "");
+  return lines;
+}
+
+function formatStaleEntry(localeEntry: LocaleEntry, newBaseValue: string): string[] {
+  const lines = stripStaleTodoSuffix(localeEntry.rawLines);
+  const lastIdx = lines.length - 1;
+  lines[lastIdx] = `${lines[lastIdx]} -- TODO: "${newBaseValue}"`;
   return lines;
 }
 
@@ -448,7 +463,11 @@ function generateLocaleFile(
     switch (localeEntry.status) {
       case "translated": {
         // Flag translations as stale only when the base changed and this locale key did not.
-        if (changedBaseKeys.has(key) && !changedLocaleKeys.has(key)) {
+        if (
+          changedBaseKeys.has(key) &&
+          !changedLocaleKeys.has(key) &&
+          !localeEntry.noTranslate
+        ) {
           outputLines.push(...formatStaleEntry(localeEntry, baseValue));
           report.staleKeys.push(key);
         } else {
@@ -474,8 +493,10 @@ function generateLocaleFile(
       }
 
       case "stale-flagged": {
-        // Update the TODO marker to the current base value
-        if (localeEntry.todoValue !== baseValue) {
+        if (localeEntry.noTranslate) {
+          outputLines.push(...stripStaleTodoSuffix(localeEntry.rawLines));
+        } else if (localeEntry.todoValue !== baseValue) {
+          // Update the TODO marker to the current base value
           outputLines.push(...formatStaleEntry(localeEntry, baseValue));
           report.staleKeys.push(key);
         } else {
