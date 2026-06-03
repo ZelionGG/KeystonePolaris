@@ -8,7 +8,7 @@ local L = AceLocale:NewLocale(AddonName, "enUS", true, false);
 -- Some strings below are sourced from BlizzardInterfaceResources.
 -- Source: https://github.com/Ketho/BlizzardInterfaceResources/blob/live/Resources/GlobalStrings/enUS.lua
 -- @Translation Team: If you find a false positive (a string that should stay identical),
--- add `-- @no-translate` at the end of the line so the locale sync script ignores it.
+-- add `-- @no-translate` at the end of the line so the locale sync script ignores untranslated detection and stale marking when enUS changes.
 
 -- ## Translations Start ## --
 

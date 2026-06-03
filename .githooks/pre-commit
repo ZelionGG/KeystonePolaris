@@ -12,7 +12,7 @@ if git diff --cached --name-only | grep -q '^Locales/enUS.lua$'; then
   patch=$(mktemp)
   trap 'rm -f "$patch"' EXIT
 
-  git diff --cached -- Locales/enUS.lua > "$patch"
+  git diff --cached -- Locales/ > "$patch"
 
   if [ -s "$patch" ]; then
     npx tsx scripts/sync-locales.ts --diff "$patch" || exit 1
