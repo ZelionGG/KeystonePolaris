@@ -33,7 +33,7 @@ local LOCALIZATION_CONTRIBUTORS = {
     },
     {
         flag = "zhCN",
-        name = "nanjuekaien1",
+        name = "nanjuekaien1, Toothache-xDD",
         role = (L["LOCALIZATION_STRING"]):format(ZHCN),
     },
     {
