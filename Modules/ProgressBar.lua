@@ -866,44 +866,53 @@ function KeystonePolaris:UpdateProgressBar()
     frame:Show()
 end
 
+function KeystonePolaris:RefreshProgressBarOptionsPreview()
+    local widget = self._progressBarPreviewWidget
+    if widget and widget.RefreshPreview then
+        widget:RefreshPreview()
+    end
+end
+
 function KeystonePolaris:RefreshProgressBar()
     local frame = self.progressBarFrame
-    if not frame then return end
+    if frame then
+        local pb = self.db.profile.progressBar
 
-    local pb = self.db.profile.progressBar
+        frame:SetSize(pb.width, pb.height)
 
-    frame:SetSize(pb.width, pb.height)
-
-    if not self._progressBarDragging then
-        frame:ClearAllPoints()
-        frame:SetPoint(pb.position, UIParent, pb.position, pb.xOffset, self:GetProgressBarValue("yOffset"))
-    end
-
-    frame.background:SetColorTexture(pb.backgroundColor.r, pb.backgroundColor.g, pb.backgroundColor.b, pb.backgroundColor.a or 0.7)
-
-    self:ApplyProgressBarBorder()
-
-    if self._progressBarDungeonKey then
-        self:BuildProgressBarTicks(self._progressBarDungeonKey)
-        local currentPct, bossKillStates
-        if self._progressBarPreview then
-            currentPct = self._progressBarPreviewPct or 0
-            local scenario = self._progressBarPreviewScenarioRef
-            local bossesKilled = scenario and scenario.bossesKilled or 0
-            bossKillStates = {}
-            for idx = 1, bossesKilled do
-                bossKillStates[idx] = true
-            end
-        else
-            local currentCount, totalCount = self:GetCurrentForcesInfo()
-            currentPct = (totalCount and totalCount > 0) and ((currentCount / totalCount) * 100) or 0
-            bossKillStates = self:GetBossKillStates(self._progressBarDungeonKey)
+        if not self._progressBarDragging then
+            frame:ClearAllPoints()
+            frame:SetPoint(pb.position, UIParent, pb.position, pb.xOffset, self:GetProgressBarValue("yOffset"))
         end
-        local sectionStates = self:GetProgressBarSectionStates(self._progressBarDungeonKey, currentPct, bossKillStates)
-        self:UpdateProgressBarTickColors(bossKillStates)
-        self:UpdateProgressBarSegments(currentPct, sectionStates)
-        self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
+
+        frame.background:SetColorTexture(pb.backgroundColor.r, pb.backgroundColor.g, pb.backgroundColor.b, pb.backgroundColor.a or 0.7)
+
+        self:ApplyProgressBarBorder()
+
+        if self._progressBarDungeonKey then
+            self:BuildProgressBarTicks(self._progressBarDungeonKey)
+            local currentPct, bossKillStates
+            if self._progressBarPreview then
+                currentPct = self._progressBarPreviewPct or 0
+                local scenario = self._progressBarPreviewScenarioRef
+                local bossesKilled = scenario and scenario.bossesKilled or 0
+                bossKillStates = {}
+                for idx = 1, bossesKilled do
+                    bossKillStates[idx] = true
+                end
+            else
+                local currentCount, totalCount = self:GetCurrentForcesInfo()
+                currentPct = (totalCount and totalCount > 0) and ((currentCount / totalCount) * 100) or 0
+                bossKillStates = self:GetBossKillStates(self._progressBarDungeonKey)
+            end
+            local sectionStates = self:GetProgressBarSectionStates(self._progressBarDungeonKey, currentPct, bossKillStates)
+            self:UpdateProgressBarTickColors(bossKillStates)
+            self:UpdateProgressBarSegments(currentPct, sectionStates)
+            self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
+        end
     end
+
+    self:RefreshProgressBarOptionsPreview()
 end
 
 function KeystonePolaris:EnableProgressBarPreview()
