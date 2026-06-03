@@ -334,6 +334,10 @@ function KeystonePolaris:OnInitialize()
         self:InitializeDisplay()
     end
 
+    if self.InitializeProgressBar then
+        self:InitializeProgressBar()
+    end
+
     self:InitializeMinimapIcon()
     self:UpdateCompartmentIconVisibility()
 
@@ -346,7 +350,7 @@ function KeystonePolaris:OnInitialize()
         type = "group",
         args = {
             general = {
-                name = L["GENERAL_SETTINGS"],
+                name = L["TEXT_DISPLAY"],
                 type = "group",
                 order = 1,
                 childGroups = "tree",
@@ -366,14 +370,15 @@ function KeystonePolaris:OnInitialize()
                     display = self:GetDisplayOptions(),
                     appearance = self:GetAppearanceOptions(),
                     positioning = self:GetPositioningOptions(),
-                    informGroup = self:GetInformGroupOptions(),
-                    interface = self:GetInterfaceOptions(),
                 }
             },
+            progressBar = self:GetProgressBarOptions(),
+            informGroup = self:GetInformGroupOptions(),
+            interface = self:GetInterfaceOptions(),
             modules = {
                 name = L["MODULES"],
                 type = "group",
-                order = 2,
+                order = 6,
                 childGroups = "tree",
                 args = {
                     modulesSummaryHeader = {
@@ -478,17 +483,19 @@ _G.KeystonePolaris_OnAddonCompartmentClick = function()
 end
 
 -- Build logical section order for the given dungeon, using advanced bossOrder when available
-function KeystonePolaris:BuildSectionOrder(dungeonId)
-    self.currentSectionOrder = nil
-    local dungeon = self.DUNGEONS[dungeonId]
-    if not dungeon then return end
+function KeystonePolaris:GetDungeonSectionOrder(dungeonId, dungeonKey)
+    local dungeon = dungeonId and self.DUNGEONS[dungeonId]
+    if not dungeon then return nil end
 
     local numBosses = #dungeon
-    if numBosses == 0 then return end
+    if numBosses == 0 then return nil end
 
     local order = {}
-    local dungeonKey = self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId) or nil
-    if dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] then
+    dungeonKey = dungeonKey or (self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId)) or nil
+    local useAdvancedRoutes = self.db and self.db.profile and self.db.profile.general
+        and self.db.profile.general.advancedOptionsEnabled
+    if useAdvancedRoutes and dungeonKey and self.db and self.db.profile
+        and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] then
         local adv = self.db.profile.advanced[dungeonKey]
         local advOrder = adv.bossOrder
         if type(advOrder) == "table" then
@@ -502,13 +509,12 @@ function KeystonePolaris:BuildSectionOrder(dungeonId)
                 order[i] = math.floor(idx)
             end
             if valid then
-                self.currentSectionOrder = order
-                return
+                return order
             end
         end
     end
 
-    -- Fallback: order by required percentage ascending
+    -- Fallback: order by required percentage ascending.
     for i = 1, numBosses do
         order[i] = i
     end
@@ -517,9 +523,17 @@ function KeystonePolaris:BuildSectionOrder(dungeonId)
         local db = dungeon[b]
         local pa = da and da[2] or 0
         local pb = db and db[2] or 0
+        if pa == pb then
+            return a < b
+        end
         return pa < pb
     end)
-    self.currentSectionOrder = order
+
+    return order
+end
+
+function KeystonePolaris:BuildSectionOrder(dungeonId)
+    self.currentSectionOrder = self:GetDungeonSectionOrder(dungeonId)
 end
 
 -- Initialize dungeon tracking when entering a dungeon
@@ -650,6 +664,9 @@ function KeystonePolaris:OnEnable()
     if self.UpdatePercentageText then
         self:UpdatePercentageText()
     end
+    if self.UpdateProgressBar then
+        self:UpdateProgressBar()
+    end
 end
 
 -- Event handler for POI updates (boss positions)
@@ -662,10 +679,12 @@ end
 -- hanging the game when a large pack dies all at once.
 function KeystonePolaris:SCENARIO_CRITERIA_UPDATE()
     if self._QueuePullUpdate then self:_QueuePullUpdate() end
+    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 -- Event handler for starting a Mythic+ dungeon
 function KeystonePolaris:CHALLENGE_MODE_START()
+    if self._positioningMode and self.ExitPositioningMode then self:ExitPositioningMode(true) end
     if self._testMode and self.DisableTestMode then self:DisableTestMode("started dungeon") end
     self.currentDungeonID = nil
 
@@ -679,11 +698,16 @@ function KeystonePolaris:CHALLENGE_MODE_START()
         end)
     end
     if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 function KeystonePolaris:CHALLENGE_MODE_COMPLETED()
     self.currentDungeonID = nil
     if self.HideInformButton then self:HideInformButton() end
+    if self.progressBarFrame then
+        self.progressBarFrame:Hide()
+        self._progressBarDungeonKey = nil
+    end
 end
 
 -- Event handler for entering the world or changing zones
@@ -700,6 +724,7 @@ function KeystonePolaris:PLAYER_ENTERING_WORLD()
         end)
     end
     if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.UpdateProgressBar then self:UpdateProgressBar() end
 end
 
 -- Update dungeon data with advanced options if enabled
