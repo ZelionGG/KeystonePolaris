@@ -341,6 +341,9 @@ function KeystonePolaris:OnInitialize()
     self:InitializeMinimapIcon()
     self:UpdateCompartmentIconVisibility()
 
+    self.db.RegisterCallback(self, "OnProfileChanged", "RefreshForActiveProfile")
+    self.db.RegisterCallback(self, "OnProfileCopied", "RefreshForActiveProfile")
+
     -- Register options with Ace3 config system
     local optionsAddonName = (self.GetGradientAddonNameFromSecondLetter and self:GetGradientAddonNameFromSecondLetter()) or "Keystone Polaris"
     local optionsAddonDisplayName = (self.GetGradientAddonName and self:GetGradientAddonName()) or optionsAddonName
@@ -402,9 +405,13 @@ function KeystonePolaris:OnInitialize()
     AceConfig:RegisterOptionsTable(AddOnName .. "_Changelog", self.changelogOptions)
     AceConfig:RegisterOptionsTable(AddOnName .. "_About", self.aboutOptions)
 
+    local profileOptions = self:GetProfileOptions()
+    AceConfig:RegisterOptionsTable(AddOnName .. "_Profiles", profileOptions)
+
     self.optionsCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName, optionsAddonName))
     self.changelogCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_Changelog", L["Changelog"], optionsAddonName))
     self.aboutCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_About", L["ABOUT"], optionsAddonName))
+    self.profilesCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_Profiles", profileOptions.name, optionsAddonName))
 
 
     -- Register chat command and events
@@ -637,6 +644,73 @@ function KeystonePolaris:InformGroup(percentage)
     -- SendChatMessage(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr, channel)
 end
 
+
+function KeystonePolaris:GetProfileOptions()
+    local profileOptions = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
+    local args = CopyTable(profileOptions.args)
+
+    args.shareHeader = {
+        order = 85,
+        type = "header",
+        name = L["PROFILE_SHARE_HEADER"],
+    }
+    args.shareDesc = {
+        order = 86,
+        type = "description",
+        name = L["PROFILE_SHARE_DESC"],
+        fontSize = "medium",
+    }
+    args.exportProfileFull = {
+        order = 87,
+        type = "execute",
+        name = L["EXPORT_PROFILE_FULL"],
+        desc = L["EXPORT_PROFILE_FULL_DESC"],
+        func = function()
+            self:ExportProfileSettings("full")
+        end,
+    }
+    args.exportProfileSettings = {
+        order = 88,
+        type = "execute",
+        name = L["EXPORT_PROFILE_SETTINGS"],
+        desc = L["EXPORT_PROFILE_SETTINGS_DESC"],
+        func = function()
+            self:ExportProfileSettings("settings")
+        end,
+    }
+    args.importProfile = {
+        order = 89,
+        type = "execute",
+        name = L["IMPORT_PROFILE"],
+        desc = L["IMPORT_PROFILE_DESC"],
+        func = function()
+            self:ShowProfileImportDialog()
+        end,
+    }
+
+    profileOptions.args = args
+    return profileOptions
+end
+
+function KeystonePolaris:RefreshForActiveProfile()
+    if self.UpdateDungeonData then self:UpdateDungeonData() end
+    if self.currentDungeonID and self.BuildSectionOrder then
+        self:BuildSectionOrder(self.currentDungeonID)
+    end
+    LibStub("AceConfigRegistry-3.0"):NotifyChange(AddOnName)
+    LibStub("AceConfigRegistry-3.0"):NotifyChange(AddOnName .. "_Profiles")
+    if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.RefreshProgressBar then self:RefreshProgressBar() end
+    if self.UpdateMinimapIconVisibility then self:UpdateMinimapIconVisibility() end
+    if self.UpdateCompartmentIconVisibility then self:UpdateCompartmentIconVisibility() end
+
+    if self.db.profile.mobPercentages and self.db.profile.mobPercentages.enabled then
+        if self.InitializeMobPercentages then self:InitializeMobPercentages() end
+    end
+    if self.db.profile.groupReminder and self.db.profile.groupReminder.enabled then
+        if self.InitializeGroupReminder then self:InitializeGroupReminder() end
+    end
+end
 
 -- Called when the addon is enabled
 function KeystonePolaris:OnEnable()
