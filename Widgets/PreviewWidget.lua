@@ -218,10 +218,11 @@ end
 local methods = {}
 
 function methods.OnAcquire(self)
-    self.scenarioIndex = 1
+    self.scenarioIndex = KeystonePolaris._previewScenario or 1
     self:SetHeight(80)
     self:SetFullWidth(true)
     KeystonePolaris._previewWidget = self
+    RenderPreview(self, self.scenarioIndex)
 end
 
 function methods.OnRelease(self)

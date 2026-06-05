@@ -14,21 +14,8 @@ local math_min = math.min
 local pairs = pairs
 local string_format = string.format
 
-local function Lerp(startValue, endValue, amount)
-    return startValue + (endValue - startValue) * amount
-end
-
 local function CreateColorFromTable(color)
     return CreateColor(color.r, color.g, color.b, color.a or 1)
-end
-
-local function InterpolateColor(startColor, endColor, amount)
-    return CreateColor(
-        Lerp(startColor.r, endColor.r, amount),
-        Lerp(startColor.g, endColor.g, amount),
-        Lerp(startColor.b, endColor.b, amount),
-        Lerp(startColor.a or 1, endColor.a or 1, amount)
-    )
 end
 
 local function GetSectionBoundaries(thresholds)
@@ -126,21 +113,6 @@ local function ApplyCalloutStyle(callout, pb)
     callout.bg:SetColorTexture(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a or 0.8)
 end
 
-local function GetProgressBarColors(addon)
-    local pb = addon.db.profile.progressBar
-    if pb.overrideColors then
-        return pb.completedColor, pb.inProgressColor, pb.missingColor
-    end
-    local textColors = addon.db.profile.color
-    return textColors.finished, textColors.inProgress, textColors.missing
-end
-
-local function GetProgressBarGradientColor(addon, positionPct)
-    local pb = addon.db.profile.progressBar
-    local amount = math_max(0, math_min(positionPct / 100, 1))
-    return InterpolateColor(pb.gradientStartColor, pb.gradientEndColor, amount)
-end
-
 local function BuildPreviewThresholds(addon, dungeonKey)
     local dungeonData = addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[dungeonKey]
     if not dungeonData or not dungeonData.bosses then return {}, nil end
@@ -158,44 +130,6 @@ local function BuildPreviewThresholds(addon, dungeonKey)
     end
 
     return thresholds, dungeonData
-end
-
-local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentPct, bossKillStates)
-    if not thresholds or #thresholds == 0 then return {} end
-
-    local states = {}
-    local boundaries = { 0 }
-    local bossIndices = {}
-    for i, t in ipairs(thresholds) do
-        boundaries[#boundaries + 1] = t.percent
-        bossIndices[i] = t.bossIndex
-    end
-    boundaries[#boundaries + 1] = 100
-
-    if not bossIndices[#boundaries - 1] then
-        local targets = addon:GetOrderedBossTargets(dungeonKey)
-        bossIndices[#boundaries - 1] = targets[#targets] and targets[#targets].bossIndex or nil
-    end
-
-    for i = 1, #boundaries - 1 do
-        local segEnd = boundaries[i + 1]
-        local bossIdx = bossIndices[i]
-        local isBossKilled = bossKillStates and bossIdx and bossKillStates[bossIdx] or false
-
-        if currentPct >= segEnd and isBossKilled then
-            states[i] = "completedBoss"
-        elseif currentPct >= segEnd then
-            states[i] = "completed"
-        elseif isBossKilled then
-            states[i] = "missing"
-        elseif currentPct > boundaries[i] then
-            states[i] = "inProgress"
-        else
-            states[i] = "upcoming"
-        end
-    end
-
-    return states
 end
 
 local function UpdateBorder(widget, addon)
@@ -300,7 +234,7 @@ local function RenderPreview(widget, scenarioIndex)
     local dungeonKey = addon.ResolveProgressBarPreviewDungeonKey(addon)
     local thresholds = BuildPreviewThresholds(addon, dungeonKey)
     local currentPct, bossKillStates = addon.BuildProgressBarPreviewScenarioState(thresholds, scenario)
-    local sectionStates = BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentPct, bossKillStates)
+    local sectionStates = addon:GetProgressBarSectionStates(dungeonKey, currentPct, bossKillStates, thresholds) or {}
 
     local frameWidth = widget.frame:GetWidth()
     if not frameWidth or frameWidth <= 20 then
@@ -339,7 +273,7 @@ local function RenderPreview(widget, scenarioIndex)
         tick:Hide()
     end
 
-    local completedColor, inProgressColor, missingColor = GetProgressBarColors(addon)
+    local completedColor, inProgressColor, missingColor = addon:GetProgressBarColors()
     local barTexture = addon.LSM:Fetch("statusbar", pb.barTexture)
     local isRTL = pb.direction == "RIGHT_TO_LEFT"
     local doneTickColor = GetCompletedVisualColor(pb, completedColor)
@@ -372,7 +306,7 @@ local function RenderPreview(widget, scenarioIndex)
             inProgressColor,
             missingColor,
             function(positionPct)
-                return GetProgressBarGradientColor(addon, positionPct)
+                return addon:GetProgressBarGradientColor(positionPct)
             end
         )
         seg:Show()
@@ -563,13 +497,13 @@ local function Constructor()
     local ACR = LibStub("AceConfigRegistry-3.0", true)
     if ACR then
         ACR.RegisterCallback(widget, "ConfigTableChange", function(_, appName)
-            if appName == AddOnName and widget.scenarioIndex then
+            if appName ~= AddOnName or not widget.scenarioIndex then return end
+            if KeystonePolaris.RefreshProgressBar
+                and KeystonePolaris._progressBarOptionsPreview
+                and not KeystonePolaris._progressBarOptionsPreviewSuspended then
+                KeystonePolaris:RefreshProgressBar()
+            else
                 RenderPreview(widget, widget.scenarioIndex)
-                if KeystonePolaris.RefreshProgressBar
-                    and KeystonePolaris._progressBarOptionsPreview
-                    and not KeystonePolaris._progressBarOptionsPreviewSuspended then
-                    KeystonePolaris:RefreshProgressBar()
-                end
             end
         end)
     end
@@ -579,49 +513,3 @@ local function Constructor()
 end
 
 AceGUI:RegisterWidgetType(widgetType, Constructor, widgetVersion)
-
--- Invisible lifecycle widget: enables live bar preview while Progress Bar options are open.
-local sessionWidgetType = "KeystonePolaris_ProgressBarPreviewSession"
-local sessionWidgetVersion = 1
-
-local sessionMethods = {}
-
-function sessionMethods.OnAcquire(_)
-    if KeystonePolaris.EnableProgressBarOptionsPreview then
-        KeystonePolaris:EnableProgressBarOptionsPreview()
-    end
-end
-
-function sessionMethods.OnRelease(_)
-    if KeystonePolaris.DisableProgressBarOptionsPreview then
-        KeystonePolaris:DisableProgressBarOptionsPreview()
-    end
-end
-
-function sessionMethods.SetValue() end
-function sessionMethods.GetValue() return "_session" end
-function sessionMethods.SetLabel() end
-function sessionMethods.SetDisabled() end
-function sessionMethods.SetText() end
-function sessionMethods.SetList() end
-
-local function SessionConstructor()
-    local frame = CreateFrame("Frame", nil, UIParent)
-    frame:SetSize(1, 1)
-    frame:Hide()
-
-    local widget = {
-        type = sessionWidgetType,
-        frame = frame,
-    }
-    frame.obj = widget
-
-    for method, func in pairs(sessionMethods) do
-        widget[method] = func
-    end
-
-    AceGUI:RegisterAsWidget(widget)
-    return widget
-end
-
-AceGUI:RegisterWidgetType(sessionWidgetType, SessionConstructor, sessionWidgetVersion)

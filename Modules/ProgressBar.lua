@@ -1209,8 +1209,11 @@ function KeystonePolaris:ShowProgressBarTooltip(frame)
     GameTooltip:Show()
 end
 
-function KeystonePolaris:GetProgressBarSectionStates(dungeonKey, currentPct, bossKillStates)
-    local thresholds = self.progressBarFrame and self.progressBarFrame.tickThresholds
+function KeystonePolaris:GetProgressBarSectionStates(dungeonKey, currentPct, bossKillStates, thresholdsOverride)
+    local thresholds = thresholdsOverride
+    if not thresholds then
+        thresholds = self.progressBarFrame and self.progressBarFrame.tickThresholds
+    end
     if not thresholds or #thresholds == 0 then return nil end
 
     local states = {}

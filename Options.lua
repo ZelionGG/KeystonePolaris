@@ -48,10 +48,20 @@ local function SetPreviewScenario(value)
     KeystonePolaris._previewScenario = value
     KeystonePolaris._testScenario = value
     if KeystonePolaris.UpdatePercentageText then KeystonePolaris:UpdatePercentageText() end
-    if KeystonePolaris._progressBarPreview and KeystonePolaris.EnableProgressBarPreview then
-        KeystonePolaris:EnableProgressBarPreview()
+    if KeystonePolaris._progressBarPreview then
+        if KeystonePolaris.ApplyProgressBarPreviewScenario then
+            KeystonePolaris:ApplyProgressBarPreviewScenario()
+        end
+        if KeystonePolaris.RefreshProgressBar then
+            KeystonePolaris:RefreshProgressBar()
+        elseif KeystonePolaris.EnableProgressBarPreview then
+            KeystonePolaris:EnableProgressBarPreview()
+        end
     end
-    RefreshPreviewWidget()
+    local displayPreview = KeystonePolaris._previewWidget
+    if displayPreview and displayPreview.RefreshPreview then
+        displayPreview:RefreshPreview()
+    end
     ACR:NotifyChange(AddOnName)
 end
 
@@ -77,18 +87,6 @@ local function ProgressBarWidthSliderToUi(sliderValue)
     return sliderValue * uiMax / sliderMax
 end
 
-local function PreviewScenarioDropdown(order)
-    return {
-        name = L["PREVIEW_SCENARIO"],
-        type = "select",
-        order = order,
-        width = "full",
-        values = PreviewScenarioValues,
-        get = function() return KeystonePolaris._previewScenario or 1 end,
-        set = function(_, value) SetPreviewScenario(value) end,
-    }
-end
-
 local function PreviewGroup(order)
     return {
         type = "group",
@@ -96,20 +94,11 @@ local function PreviewGroup(order)
         name = "",
         order = order,
         args = {
-            previewScenario = {
+            preview = {
                 name = L["PREVIEW_SCENARIO"],
                 type = "select",
-                order = 1,
-                width = "full",
-                values = PreviewScenarioValues,
-                get = function() return KeystonePolaris._previewScenario or 1 end,
-                set = function(_, value) SetPreviewScenario(value) end,
-            },
-            preview = {
-                name = "",
-                type = "select",
                 dialogControl = "KeystonePolaris_Preview",
-                order = 2,
+                order = 1,
                 width = "full",
                 values = PreviewScenarioValues,
                 get = function() return KeystonePolaris._previewScenario or 1 end,
@@ -1768,12 +1757,11 @@ function KeystonePolaris:GetProgressBarOptions()
                 type = "group",
                 order = 1,
                 args = {
-                    previewScenario = PreviewScenarioDropdown(0.01),
                     preview = {
-                        name = "",
+                        name = L["PREVIEW_SCENARIO"],
                         type = "select",
                         dialogControl = "KeystonePolaris_ProgressBarPreview",
-                        order = 0.02,
+                        order = 0.01,
                         width = "full",
                         values = PreviewScenarioValues,
                         get = function() return KeystonePolaris._previewScenario or 1 end,
