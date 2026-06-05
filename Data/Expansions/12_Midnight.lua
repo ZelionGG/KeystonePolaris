@@ -32,8 +32,8 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
         displayName = "Nexus-Point Xenas",
         teleportID = 1254563,
         bosses = {
-            {1, 29.36, false, 1, 2813, "Chief Corewright Kasreth", 241539}, -- Chief Corewright Kasreth
-            {2, 73.66, false, 2, 2814, "Corewarden Nysarra", 241542}, -- Corewarden Nysarra
+            {1, 37.92, false, 1, 2813, "Chief Corewright Kasreth", 241539}, -- Chief Corewright Kasreth
+            {2, 82.72, false, 2, 2814, "Corewarden Nysarra", 241542}, -- Corewarden Nysarra
             {3, 100,   true,  3, 2815, "Lothraxion", 241546}, -- Lothraxion
         },
         milestones = {
