@@ -118,11 +118,7 @@ local function GetCompletedVisualColor(pb, completedColor)
     return completedColor
 end
 
-local function GetProgressBarTooltipSection(addon, frame)
-    local thresholds = frame.tickThresholds
-    if not thresholds or #thresholds == 0 then return nil end
-    if not addon._progressBarDungeonKey then return nil end
-
+local function GetProgressBarCursorPct(addon, frame)
     local pb = addon.db.profile.progressBar
     local barWidth = pb.width
     local cursorX = select(1, GetCursorPosition()) / UIParent:GetEffectiveScale()
@@ -133,47 +129,134 @@ local function GetProgressBarTooltipSection(addon, frame)
         relativeX = barWidth - relativeX
     end
 
-    local cursorPct = (relativeX / barWidth) * 100
-    local segStart = 0
-    local segEnd = 100
-    local segBossIdx = nil
-    local tickPadding = math_max((pb.tickWidth or 0) * 0.5, 2)
-    local tickTolerancePct = (tickPadding / math_max(barWidth, 1)) * 100
+    return (relativeX / barWidth) * 100
+end
 
-    for idx, threshold in ipairs(thresholds) do
-        if math.abs(cursorPct - threshold.percent) <= tickTolerancePct then
-            segEnd = threshold.percent
-            segStart = idx > 1 and thresholds[idx - 1].percent or 0
-            segBossIdx = threshold.bossIndex
-            break
-        end
+local function PreferObjectiveCandidate(candidate, best)
+    if not best then
+        return true
+    end
+    if candidate.percent < best.percent then
+        return true
+    end
+    if candidate.percent > best.percent then
+        return false
     end
 
-    if not segBossIdx then
-        for _, threshold in ipairs(thresholds) do
-            if cursorPct <= threshold.percent then
-                segEnd = threshold.percent
-                segBossIdx = threshold.bossIndex
-                break
+    local candidateOrder = candidate.logicalOrder or math.huge
+    local bestOrder = best.logicalOrder or math.huge
+    return candidateOrder < bestOrder
+end
+
+local function BuildTooltipObjectiveCandidates(addon, frame)
+    local candidates = {}
+    local pb = addon.db.profile.progressBar
+    local barWidth = pb.width
+    local bossTickTolerance = (math_max((pb.tickWidth or 0) * 0.5, 2) / math_max(barWidth, 1)) * 100
+    local milestoneTickTolerance = (math_max((pb.milestoneTickWidth or 1) * 0.5, 2) / math_max(barWidth, 1)) * 100
+    local dungeonKey = addon._progressBarDungeonKey
+
+    if dungeonKey then
+        for logicalOrder, target in ipairs(addon:GetOrderedBossTargets(dungeonKey)) do
+            local pct = target.percent
+            if pct and pct > 0 then
+                candidates[#candidates + 1] = {
+                    type = "boss",
+                    percent = pct,
+                    bossIndex = target.bossIndex,
+                    logicalOrder = logicalOrder,
+                    tickTolerance = bossTickTolerance,
+                }
             end
-            segStart = threshold.percent
         end
     end
 
-    if not segBossIdx then
-        local targets = addon:GetOrderedBossTargets(addon._progressBarDungeonKey)
-        segBossIdx = targets[#targets] and targets[#targets].bossIndex or nil
+    if addon:GetProgressBarValue("showMilestoneTicks") then
+        for _, threshold in ipairs(frame.milestoneThresholds or {}) do
+            candidates[#candidates + 1] = {
+                type = "milestone",
+                percent = threshold.percent,
+                milestone = threshold,
+                tickTolerance = milestoneTickTolerance,
+            }
+        end
     end
 
-    if not segBossIdx then return nil end
+    return candidates
+end
 
-    return {
-        dungeonKey = addon._progressBarDungeonKey,
-        segStart = segStart,
-        segEnd = segEnd,
-        bossIndex = segBossIdx,
-        key = string_format("%.2f:%.2f", segStart, segEnd),
-    }
+local function ObjectiveMatches(hitA, hitB)
+    if not hitA or not hitB or hitA.type ~= hitB.type then
+        return false
+    end
+
+    if hitA.type == "milestone" then
+        return hitA.milestone.milestoneIndex == hitB.milestone.milestoneIndex
+            and hitA.percent == hitB.percent
+    end
+
+    return hitA.bossIndex == hitB.bossIndex and hitA.percent == hitB.percent
+end
+
+local function GetNearestObjectiveHit(addon, frame)
+    if not addon._progressBarDungeonKey then
+        return nil
+    end
+
+    local candidates = BuildTooltipObjectiveCandidates(addon, frame)
+    if #candidates == 0 then
+        return nil
+    end
+
+    local cursorPct = GetProgressBarCursorPct(addon, frame)
+
+    local closestHit = nil
+    local closestDistance = nil
+    for _, candidate in ipairs(candidates) do
+        local distance = math.abs(cursorPct - candidate.percent)
+        if distance <= candidate.tickTolerance
+            and (not closestDistance
+                or distance < closestDistance
+                or (distance == closestDistance and PreferObjectiveCandidate(candidate, closestHit))) then
+            closestHit = candidate
+            closestDistance = distance
+        end
+    end
+    if closestHit then
+        return closestHit
+    end
+
+    local nearestRight = nil
+    for _, candidate in ipairs(candidates) do
+        if cursorPct <= candidate.percent and PreferObjectiveCandidate(candidate, nearestRight) then
+            nearestRight = candidate
+        end
+    end
+    if nearestRight then
+        return nearestRight
+    end
+
+    local segmentBoss = nil
+    for _, candidate in ipairs(candidates) do
+        if candidate.type == "boss" and cursorPct >= candidate.percent then
+            if not segmentBoss or candidate.percent > segmentBoss.percent then
+                segmentBoss = candidate
+            end
+        end
+    end
+    if segmentBoss then
+        return segmentBoss
+    end
+
+    for _, candidate in ipairs(candidates) do
+        if candidate.type == "boss" then
+            if not segmentBoss or candidate.percent > segmentBoss.percent then
+                segmentBoss = candidate
+            end
+        end
+    end
+
+    return segmentBoss or candidates[1]
 end
 
 local function ApplyCalloutStyle(callout, pb)
@@ -327,7 +410,7 @@ local function SplitTooltipLine(formattedText)
     return formattedText, ""
 end
 
-local function GetTooltipBossGroup(addon, dungeonKey, thresholdPercent, fallbackBossIndex)
+local function GetTooltipBossGroup(addon, dungeonKey, thresholdPercent)
     local group = {}
 
     for _, target in ipairs(addon:GetOrderedBossTargets(dungeonKey)) do
@@ -336,29 +419,188 @@ local function GetTooltipBossGroup(addon, dungeonKey, thresholdPercent, fallback
         end
     end
 
-    if #group == 0 and fallbackBossIndex then
-        group[1] = {
-            bossIndex = fallbackBossIndex,
-            percent = thresholdPercent,
-        }
-    end
-
     return group
 end
 
-local function GetTooltipBossStatus(addon, dungeonKey, target, currentPct, bossKillStates)
-    local currentTarget = GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
-    local isBossKilled = target and target.bossIndex and bossKillStates[target.bossIndex] or false
-
-    if target and isBossKilled then
-        return "Complete", "ff00ff00", 0, 1, 0
+local function IsBossGroupSectionReached(addon, dungeonKey, bossGroup, bossKillStates)
+    if #bossGroup == 0 then
+        return false
     end
 
+    local orderedTargets = addon:GetOrderedBossTargets(dungeonKey)
+    local firstGroupLogicalIdx = nil
+
+    for logicalIdx, orderedTarget in ipairs(orderedTargets) do
+        for _, groupTarget in ipairs(bossGroup) do
+            if orderedTarget.bossIndex == groupTarget.bossIndex then
+                if not firstGroupLogicalIdx or logicalIdx < firstGroupLogicalIdx then
+                    firstGroupLogicalIdx = logicalIdx
+                end
+                break
+            end
+        end
+    end
+
+    if not firstGroupLogicalIdx or firstGroupLogicalIdx <= 1 then
+        return true
+    end
+
+    for logicalIdx = 1, firstGroupLogicalIdx - 1 do
+        local priorTarget = orderedTargets[logicalIdx]
+        if priorTarget and priorTarget.bossIndex and not bossKillStates[priorTarget.bossIndex] then
+            return false
+        end
+    end
+
+    return true
+end
+
+local function GetTooltipBossStatus(addon, dungeonKey, target, bossGroup, bossKillStates)
+    local isBossKilled = target and target.bossIndex and bossKillStates[target.bossIndex] or false
+
+    if isBossKilled then
+        return "Done", "ff00ff00", 0, 1, 0
+    end
+
+    if #bossGroup > 1 then
+        if not IsBossGroupSectionReached(addon, dungeonKey, bossGroup, bossKillStates) then
+            return "Upcoming", "ff808080", 0.5, 0.5, 0.5
+        end
+
+        for _, groupTarget in ipairs(bossGroup) do
+            local groupKilled = groupTarget.bossIndex and bossKillStates[groupTarget.bossIndex]
+            if not groupKilled then
+                if groupTarget.bossIndex == target.bossIndex then
+                    return "Current", "ffffff00", 1, 1, 0
+                end
+                return "Upcoming", "ff808080", 0.5, 0.5, 0.5
+            end
+        end
+        return "Upcoming", "ff808080", 0.5, 0.5, 0.5
+    end
+
+    local currentTarget = GetCurrentBossTarget(addon, dungeonKey, 0, bossKillStates)
     if currentTarget and target and currentTarget.bossIndex == target.bossIndex then
         return "Current", "ffffff00", 1, 1, 0
     end
 
     return "Upcoming", "ff808080", 0.5, 0.5, 0.5
+end
+
+local function GetObjectiveTooltipKey(addon, hit)
+    if hit.type == "milestone" then
+        return string_format("milestone:%d:%.2f", hit.milestone.milestoneIndex or 0, hit.percent or 0)
+    end
+
+    local dungeonKey = addon._progressBarDungeonKey
+    local bossGroup = GetTooltipBossGroup(addon, dungeonKey, hit.percent)
+    local bossKillStates = addon:GetBossKillStates(dungeonKey)
+    local stateParts = {}
+    for _, target in ipairs(bossGroup) do
+        stateParts[#stateParts + 1] = string_format(
+            "%d:%d",
+            target.bossIndex or 0,
+            bossKillStates[target.bossIndex] and 1 or 0
+        )
+    end
+
+    return string_format("boss:%.2f:%s", hit.percent or 0, table.concat(stateParts, ","))
+end
+
+local function IsObjectiveCurrentTarget(hit, currentPct, candidates)
+    local nextTarget = nil
+    for _, candidate in ipairs(candidates) do
+        if currentPct < candidate.percent and PreferObjectiveCandidate(candidate, nextTarget) then
+            nextTarget = candidate
+        end
+    end
+
+    return nextTarget and ObjectiveMatches(hit, nextTarget)
+end
+
+local function GetTooltipMilestoneStatus(milestone, currentPct, isCurrentTarget)
+    if currentPct >= (milestone.percent or 0) then
+        return "Complete", "ff00ff00", 0, 1, 0
+    end
+
+    if isCurrentTarget then
+        return "Current", "ffffff00", 1, 1, 0
+    end
+
+    return "Upcoming", "ff808080", 0.5, 0.5, 0.5
+end
+
+local function AppendMilestoneTooltipLines(addon, milestone, currentPct, isCurrentTarget)
+    local label = milestone.label
+    if not label or label == "" then
+        label = string_format(L["MILESTONE"], milestone.milestoneIndex or 0)
+    end
+
+    local thresholdLabel, thresholdValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_THRESHOLD"], milestone.percent or 0))
+    GameTooltip:AddDoubleLine(thresholdLabel, thresholdValue, 1, 0.82, 0, 1, 1, 1)
+
+    local _, totalCount = addon:GetCurrentForcesInfo()
+    if totalCount and totalCount > 0 then
+        local neededCount = math_ceil(totalCount * (milestone.percent or 0) / 100)
+        local countLabel, countValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_COUNT"], neededCount))
+        GameTooltip:AddDoubleLine(countLabel, countValue, 1, 0.82, 0, 1, 1, 1)
+    end
+
+    local triggerType = milestone.triggerType
+    if triggerType and triggerType ~= "none" then
+        local matchText = milestone.matchText
+        if matchText and matchText ~= "" then
+            local triggerLabel, triggerValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_MILESTONE_TRIGGER"], matchText))
+            GameTooltip:AddDoubleLine(triggerLabel, triggerValue, 1, 0.82, 0, 1, 1, 1)
+        end
+    end
+
+    GameTooltip:AddLine(" ")
+
+    local statusText, indicatorColor, statusR, statusG, statusB = GetTooltipMilestoneStatus(milestone, currentPct, isCurrentTarget)
+    GameTooltip:AddDoubleLine(
+        "|c" .. indicatorColor .. "> |r" .. label,
+        statusText,
+        1,
+        1,
+        1,
+        statusR,
+        statusG,
+        statusB
+    )
+end
+
+local function AppendBossTooltipLines(addon, section)
+    local dungeonKey = section.dungeonKey
+    local bossGroup = GetTooltipBossGroup(addon, dungeonKey, section.segEnd)
+    local thresholdLabel, thresholdValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_THRESHOLD"], section.segEnd))
+
+    GameTooltip:AddDoubleLine(thresholdLabel, thresholdValue, 1, 0.82, 0, 1, 1, 1)
+
+    local _, totalCount = addon:GetCurrentForcesInfo()
+    local bossKillStates = addon:GetBossKillStates(dungeonKey)
+    if totalCount and totalCount > 0 then
+        local neededCount = math_ceil(totalCount * section.segEnd / 100)
+        local countLabel, countValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_COUNT"], neededCount))
+        GameTooltip:AddDoubleLine(countLabel, countValue, 1, 0.82, 0, 1, 1, 1)
+    end
+
+    GameTooltip:AddLine(" ")
+
+    for _, target in ipairs(bossGroup) do
+        local bossName = addon:GetBossName(dungeonKey, target.bossIndex) or ("Boss " .. tostring(target.bossIndex))
+        local statusText, indicatorColor, statusR, statusG, statusB = GetTooltipBossStatus(addon, dungeonKey, target, bossGroup, bossKillStates)
+        GameTooltip:AddDoubleLine(
+            "|c" .. indicatorColor .. "> |r" .. bossName,
+            statusText,
+            1,
+            1,
+            1,
+            statusR,
+            statusG,
+            statusB
+        )
+    end
 end
 
 function KeystonePolaris:InitializeProgressBar()
@@ -379,6 +621,12 @@ function KeystonePolaris:InitializeProgressBar()
     borderFrame:SetFrameLevel(frame:GetFrameLevel() + 10)
     borderFrame:EnableMouse(false)
     frame.borderFrame = borderFrame
+
+    local milestoneOverlay = CreateFrame("Frame", nil, frame)
+    milestoneOverlay:SetAllPoints(frame)
+    milestoneOverlay:SetFrameLevel(borderFrame:GetFrameLevel() + 1)
+    milestoneOverlay:EnableMouse(false)
+    frame.milestoneOverlay = milestoneOverlay
 
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", function(self_frame)
@@ -405,6 +653,8 @@ function KeystonePolaris:InitializeProgressBar()
     frame.segments = {}
     frame.ticks = {}
     frame.tickThresholds = {}
+    frame.milestoneTicks = {}
+    frame.milestoneThresholds = {}
 
     frame:SetScript("OnEnter", function(self_frame)
         self_frame._lastTooltipSectionKey = nil
@@ -720,53 +970,118 @@ function KeystonePolaris:BuildProgressBarTicks(dungeonKey)
     frame.tickThresholds = thresholds
 end
 
+function KeystonePolaris:GetProgressBarMilestoneThresholds(dungeonKey)
+    local dungeonId = self:GetDungeonIdByKey(dungeonKey)
+    if not dungeonId then return {} end
+
+    local thresholds = {}
+    for _, milestone in ipairs(self:GetSortedMilestones(dungeonId)) do
+        local pct = tonumber(milestone.neededPercent) or 0
+        if pct > 0 and pct < 100 then
+            thresholds[#thresholds + 1] = {
+                percent = pct,
+                milestoneIndex = milestone.milestoneIndex,
+                label = milestone.label,
+                triggerType = milestone.triggerType,
+                matchText = milestone.matchText,
+            }
+        end
+    end
+    return thresholds
+end
+
+function KeystonePolaris:BuildProgressBarMilestoneTicks(dungeonKey)
+    local frame = self.progressBarFrame
+    if not frame then return end
+
+    for _, tick in pairs(frame.milestoneTicks or {}) do
+        tick:Hide()
+        tick:SetParent(nil)
+    end
+    frame.milestoneTicks = {}
+    frame.milestoneThresholds = {}
+
+    if not self:GetProgressBarValue("showMilestoneTicks") or not dungeonKey then
+        return
+    end
+
+    local pb = self.db.profile.progressBar
+    local barWidth = pb.width
+    local barHeight = pb.height
+    local milestoneTickWidth = pb.milestoneTickWidth or 1
+    local milestoneOverflow = math_max(0, math_ceil((pb.tickOverflow or 0) / 2))
+    local thresholds = self:GetProgressBarMilestoneThresholds(dungeonKey)
+    local tickParent = frame.milestoneOverlay or frame
+
+    for idx, threshold in ipairs(thresholds) do
+        local tick = tickParent:CreateTexture(nil, "OVERLAY", nil, 1)
+        local color = pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 }
+        tick:SetColorTexture(color.r, color.g, color.b, color.a)
+        tick:SetSize(milestoneTickWidth, barHeight + milestoneOverflow * 2)
+
+        local xPos = barWidth * (threshold.percent / 100)
+        if pb.direction == "RIGHT_TO_LEFT" then
+            xPos = barWidth - xPos
+        end
+        tick:SetPoint("CENTER", frame, "LEFT", xPos, 0)
+        tick:Show()
+
+        frame.milestoneTicks[idx] = tick
+    end
+
+    frame.milestoneThresholds = thresholds
+end
+
+function KeystonePolaris:UpdateProgressBarMilestoneTickColors(currentPct)
+    local frame = self.progressBarFrame
+    if not frame or not frame.milestoneThresholds or not self:GetProgressBarValue("showMilestoneTicks") then
+        return
+    end
+
+    local pb = self.db.profile.progressBar
+    local completedColor = self:GetProgressBarColors()
+    local doneColor = GetCompletedVisualColor(pb, completedColor)
+    local upcomingColor = pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 }
+
+    for idx, tick in ipairs(frame.milestoneTicks) do
+        local threshold = frame.milestoneThresholds[idx]
+        local passed = threshold and currentPct >= threshold.percent
+        local color = passed and doneColor or upcomingColor
+        tick:SetColorTexture(color.r, color.g, color.b, color.a)
+    end
+end
+
 function KeystonePolaris:ShowProgressBarTooltip(frame)
-    local section = GetProgressBarTooltipSection(self, frame)
-    if not section then
+    local hit = GetNearestObjectiveHit(self, frame)
+    if not hit then
         GameTooltip:Hide()
         frame._lastTooltipSectionKey = nil
         return
     end
 
-    if frame._lastTooltipSectionKey == section.key and GameTooltip:IsOwned(frame) then
+    local tooltipKey = GetObjectiveTooltipKey(self, hit)
+    if frame._lastTooltipSectionKey == tooltipKey and GameTooltip:IsOwned(frame) then
         return
     end
 
-    frame._lastTooltipSectionKey = section.key
+    frame._lastTooltipSectionKey = tooltipKey
 
-    local dungeonKey = section.dungeonKey
-    local bossGroup = GetTooltipBossGroup(self, dungeonKey, section.segEnd, section.bossIndex)
-    local thresholdLabel, thresholdValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_THRESHOLD"], section.segEnd))
+    local currentCount, totalCount = self:GetCurrentForcesInfo()
+    local currentPct = (totalCount and totalCount > 0) and ((currentCount / totalCount) * 100) or 0
+    local candidates = BuildTooltipObjectiveCandidates(self, frame)
+    local isCurrentTarget = IsObjectiveCurrentTarget(hit, currentPct, candidates)
 
     GameTooltip:SetOwner(frame, "ANCHOR_TOP")
     GameTooltip:ClearLines()
-    GameTooltip:AddDoubleLine(thresholdLabel, thresholdValue, 1, 0.82, 0, 1, 1, 1)
 
-    local currentCount, totalCount = self:GetCurrentForcesInfo()
-    local currentPct = 0
-    local bossKillStates = self:GetBossKillStates(dungeonKey)
-    if totalCount and totalCount > 0 then
-        local neededCount = math_ceil(totalCount * section.segEnd / 100)
-        local countLabel, countValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_COUNT"], neededCount))
-        GameTooltip:AddDoubleLine(countLabel, countValue, 1, 0.82, 0, 1, 1, 1)
-        currentPct = (currentCount / totalCount) * 100
-    end
-
-    GameTooltip:AddLine(" ")
-
-    for _, target in ipairs(bossGroup) do
-        local bossName = self:GetBossName(dungeonKey, target.bossIndex) or ("Boss " .. tostring(target.bossIndex))
-        local statusText, indicatorColor, statusR, statusG, statusB = GetTooltipBossStatus(self, dungeonKey, target, currentPct, bossKillStates)
-        GameTooltip:AddDoubleLine(
-            "|c" .. indicatorColor .. "> |r" .. bossName,
-            statusText,
-            1,
-            1,
-            1,
-            statusR,
-            statusG,
-            statusB
-        )
+    if hit.type == "milestone" then
+        AppendMilestoneTooltipLines(self, hit.milestone, currentPct, isCurrentTarget)
+    else
+        AppendBossTooltipLines(self, {
+            dungeonKey = self._progressBarDungeonKey,
+            segEnd = hit.percent,
+            bossIndex = hit.bossIndex,
+        })
     end
 
     GameTooltip:Show()
@@ -853,6 +1168,7 @@ function KeystonePolaris:UpdateProgressBar()
     if self._progressBarDungeonKey ~= dungeonKey then
         self._progressBarDungeonKey = dungeonKey
         self:BuildProgressBarTicks(dungeonKey)
+        self:BuildProgressBarMilestoneTicks(dungeonKey)
     end
 
     local currentCount, totalCount = self:GetCurrentForcesInfo()
@@ -861,6 +1177,7 @@ function KeystonePolaris:UpdateProgressBar()
     local bossKillStates = self:GetBossKillStates(dungeonKey)
     local sectionStates = self:GetProgressBarSectionStates(dungeonKey, currentPct, bossKillStates)
     self:UpdateProgressBarTickColors(bossKillStates)
+    self:UpdateProgressBarMilestoneTickColors(currentPct)
     self:UpdateProgressBarSegments(currentPct, sectionStates)
     self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
     frame:Show()
@@ -891,6 +1208,7 @@ function KeystonePolaris:RefreshProgressBar()
 
         if self._progressBarDungeonKey then
             self:BuildProgressBarTicks(self._progressBarDungeonKey)
+            self:BuildProgressBarMilestoneTicks(self._progressBarDungeonKey)
             local currentPct, bossKillStates
             if self._progressBarPreview then
                 currentPct = self._progressBarPreviewPct or 0
@@ -907,6 +1225,7 @@ function KeystonePolaris:RefreshProgressBar()
             end
             local sectionStates = self:GetProgressBarSectionStates(self._progressBarDungeonKey, currentPct, bossKillStates)
             self:UpdateProgressBarTickColors(bossKillStates)
+            self:UpdateProgressBarMilestoneTickColors(currentPct)
             self:UpdateProgressBarSegments(currentPct, sectionStates)
             self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
         end

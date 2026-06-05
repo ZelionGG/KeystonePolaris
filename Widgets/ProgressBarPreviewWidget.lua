@@ -8,6 +8,7 @@ local widgetVersion = 1
 local CreateFrame = CreateFrame
 local CreateColor = CreateColor
 local ipairs = ipairs
+local math_ceil = math.ceil
 local math_max = math.max
 local math_min = math.min
 local pairs = pairs
@@ -462,6 +463,9 @@ local function RenderPreview(widget, scenarioIndex)
     for _, tick in pairs(widget.ticks) do
         tick:Hide()
     end
+    for _, tick in pairs(widget.milestoneTicks or {}) do
+        tick:Hide()
+    end
 
     local completedColor, inProgressColor, missingColor = GetProgressBarColors(addon)
     local barTexture = addon.LSM:Fetch("statusbar", pb.barTexture)
@@ -543,6 +547,35 @@ local function RenderPreview(widget, scenarioIndex)
         tick:Show()
     end
 
+    if addon:GetProgressBarValue("showMilestoneTicks") and addon.GetProgressBarMilestoneThresholds then
+        local milestoneThresholds = addon:GetProgressBarMilestoneThresholds(dungeonKey)
+        local milestoneTickWidth = pb.milestoneTickWidth or 1
+        local milestoneOverflow = math_max(0, math_ceil((pb.tickOverflow or 0) / 2))
+        widget.milestoneTicks = widget.milestoneTicks or {}
+
+        for idx, threshold in ipairs(milestoneThresholds) do
+            local tick = widget.milestoneTicks[idx]
+            if not tick then
+                tick = (widget.milestoneOverlay or widget.barFrame):CreateTexture(nil, "OVERLAY", nil, 1)
+                widget.milestoneTicks[idx] = tick
+            end
+
+            local passed = currentPct >= threshold.percent
+            local tickColor = passed and doneTickColor or (pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 })
+            tick:SetColorTexture(tickColor.r, tickColor.g, tickColor.b, tickColor.a)
+            tick:SetSize(milestoneTickWidth, pb.height + milestoneOverflow * 2)
+
+            local milestoneXPos = displayWidth * (threshold.percent / 100)
+            if isRTL then
+                milestoneXPos = displayWidth - milestoneXPos
+            end
+
+            tick:ClearAllPoints()
+            tick:SetPoint("CENTER", widget.barFrame, "LEFT", milestoneXPos, 0)
+            tick:Show()
+        end
+    end
+
     UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates)
 end
 
@@ -611,6 +644,11 @@ local function Constructor()
     borderFrame:SetAllPoints(barFrame)
     borderFrame:SetFrameLevel(barFrame:GetFrameLevel() + 10)
 
+    local milestoneOverlay = CreateFrame("Frame", nil, barFrame)
+    milestoneOverlay:SetAllPoints(barFrame)
+    milestoneOverlay:SetFrameLevel(borderFrame:GetFrameLevel() + 1)
+    milestoneOverlay:EnableMouse(false)
+
     local callout = CreateFrame("Frame", nil, frame)
     callout:SetFrameStrata("HIGH")
     local calloutText = callout:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -627,9 +665,11 @@ local function Constructor()
         barFrame = barFrame,
         background = background,
         borderFrame = borderFrame,
+        milestoneOverlay = milestoneOverlay,
         callout = callout,
         segments = {},
         ticks = {},
+        milestoneTicks = {},
     }
     frame.obj = widget
 

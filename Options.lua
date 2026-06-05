@@ -346,6 +346,9 @@ KeystonePolaris.defaults = {
             tickColor = { r = 1, g = 1, b = 1, a = 1 },
             tickWidth = 2,
             tickOverflow = 2,
+            showMilestoneTicks = false,
+            milestoneTickColor = { r = 1, g = 0.82, b = 0, a = 1 },
+            milestoneTickWidth = 1,
             showCallout = true,
             calloutPosition = "ABOVE",
             calloutFont = "Friz Quadrata TT",
@@ -2028,6 +2031,44 @@ function KeystonePolaris:GetProgressBarOptions()
                             if self.RefreshProgressBar then self:RefreshProgressBar() end
                         end,
                     },
+                    showMilestoneTicks = {
+                        name = L["PROGRESS_BAR_SHOW_MILESTONE_TICKS"],
+                        desc = L["PROGRESS_BAR_SHOW_MILESTONE_TICKS_DESC"],
+                        type = "toggle",
+                        order = 12.5,
+                        width = "full",
+                        get = function() return self:GetProgressBarValue("showMilestoneTicks") end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.showMilestoneTicks = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    },
+                    milestoneTickColorRow = ColumnRow(12.6, {
+                        name = L["PROGRESS_BAR_MILESTONE_TICK_COLOR"],
+                        type = "color",
+                        hasAlpha = true,
+                        width = 1.25,
+                        hidden = function() return not self:GetProgressBarValue("showMilestoneTicks") end,
+                        get = function()
+                            local c = self.db.profile.progressBar.milestoneTickColor
+                            return c.r, c.g, c.b, c.a
+                        end,
+                        set = function(_, r, g, b, a)
+                            self.db.profile.progressBar.milestoneTickColor = { r = r, g = g, b = b, a = a }
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }, {
+                        name = L["PROGRESS_BAR_MILESTONE_TICK_WIDTH"],
+                        type = "range",
+                        min = 1, max = 3, step = 1,
+                        width = 1,
+                        hidden = function() return not self:GetProgressBarValue("showMilestoneTicks") end,
+                        get = function() return self.db.profile.progressBar.milestoneTickWidth or 1 end,
+                        set = function(_, value)
+                            self.db.profile.progressBar.milestoneTickWidth = value
+                            if self.RefreshProgressBar then self:RefreshProgressBar() end
+                        end,
+                    }),
                     calloutHeader = {
                         type = "header",
                         name = L["CALLOUT"],
