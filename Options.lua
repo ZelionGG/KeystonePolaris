@@ -947,7 +947,7 @@ function KeystonePolaris:GetInterfaceOptions()
     return {
         name = L["INTERFACE"],
         type = "group",
-        order = 4,
+        order = 7,
         args = {
             iconsRow = ColumnRow(1, {
                 type = "toggle",

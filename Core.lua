@@ -378,7 +378,6 @@ function KeystonePolaris:OnInitialize()
             },
             progressBar = self:GetProgressBarOptions(),
             informGroup = self:GetInformGroupOptions(),
-            interface = self:GetInterfaceOptions(),
             modules = {
                 name = L["MODULES"],
                 type = "group",
@@ -400,7 +399,9 @@ function KeystonePolaris:OnInitialize()
                     groupReminder = self:GetGroupReminderOptions(),
                 }
             },
-            advanced = self:GetAdvancedOptions()
+            interface = self:GetInterfaceOptions(),
+            advanced = self:GetAdvancedOptions(),
+
         }
     })
     AceConfig:RegisterOptionsTable(AddOnName .. "_Changelog", self.changelogOptions)
