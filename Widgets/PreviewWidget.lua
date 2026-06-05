@@ -23,6 +23,29 @@ local function PreviewMilestoneMissed()
     return BuildPreviewMilestone(L["PREVIEW_MILESTONE_LABEL"] or "Gates", 3.5, true, false)
 end
 
+local function BuildPreviewMilestoneThreshold(milestoneIndex, percent, label, triggerType, matchText)
+    return {
+        percent = percent,
+        milestoneIndex = milestoneIndex,
+        label = label or (L["PREVIEW_MILESTONE_LABEL"] or "Gates"),
+        triggerType = triggerType or "none",
+        matchText = matchText or "",
+    }
+end
+
+local previewMilestoneLabel = L["PREVIEW_MILESTONE_LABEL"] or "Gates"
+
+local IDLE_PREVIEW_MILESTONES = {
+    BuildPreviewMilestoneThreshold(1, 30, previewMilestoneLabel),
+    BuildPreviewMilestoneThreshold(2, 38, previewMilestoneLabel),
+    BuildPreviewMilestoneThreshold(3, 44, previewMilestoneLabel),
+}
+
+local PROJECTED_PREVIEW_MILESTONES = {
+    BuildPreviewMilestoneThreshold(1, 54, previewMilestoneLabel),
+    BuildPreviewMilestoneThreshold(2, 61, previewMilestoneLabel),
+}
+
 -- Scenario definitions (reused from RenderTestText in Display.lua)
 local TOTAL_COUNT = 220
 local SCENARIOS = {
@@ -33,6 +56,7 @@ local SCENARIOS = {
         progressBarMode = "idle",
         barPercent = 45, bossesKilled = 1,
         getMilestone = PreviewMilestoneActive,
+        previewMilestones = IDLE_PREVIEW_MILESTONES,
     },
     {
         name = L["PREVIEW_PULLING"] or "Mid-dungeon (pulling)",
@@ -50,6 +74,7 @@ local SCENARIOS = {
         requiresMDT = true,
         progressBarMode = "projected",
         barPercent = 62, bossesKilled = 2,
+        previewMilestones = PROJECTED_PREVIEW_MILESTONES,
     },
     {
         name = L["PREVIEW_SECTION_DONE"] or "Section complete",

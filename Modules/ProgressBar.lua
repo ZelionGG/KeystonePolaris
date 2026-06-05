@@ -148,6 +148,19 @@ local function PreferObjectiveCandidate(candidate, best)
     return candidateOrder < bestOrder
 end
 
+local function GetProgressBarCurrentPct(addon)
+    if addon._progressBarPreview then
+        return addon._progressBarPreviewPct or 0
+    end
+
+    local currentCount, totalCount = addon:GetCurrentForcesInfo()
+    if totalCount and totalCount > 0 then
+        return (currentCount / totalCount) * 100
+    end
+
+    return 0
+end
+
 local function BuildTooltipObjectiveCandidates(addon, frame)
     local candidates = {}
     local pb = addon.db.profile.progressBar
@@ -155,6 +168,7 @@ local function BuildTooltipObjectiveCandidates(addon, frame)
     local bossTickTolerance = (math_max((pb.tickWidth or 0) * 0.5, 2) / math_max(barWidth, 1)) * 100
     local milestoneTickTolerance = (math_max((pb.milestoneTickWidth or 1) * 0.5, 2) / math_max(barWidth, 1)) * 100
     local dungeonKey = addon._progressBarDungeonKey
+    local currentPct = GetProgressBarCurrentPct(addon)
 
     if dungeonKey then
         for logicalOrder, target in ipairs(addon:GetOrderedBossTargets(dungeonKey)) do
@@ -173,12 +187,14 @@ local function BuildTooltipObjectiveCandidates(addon, frame)
 
     if addon:GetProgressBarValue("showMilestoneTicks") then
         for _, threshold in ipairs(frame.milestoneThresholds or {}) do
-            candidates[#candidates + 1] = {
-                type = "milestone",
-                percent = threshold.percent,
-                milestone = threshold,
-                tickTolerance = milestoneTickTolerance,
-            }
+            if currentPct < threshold.percent then
+                candidates[#candidates + 1] = {
+                    type = "milestone",
+                    percent = threshold.percent,
+                    milestone = threshold,
+                    tickTolerance = milestoneTickTolerance,
+                }
+            end
         end
     end
 
@@ -970,7 +986,12 @@ function KeystonePolaris:BuildProgressBarTicks(dungeonKey)
     frame.tickThresholds = thresholds
 end
 
-function KeystonePolaris:GetProgressBarMilestoneThresholds(dungeonKey)
+function KeystonePolaris:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
+    scenario = scenario or (self._progressBarPreview and self._progressBarPreviewScenarioRef)
+    if scenario and type(scenario.previewMilestones) == "table" and #scenario.previewMilestones > 0 then
+        return scenario.previewMilestones
+    end
+
     local dungeonId = self:GetDungeonIdByKey(dungeonKey)
     if not dungeonId then return {} end
 
@@ -1010,7 +1031,8 @@ function KeystonePolaris:BuildProgressBarMilestoneTicks(dungeonKey)
     local barHeight = pb.height
     local milestoneTickWidth = pb.milestoneTickWidth or 1
     local milestoneOverflow = math_max(0, math_ceil((pb.tickOverflow or 0) / 2))
-    local thresholds = self:GetProgressBarMilestoneThresholds(dungeonKey)
+    local scenario = self._progressBarPreview and self._progressBarPreviewScenarioRef
+    local thresholds = self:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
     local tickParent = frame.milestoneOverlay or frame
 
     for idx, threshold in ipairs(thresholds) do
@@ -1032,22 +1054,24 @@ function KeystonePolaris:BuildProgressBarMilestoneTicks(dungeonKey)
     frame.milestoneThresholds = thresholds
 end
 
-function KeystonePolaris:UpdateProgressBarMilestoneTickColors(currentPct)
+function KeystonePolaris:UpdateProgressBarMilestoneTicks(currentPct)
     local frame = self.progressBarFrame
     if not frame or not frame.milestoneThresholds or not self:GetProgressBarValue("showMilestoneTicks") then
         return
     end
 
     local pb = self.db.profile.progressBar
-    local completedColor = self:GetProgressBarColors()
-    local doneColor = GetCompletedVisualColor(pb, completedColor)
     local upcomingColor = pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 }
 
     for idx, tick in ipairs(frame.milestoneTicks) do
         local threshold = frame.milestoneThresholds[idx]
         local passed = threshold and currentPct >= threshold.percent
-        local color = passed and doneColor or upcomingColor
-        tick:SetColorTexture(color.r, color.g, color.b, color.a)
+        if passed then
+            tick:Hide()
+        else
+            tick:SetColorTexture(upcomingColor.r, upcomingColor.g, upcomingColor.b, upcomingColor.a)
+            tick:Show()
+        end
     end
 end
 
@@ -1177,7 +1201,7 @@ function KeystonePolaris:UpdateProgressBar()
     local bossKillStates = self:GetBossKillStates(dungeonKey)
     local sectionStates = self:GetProgressBarSectionStates(dungeonKey, currentPct, bossKillStates)
     self:UpdateProgressBarTickColors(bossKillStates)
-    self:UpdateProgressBarMilestoneTickColors(currentPct)
+    self:UpdateProgressBarMilestoneTicks(currentPct)
     self:UpdateProgressBarSegments(currentPct, sectionStates)
     self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
     frame:Show()
@@ -1225,7 +1249,7 @@ function KeystonePolaris:RefreshProgressBar()
             end
             local sectionStates = self:GetProgressBarSectionStates(self._progressBarDungeonKey, currentPct, bossKillStates)
             self:UpdateProgressBarTickColors(bossKillStates)
-            self:UpdateProgressBarMilestoneTickColors(currentPct)
+            self:UpdateProgressBarMilestoneTicks(currentPct)
             self:UpdateProgressBarSegments(currentPct, sectionStates)
             self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
         end

@@ -548,9 +548,10 @@ local function RenderPreview(widget, scenarioIndex)
     end
 
     if addon:GetProgressBarValue("showMilestoneTicks") and addon.GetProgressBarMilestoneThresholds then
-        local milestoneThresholds = addon:GetProgressBarMilestoneThresholds(dungeonKey)
+        local milestoneThresholds = addon:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
         local milestoneTickWidth = pb.milestoneTickWidth or 1
         local milestoneOverflow = math_max(0, math_ceil((pb.tickOverflow or 0) / 2))
+        local upcomingTickColor = pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 }
         widget.milestoneTicks = widget.milestoneTicks or {}
 
         for idx, threshold in ipairs(milestoneThresholds) do
@@ -561,18 +562,21 @@ local function RenderPreview(widget, scenarioIndex)
             end
 
             local passed = currentPct >= threshold.percent
-            local tickColor = passed and doneTickColor or (pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 })
-            tick:SetColorTexture(tickColor.r, tickColor.g, tickColor.b, tickColor.a)
-            tick:SetSize(milestoneTickWidth, pb.height + milestoneOverflow * 2)
+            if passed then
+                tick:Hide()
+            else
+                tick:SetColorTexture(upcomingTickColor.r, upcomingTickColor.g, upcomingTickColor.b, upcomingTickColor.a)
+                tick:SetSize(milestoneTickWidth, pb.height + milestoneOverflow * 2)
 
-            local milestoneXPos = displayWidth * (threshold.percent / 100)
-            if isRTL then
-                milestoneXPos = displayWidth - milestoneXPos
+                local milestoneXPos = displayWidth * (threshold.percent / 100)
+                if isRTL then
+                    milestoneXPos = displayWidth - milestoneXPos
+                end
+
+                tick:ClearAllPoints()
+                tick:SetPoint("CENTER", widget.barFrame, "LEFT", milestoneXPos, 0)
+                tick:Show()
             end
-
-            tick:ClearAllPoints()
-            tick:SetPoint("CENTER", widget.barFrame, "LEFT", milestoneXPos, 0)
-            tick:Show()
         end
     end
 
