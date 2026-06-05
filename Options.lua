@@ -164,6 +164,7 @@ local function MakeMilestonePrefixColorRow(self, order)
         name = L["CUSTOM_MILESTONE_PREFIX_COLOR"],
         desc = L["CUSTOM_MILESTONE_PREFIX_COLOR_DESC"],
         type = "toggle",
+        width = 1.125,
         get = function()
             return self.db.profile.general.mainDisplay.customMilestonePrefixColor == true
         end,
@@ -597,9 +598,9 @@ function KeystonePolaris:GetAppearanceOptions()
             },
             prefixColor = MakeStatusColorOption(L["PREFIX"], L["PREFIX_COLOR_DESC"], "prefix", self, 4),
             inProgressColor = MakeStatusColorOption(L["IN_PROGRESS"], L["IN_PROGRESS_COLOR_DESC"], "inProgress", self, 5),
-            milestonePrefixColorRow = MakeMilestonePrefixColorRow(self, 4.5),
             missingColor = MakeStatusColorOption(L["MISSING"], L["MISSING_COLOR_DESC"], "missing", self, 6),
             finishedColor = MakeStatusColorOption(L["FINISHED_COLOR"], L["FINISHED_COLOR_DESC"], "finished", self, 7),
+            milestonePrefixColorRow = MakeMilestonePrefixColorRow(self, 8),
         }
     }
 end
