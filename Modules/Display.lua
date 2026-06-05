@@ -311,7 +311,7 @@ function KeystonePolaris:PrepareInformMacro(message)
     end
 
     local safeMessage = tostring(resolvedMessage or ""):gsub("%%", "%%%%")
-    local macroText = string.format("/%s %s", slash, safeMessage)
+    local macroText = string.format("/%s %s", slash, tostring(resolvedMessage or ""))
     self:EnsureInformSecureButton(macroText)
     local btn = self.informSecureButton
     btn:SetAlpha(1)
@@ -1210,7 +1210,7 @@ function KeystonePolaris:UpdatePercentageText()
                 slash = "s"
             end
             local safeMessage = tostring(message or ""):gsub("%%", "%%%%")
-            local macroText = string.format("/%s %s", slash, safeMessage)
+            local macroText = string.format("/%s %s", slash, tostring(message or ""))
             self:EnsureInformSecureButton(macroText)
             informBtn = self.informSecureButton
         elseif not informBtn and self.db.profile.general.informGroup and self.EnsureInformSecureButton then
