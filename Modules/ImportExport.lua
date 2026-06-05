@@ -1053,8 +1053,8 @@ function KeystonePolaris:ShowCopyPopup(text)
         local fontPath = self.LSM and self.LSM:Fetch('font', self.db and self.db.profile and self.db.profile.text and self.db.profile.text.font) or nil
         local baseSize = (self.db and self.db.profile and self.db.profile.general and self.db.profile.general.fontSize) or 12
         if fontPath then
-            title:SetFont(fontPath, (baseSize or 12), "OUTLINE")
-            instr:SetFont(fontPath, math.max(10, (baseSize or 12) - 6), "OUTLINE")
+            title:SetFont(fontPath, (baseSize or 12), self:GetFontFlags())
+            instr:SetFont(fontPath, math.max(10, (baseSize or 12) - 6), self:GetFontFlags())
         end
 
         -- Séparateur sous le texte d'instruction

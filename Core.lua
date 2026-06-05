@@ -15,6 +15,47 @@ KeystonePolaris.Changelog = {}
 
 KeystonePolaris.isMidnight = select(4, GetBuildInfo()) >= 120000
 
+KeystonePolaris.DEFAULT_FONT_FLAG_PRESET = "outline_slug"
+
+local FONT_FLAG_OPTIONS = {
+    { key = "none", flags = "", labelKey = "FONT_FLAG_NONE" },
+    { key = "slug", flags = "SLUG", labelKey = "FONT_FLAG_SLUG" },
+    { key = "outline_slug", flags = "OUTLINE, SLUG", labelKey = "FONT_FLAG_OUTLINE_SLUG" },
+    { key = "monochrome", flags = "MONOCHROME", labelKey = "FONT_FLAG_MONOCHROME" },
+    { key = "outline", flags = "OUTLINE", labelKey = "FONT_FLAG_OUTLINE" },
+    { key = "thickoutline", flags = "THICKOUTLINE", labelKey = "FONT_FLAG_THICKOUTLINE" },
+    { key = "outline_monochrome", flags = "OUTLINE, MONOCHROME", labelKey = "FONT_FLAG_OUTLINE_MONOCHROME" },
+    { key = "thickoutline_monochrome", flags = "THICKOUTLINE, MONOCHROME", labelKey = "FONT_FLAG_THICKOUTLINE_MONOCHROME" },
+}
+
+local FONT_FLAG_PRESETS = {}
+KeystonePolaris.fontFlagPresetSorting = {}
+for _, entry in ipairs(FONT_FLAG_OPTIONS) do
+    FONT_FLAG_PRESETS[entry.key] = entry.flags
+    KeystonePolaris.fontFlagPresetSorting[#KeystonePolaris.fontFlagPresetSorting + 1] = entry.key
+end
+
+function KeystonePolaris:GetFontFlagsPreset()
+    local stored = self.db and self.db.profile and self.db.profile.text and self.db.profile.text.fontFlags
+    if stored and FONT_FLAG_PRESETS[stored] ~= nil then
+        return stored
+    end
+    return self.DEFAULT_FONT_FLAG_PRESET
+end
+
+function KeystonePolaris:GetFontFlags()
+    return FONT_FLAG_PRESETS[self:GetFontFlagsPreset()]
+end
+
+function KeystonePolaris:GetFontFlagSelectValues()
+    local L = self.L
+    local vals = {}
+    for _, entry in ipairs(FONT_FLAG_OPTIONS) do
+        vals[entry.key] = L[entry.labelKey]
+    end
+    return vals
+end
+
 -- Define constants
 KeystonePolaris.constants = {
     mediaPath = "Interface\\AddOns\\" .. AddOnName .. "\\media\\"
