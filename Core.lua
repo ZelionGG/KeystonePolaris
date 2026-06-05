@@ -652,7 +652,14 @@ function KeystonePolaris:GetDungeonData()
     end
 
     local dungeonData = dungeon[sectionIndex]
-    return dungeonData[1], dungeonData[2], dungeonData[3], dungeonData[4]
+    return {
+        kind = "boss",
+        bossIndex = sectionIndex,
+        bossID = dungeonData[1],
+        neededPercent = dungeonData[2] or 0,
+        shouldInform = dungeonData[3] ~= false,
+        haveInformed = dungeonData[4] == true,
+    }
 end
 
 local function NormalizeMilestoneText(value)
