@@ -1359,7 +1359,11 @@ function KeystonePolaris:BuildMilestoneDisplayText(milestone)
 
     local label = milestone.label
     if type(label) ~= "string" or label == "" then
-        label = milestone.matchText
+        if self.GetMilestoneTriggerDisplayText then
+            label = self.GetMilestoneTriggerDisplayText(milestone)
+        else
+            label = milestone.matchText
+        end
     end
     if type(label) ~= "string" or label == "" then
         label = L["MILESTONE"]

@@ -2196,6 +2196,27 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
         end
     end
 
+    local function GetMilestoneMatchDisplayText(milestone)
+        if KeystonePolaris.GetMilestoneTriggerDisplayText then
+            return KeystonePolaris.GetMilestoneTriggerDisplayText(milestone)
+        end
+        return milestone and milestone.matchText or ""
+    end
+
+    local function CaptureMilestoneMap(milestone, triggerType)
+        if not milestone then return end
+        milestone.matchAreaID = nil
+        local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+        if mapID then
+            milestone.matchMapID = mapID
+        end
+        if triggerType == "zone" then
+            milestone.matchText = tostring(GetZoneText() or "")
+        else
+            milestone.matchText = tostring(GetSubZoneText() or "")
+        end
+    end
+
     local function EnsureMilestonesTable()
         local advanced = self.db.profile.advanced[dungeonKey]
         if type(advanced.milestones) ~= "table" then
@@ -2219,7 +2240,20 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                 triggerType = "none"
             end
             milestone.triggerType = triggerType
+            milestone.matchAreaID = tonumber(milestone.matchAreaID)
+            milestone.matchMapID = tonumber(milestone.matchMapID)
             milestone.matchText = tostring(milestone.matchText or "")
+            if milestone.matchText == "" then
+                local displayName
+                if milestone.matchAreaID and KeystonePolaris.GetLocalizedAreaName then
+                    displayName = KeystonePolaris.GetLocalizedAreaName(milestone.matchAreaID)
+                elseif milestone.matchMapID and KeystonePolaris.GetLocalizedMapName then
+                    displayName = KeystonePolaris.GetLocalizedMapName(milestone.matchMapID)
+                end
+                if displayName and displayName ~= "" then
+                    milestone.matchText = displayName
+                end
+            end
             milestone.label = tostring(milestone.label or "")
             milestone.informSuffix = tostring(milestone.informSuffix or "")
             milestone.inform = milestone.inform == true
@@ -2238,6 +2272,11 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
             self:BuildSectionOrder(dungeonId)
         end
         if self.UpdatePercentageText then self:UpdatePercentageText() end
+        local activeDungeonId = C_ChallengeMode.GetActiveChallengeMapID()
+        local activeKey = activeDungeonId and self:GetDungeonKeyById(activeDungeonId)
+        if activeKey == dungeonKey and self.RefreshProgressBar then
+            self:RefreshProgressBar()
+        end
     end
 
     local function RefreshDungeonRouting()
@@ -2548,6 +2587,8 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         label = "",
                         thresholdPercent = 0,
                         triggerType = "none",
+                        matchAreaID = nil,
+                        matchMapID = nil,
                         matchText = "",
                         informSuffix = "",
                         inform = false,
@@ -2579,13 +2620,13 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                 if not current then
                     return string.format("%s %d", L["MILESTONE"], milestoneIndex)
                 end
-                local matchText = tostring(current.matchText or ""):match("^%s*(.-)%s*$") or ""
-                if matchText ~= "" then
-                    return matchText
-                end
                 local label = tostring(current.label or ""):match("^%s*(.-)%s*$") or ""
                 if label ~= "" then
                     return label
+                end
+                local matchText = tostring(GetMilestoneMatchDisplayText(current) or ""):match("^%s*(.-)%s*$") or ""
+                if matchText ~= "" then
+                    return matchText
                 end
                 return string.format("%s %d", L["MILESTONE"], milestoneIndex)
             end,
@@ -2645,6 +2686,8 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         current.triggerType = value
                         if value == "none" then
                             current.inform = false
+                            current.matchAreaID = nil
+                            current.matchMapID = nil
                         end
                         RefreshDungeonRouting()
                     end
@@ -2660,12 +2703,14 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     end,
                     get = function()
                         local current = EnsureMilestonesTable()[milestoneIndex]
-                        return current and current.matchText or ""
+                        return current and GetMilestoneMatchDisplayText(current) or ""
                     end,
                     set = function(_, value)
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
                         current.matchText = tostring(value or "")
+                        current.matchAreaID = nil
+                        current.matchMapID = nil
                         RefreshMilestoneRuntime()
                     end
                 },
@@ -2681,7 +2726,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     func = function()
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
-                        current.matchText = tostring(GetZoneText() or "")
+                        CaptureMilestoneMap(current, "zone")
                         RefreshMilestoneRuntime()
                         ACR:NotifyChange(AddOnName)
                     end
@@ -2698,7 +2743,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     func = function()
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
-                        current.matchText = tostring(GetSubZoneText() or "")
+                        CaptureMilestoneMap(current, "subzone")
                         RefreshMilestoneRuntime()
                         ACR:NotifyChange(AddOnName)
                     end

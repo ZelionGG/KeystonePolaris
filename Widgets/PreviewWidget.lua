@@ -23,13 +23,13 @@ local function PreviewMilestoneMissed()
     return BuildPreviewMilestone(L["PREVIEW_MILESTONE_LABEL"] or "Gates", 3.5, true, false)
 end
 
-local function BuildPreviewMilestoneThreshold(milestoneIndex, percent, label, triggerType, matchText)
+local function BuildPreviewMilestoneThreshold(milestoneIndex, percent, label)
     return {
         percent = percent,
         milestoneIndex = milestoneIndex,
         label = label or (L["PREVIEW_MILESTONE_LABEL"] or "Gates"),
-        triggerType = triggerType or "none",
-        matchText = matchText or "",
+        triggerType = "none",
+        matchText = "",
     }
 end
 
@@ -311,4 +311,3 @@ AceGUI:RegisterWidgetType(widgetType, Constructor, widgetVersion)
 
 -- Export scenarios for the dropdown in Options.lua
 KeystonePolaris.PreviewScenarios = SCENARIOS
-KeystonePolaris.PREVIEW_TOTAL_COUNT = TOTAL_COUNT

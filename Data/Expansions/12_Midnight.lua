@@ -35,7 +35,20 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
             {1, 29.36, false, 1, 2813, "Chief Corewright Kasreth", 241539}, -- Chief Corewright Kasreth
             {2, 73.66, false, 2, 2814, "Corewarden Nysarra", 241542}, -- Corewarden Nysarra
             {3, 100,   true,  3, 2815, "Lothraxion", 241546}, -- Lothraxion
-        }
+        },
+        milestones = {
+            {
+                id = 1,
+                label = "Before Nysarra's Arena",
+                thresholdPercent = 69.46,
+                triggerType = "subzone",
+                -- Core Defense Nullward (AreaTable ID; parent 16573, continent/uiMap 2915)
+                matchAreaID = 16575,
+                inform = true,
+                informSuffix = "before entering Nysarra's arena.",
+                creationOrder = 1,
+            },
+        },
     },
     WIS = { -- Windrunner Spire
         id = 557,

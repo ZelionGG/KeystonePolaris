@@ -40,6 +40,35 @@ local function CloneTable(tbl)
     return t
 end
 
+local function NormalizeDefaultMilestones(milestones)
+    if type(milestones) ~= "table" or #milestones == 0 then
+        return {}
+    end
+
+    local normalized = {}
+    for index, milestone in ipairs(milestones) do
+        if type(milestone) == "table" then
+            local triggerType = tostring(milestone.triggerType or "none"):lower()
+            if triggerType ~= "none" and triggerType ~= "zone" and triggerType ~= "subzone" then
+                triggerType = "none"
+            end
+            normalized[#normalized + 1] = {
+                id = tonumber(milestone.id) or index,
+                label = tostring(milestone.label or ""),
+                thresholdPercent = tonumber(milestone.thresholdPercent) or 0,
+                triggerType = triggerType,
+                matchAreaID = tonumber(milestone.matchAreaID),
+                matchMapID = tonumber(milestone.matchMapID),
+                matchText = tostring(milestone.matchText or ""),
+                informSuffix = tostring(milestone.informSuffix or ""),
+                inform = milestone.inform == true,
+                creationOrder = tonumber(milestone.creationOrder) or index,
+            }
+        end
+    end
+    return normalized
+end
+
 -- ---------------------------------------------------------------------------
 -- Season Date Helpers
 -- ---------------------------------------------------------------------------
@@ -189,7 +218,11 @@ function KeystonePolaris:GenerateExpansionTables(expansionId, dungeonData)
             if hasOrder then
                 defaults.bossOrder = bossOrder
             end
-            defaults.milestones = {}
+            if type(dData.milestones) == "table" and #dData.milestones > 0 then
+                defaults.milestones = NormalizeDefaultMilestones(dData.milestones)
+            else
+                defaults.milestones = {}
+            end
 
             self[expansionId .. "_DEFAULTS"][shortName] = defaults
         end

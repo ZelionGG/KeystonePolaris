@@ -719,6 +719,97 @@ local function TrimString(value)
     return value:match("^%s*(.-)%s*$") or ""
 end
 
+local function getPlayerUiMapID()
+    if C_Map and C_Map.GetBestMapForUnit then
+        return C_Map.GetBestMapForUnit("player")
+    end
+end
+
+local function mapMatchesMilestoneTrigger(currentMapID, targetMapID, triggerType)
+    currentMapID = tonumber(currentMapID)
+    targetMapID = tonumber(targetMapID)
+    if not currentMapID or not targetMapID then
+        return false
+    end
+
+    if triggerType == "subzone" then
+        return currentMapID == targetMapID
+    end
+
+    local mapID = currentMapID
+    while mapID do
+        if mapID == targetMapID then
+            return true
+        end
+        local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+        mapID = info and info.parentMapID
+    end
+
+    return false
+end
+
+function KeystonePolaris.GetLocalizedMapName(uiMapID)
+    uiMapID = tonumber(uiMapID)
+    if not uiMapID or not C_Map or not C_Map.GetMapInfo then
+        return nil
+    end
+    if C_Map.RequestPreloadMap then
+        C_Map.RequestPreloadMap(uiMapID)
+    end
+    local info = C_Map.GetMapInfo(uiMapID)
+    return info and info.name
+end
+
+function KeystonePolaris.GetLocalizedAreaName(areaID)
+    areaID = tonumber(areaID)
+    if not areaID or not C_Map or not C_Map.GetAreaInfo then
+        return nil
+    end
+    return C_Map.GetAreaInfo(areaID)
+end
+
+local function areaMatchesMilestoneTrigger(targetAreaID, triggerType)
+    targetAreaID = tonumber(targetAreaID)
+    if not targetAreaID then
+        return false
+    end
+
+    local targetName = KeystonePolaris.GetLocalizedAreaName(targetAreaID)
+    if not targetName or targetName == "" then
+        return false
+    end
+
+    local currentText
+    if triggerType == "zone" then
+        currentText = GetZoneText()
+    else
+        currentText = GetSubZoneText()
+    end
+
+    return NormalizeMilestoneText(currentText) == NormalizeMilestoneText(targetName)
+end
+
+function KeystonePolaris.GetMilestoneTriggerDisplayText(milestone)
+    if type(milestone) ~= "table" then
+        return ""
+    end
+    local matchAreaID = tonumber(milestone.matchAreaID)
+    if matchAreaID then
+        local name = KeystonePolaris.GetLocalizedAreaName(matchAreaID)
+        if name and name ~= "" then
+            return name
+        end
+    end
+    local matchMapID = tonumber(milestone.matchMapID)
+    if matchMapID then
+        local name = KeystonePolaris.GetLocalizedMapName(matchMapID)
+        if name and name ~= "" then
+            return name
+        end
+    end
+    return tostring(milestone.matchText or "")
+end
+
 -- Send a chat message to inform the group about missing percentage
 function KeystonePolaris:InformGroup(percentage)
     if not self.db.profile.general.informGroup then return end
@@ -767,6 +858,29 @@ function KeystonePolaris.IsMilestoneTriggerMatchedNow(_, section)
     local triggerType = tostring(section.triggerType or "none"):lower()
     if triggerType == "none" then
         return true
+    end
+
+    local matchAreaID = tonumber(section.matchAreaID)
+    if matchAreaID then
+        return areaMatchesMilestoneTrigger(matchAreaID, triggerType)
+    end
+
+    local matchMapID = tonumber(section.matchMapID)
+    if matchMapID then
+        if mapMatchesMilestoneTrigger(getPlayerUiMapID(), matchMapID, triggerType) then
+            return true
+        end
+        local targetName = KeystonePolaris.GetLocalizedMapName(matchMapID)
+        if targetName and targetName ~= "" then
+            local currentText
+            if triggerType == "zone" then
+                currentText = GetZoneText()
+            else
+                currentText = GetSubZoneText()
+            end
+            return NormalizeMilestoneText(currentText) == NormalizeMilestoneText(targetName)
+        end
+        return false
     end
 
     local target = NormalizeMilestoneText(section.matchText)
@@ -927,6 +1041,8 @@ function KeystonePolaris:GetSortedMilestones(dungeonId)
                 shouldInform = triggerType ~= "none" and milestone.inform == true,
                 haveInformed = dungeonState[runtimeKey] == true,
                 triggerType = triggerType,
+                matchAreaID = tonumber(milestone.matchAreaID),
+                matchMapID = tonumber(milestone.matchMapID),
                 matchText = tostring(milestone.matchText or ""),
                 informSuffix = tostring(milestone.informSuffix or ""),
                 creationOrder = tonumber(milestone.creationOrder) or milestoneIndex,
@@ -1132,6 +1248,7 @@ function KeystonePolaris:OnEnable()
     self:RegisterEvent("ZONE_CHANGED")
     self:RegisterEvent("ZONE_CHANGED_INDOORS")
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    self:RegisterEvent("PLAYER_MAP_CHANGED")
 
     -- Extra refresh triggers for dynamic current pull percent
     if self.InitializePullTracker then
@@ -1212,6 +1329,10 @@ function KeystonePolaris:ZONE_CHANGED_INDOORS()
 end
 
 function KeystonePolaris:ZONE_CHANGED_NEW_AREA()
+    if self.UpdatePercentageText then self:UpdatePercentageText() end
+end
+
+function KeystonePolaris:PLAYER_MAP_CHANGED()
     if self.UpdatePercentageText then self:UpdatePercentageText() end
 end
 

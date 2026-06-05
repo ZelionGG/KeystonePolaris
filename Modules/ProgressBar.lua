@@ -14,6 +14,9 @@ local math_min = math.min
 local string_format = string.format
 local select = select
 local GetCursorPosition = GetCursorPosition
+local InCombatLockdown = InCombatLockdown
+
+local optionsPreviewEventFrame
 
 local function Lerp(startValue, endValue, amount)
     return startValue + (endValue - startValue) * amount
@@ -640,7 +643,9 @@ local function AppendMilestoneTooltipLines(addon, milestone, currentPct, isCurre
 
     local triggerType = milestone.triggerType
     if triggerType and triggerType ~= "none" then
-        local matchText = milestone.matchText
+        local matchText = addon.GetMilestoneTriggerDisplayText
+            and addon.GetMilestoneTriggerDisplayText(milestone)
+            or milestone.matchText
         if matchText and matchText ~= "" then
             local triggerLabel, triggerValue = SplitTooltipLine(string_format(L["PROGRESS_BAR_MILESTONE_TRIGGER"], matchText))
             GameTooltip:AddDoubleLine(triggerLabel, triggerValue, 1, 0.82, 0, 1, 1, 1)
@@ -1067,29 +1072,41 @@ function KeystonePolaris:BuildProgressBarTicks(dungeonKey)
     frame.tickThresholds = thresholds
 end
 
-function KeystonePolaris:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
-    scenario = scenario or (self._progressBarPreview and self._progressBarPreviewScenarioRef)
-    if scenario and type(scenario.previewMilestones) == "table" and #scenario.previewMilestones > 0 then
-        return scenario.previewMilestones
-    end
-
-    local dungeonId = self:GetDungeonIdByKey(dungeonKey)
-    if not dungeonId then return {} end
-
+local function BuildMilestoneThresholdList(milestones)
     local thresholds = {}
-    for _, milestone in ipairs(self:GetSortedMilestones(dungeonId)) do
-        local pct = tonumber(milestone.neededPercent) or 0
+    for _, milestone in ipairs(milestones) do
+        local pct = tonumber(milestone.neededPercent or milestone.percent) or 0
         if pct > 0 and pct < 100 then
             thresholds[#thresholds + 1] = {
                 percent = pct,
                 milestoneIndex = milestone.milestoneIndex,
                 label = milestone.label,
                 triggerType = milestone.triggerType,
+                matchAreaID = milestone.matchAreaID,
+                matchMapID = milestone.matchMapID,
                 matchText = milestone.matchText,
             }
         end
     end
     return thresholds
+end
+
+function KeystonePolaris:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
+    scenario = scenario or (self._progressBarPreview and self._progressBarPreviewScenarioRef)
+
+    local dungeonId = self:GetDungeonIdByKey(dungeonKey)
+    if dungeonId then
+        local configuredThresholds = BuildMilestoneThresholdList(self:GetSortedMilestones(dungeonId))
+        if #configuredThresholds > 0 then
+            return configuredThresholds
+        end
+    end
+
+    if scenario and type(scenario.previewMilestones) == "table" and #scenario.previewMilestones > 0 then
+        return scenario.previewMilestones
+    end
+
+    return {}
 end
 
 function KeystonePolaris:BuildProgressBarMilestoneTicks(dungeonKey)
@@ -1295,6 +1312,150 @@ function KeystonePolaris:RefreshProgressBarOptionsPreview()
     end
 end
 
+local function ResolvePreviewDungeonKey(addon)
+    local currentDungeonID = C_ChallengeMode.GetActiveChallengeMapID()
+    if currentDungeonID then
+        local dungeonKey = addon:GetDungeonKeyById(currentDungeonID)
+        if dungeonKey then
+            return dungeonKey
+        end
+    end
+
+    if addon._progressBarDungeonKey and addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[addon._progressBarDungeonKey] then
+        return addon._progressBarDungeonKey
+    end
+
+    local currentDate
+    if C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime then
+        local t = C_DateAndTime.GetCurrentCalendarTime()
+        currentDate = string_format("%04d-%02d-%02d", t.year, t.month, t.monthDay)
+    else
+        currentDate = "2026-01-01"
+    end
+
+    local seasonId = addon.GetSeasonByDate and addon:GetSeasonByDate(currentDate)
+    if seasonId then
+        local seasonTable = addon[seasonId .. "_DUNGEONS"]
+        if seasonTable then
+            for dungeonId in pairs(seasonTable) do
+                if type(dungeonId) == "number" and addon.GetDungeonKeyById then
+                    local dungeonKey = addon:GetDungeonKeyById(dungeonId)
+                    if dungeonKey then
+                        return dungeonKey
+                    end
+                end
+            end
+        end
+    end
+
+    if addon.GlobalDungeonLookup then
+        return next(addon.GlobalDungeonLookup)
+    end
+end
+
+KeystonePolaris.BuildProgressBarPreviewScenarioState = BuildPreviewScenarioState
+KeystonePolaris.ResolveProgressBarPreviewDungeonKey = ResolvePreviewDungeonKey
+
+function KeystonePolaris:ApplyProgressBarPreviewScenario()
+    local scenarios = self.PreviewScenarios
+    local scenarioIdx = self._previewScenario or 1
+    local scenario = scenarios and scenarios[scenarioIdx]
+    local thresholds = self.progressBarFrame and self.progressBarFrame.tickThresholds
+    local pct, bossKillStates = BuildPreviewScenarioState(thresholds, scenario)
+    self._progressBarPreviewPct = pct
+    self._progressBarPreviewScenarioRef = scenario
+    self._progressBarPreviewBossKillStates = bossKillStates
+    return pct, bossKillStates
+end
+
+local function EnsureProgressBarOptionsPreviewEventFrame(addon)
+    if optionsPreviewEventFrame then return end
+
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("PLAYER_REGEN_DISABLED")
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    frame:SetScript("OnEvent", function(_, event)
+        if event == "PLAYER_REGEN_DISABLED" then
+            if addon.SuspendProgressBarOptionsPreviewForCombat then
+                addon:SuspendProgressBarOptionsPreviewForCombat()
+            end
+        elseif event == "PLAYER_REGEN_ENABLED" then
+            if addon.ResumeProgressBarOptionsPreviewAfterCombat then
+                addon:ResumeProgressBarOptionsPreviewAfterCombat()
+            end
+        end
+    end)
+    optionsPreviewEventFrame = frame
+end
+
+function KeystonePolaris:SuspendProgressBarOptionsPreviewForCombat()
+    if not self._progressBarOptionsPreview or self._progressBarOptionsPreviewSuspended then return end
+    if self._progressBarPositioning or self._positioningMode then return end
+
+    self._progressBarOptionsPreviewSuspended = true
+    self._progressBarPreview = false
+    self._progressBarPreviewPct = nil
+    self._progressBarPreviewScenarioRef = nil
+    self._progressBarPreviewBossKillStates = nil
+
+    if self.UpdateProgressBar then
+        self:UpdateProgressBar()
+    end
+end
+
+function KeystonePolaris:ResumeProgressBarOptionsPreviewAfterCombat()
+    if not self._progressBarOptionsPreview or not self._progressBarOptionsPreviewSuspended then return end
+    if InCombatLockdown() then return end
+    if self._progressBarPositioning or self._positioningMode then return end
+
+    self._progressBarOptionsPreviewSuspended = false
+    self:EnableProgressBarPreview()
+end
+
+function KeystonePolaris:EnableProgressBarOptionsPreview()
+    if self._progressBarPositioning or self._positioningMode then return end
+
+    EnsureProgressBarOptionsPreviewEventFrame(self)
+    local wasActive = self._progressBarOptionsPreview == true
+    self._progressBarOptionsPreview = true
+
+    if InCombatLockdown() then
+        self._progressBarOptionsPreviewSuspended = true
+        return
+    end
+
+    self._progressBarOptionsPreviewSuspended = false
+    if not wasActive or not self._progressBarPreview then
+        self:EnableProgressBarPreview()
+    else
+        self:RefreshProgressBar()
+    end
+end
+
+function KeystonePolaris:DisableProgressBarOptionsPreview()
+    if not self._progressBarOptionsPreview then return end
+
+    self._progressBarOptionsPreview = false
+    self._progressBarOptionsPreviewSuspended = false
+
+    if self._progressBarPositioning or self._positioningMode then return end
+
+    self._progressBarPreview = false
+    self._progressBarPreviewPct = nil
+    self._progressBarPreviewScenarioRef = nil
+    self._progressBarPreviewBossKillStates = nil
+
+    if self.UpdateProgressBar then
+        self:UpdateProgressBar()
+    elseif self.progressBarFrame then
+        local currentDungeonID = C_ChallengeMode.GetActiveChallengeMapID()
+        if not currentDungeonID or not self:GetProgressBarValue("enabled") then
+            self.progressBarFrame:Hide()
+            self._progressBarDungeonKey = nil
+        end
+    end
+end
+
 function KeystonePolaris:RefreshProgressBar()
     local frame = self.progressBarFrame
     if frame then
@@ -1314,15 +1475,17 @@ function KeystonePolaris:RefreshProgressBar()
         if self._progressBarDungeonKey then
             self:BuildProgressBarTicks(self._progressBarDungeonKey)
             self:BuildProgressBarMilestoneTicks(self._progressBarDungeonKey)
+
+            if self._progressBarOptionsPreview
+                and not self._progressBarOptionsPreviewSuspended
+                and self._progressBarPreview then
+                self:ApplyProgressBarPreviewScenario()
+            end
+
             local currentPct, bossKillStates
             if self._progressBarPreview then
                 currentPct = self._progressBarPreviewPct or 0
-                local scenario = self._progressBarPreviewScenarioRef
-                local bossesKilled = scenario and scenario.bossesKilled or 0
-                bossKillStates = {}
-                for idx = 1, bossesKilled do
-                    bossKillStates[idx] = true
-                end
+                bossKillStates = self._progressBarPreviewBossKillStates or {}
             else
                 local currentCount, totalCount = self:GetCurrentForcesInfo()
                 currentPct = (totalCount and totalCount > 0) and ((currentCount / totalCount) * 100) or 0
@@ -1346,44 +1509,12 @@ function KeystonePolaris:EnableProgressBarPreview()
 
     self._progressBarPreview = true
 
-    local currentDate
-    if C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime then
-        local t = C_DateAndTime.GetCurrentCalendarTime()
-        currentDate = string_format("%04d-%02d-%02d", t.year, t.month, t.monthDay)
-    else
-        currentDate = "2026-01-01"
-    end
-
-    local seasonId = self:GetSeasonByDate(currentDate)
-    local previewDungeonKey
-
-    if seasonId then
-        local seasonTable = self[seasonId .. "_DUNGEONS"]
-        if seasonTable then
-            for dungeonId in pairs(seasonTable) do
-                if type(dungeonId) == "number" then
-                    previewDungeonKey = self:GetDungeonKeyById(dungeonId)
-                    if previewDungeonKey then break end -- luacheck: ignore 512
-                end
-            end
-        end
-    end
-
-    if not previewDungeonKey and self.GlobalDungeonLookup then
-        previewDungeonKey = next(self.GlobalDungeonLookup)
-    end
-
+    local previewDungeonKey = ResolvePreviewDungeonKey(self)
     if previewDungeonKey then
         self._progressBarDungeonKey = previewDungeonKey
         self:BuildProgressBarTicks(previewDungeonKey)
 
-        local scenarios = self.PreviewScenarios
-        local scenarioIdx = self._previewScenario or 1
-        local scenario = scenarios and scenarios[scenarioIdx]
-        local pct, bossKillStates = BuildPreviewScenarioState(self.progressBarFrame and self.progressBarFrame.tickThresholds, scenario)
-        self._progressBarPreviewPct = pct
-        self._progressBarPreviewScenarioRef = scenario
-
+        local pct, bossKillStates = self:ApplyProgressBarPreviewScenario()
         local sectionStates = self:GetProgressBarSectionStates(previewDungeonKey, pct, bossKillStates)
         self:UpdateProgressBarTickColors(bossKillStates)
         self:UpdateProgressBarSegments(pct, sectionStates)
@@ -1391,7 +1522,9 @@ function KeystonePolaris:EnableProgressBarPreview()
     end
 
     self:RefreshProgressBar()
-    self.progressBarFrame:Show()
+    if self:GetProgressBarValue("enabled") then
+        self.progressBarFrame:Show()
+    end
 end
 
 function KeystonePolaris:DisableProgressBarPreview()
@@ -1399,12 +1532,17 @@ function KeystonePolaris:DisableProgressBarPreview()
     self._progressBarPositioning = false
     self._progressBarPreviewPct = nil
     self._progressBarPreviewScenarioRef = nil
+    self._progressBarPreviewBossKillStates = nil
 
     if not self.progressBarFrame then return end
 
-    local currentDungeonID = C_ChallengeMode.GetActiveChallengeMapID()
-    if not currentDungeonID or not self:GetProgressBarValue("enabled") then
-        self.progressBarFrame:Hide()
-        self._progressBarDungeonKey = nil
+    if self.UpdateProgressBar then
+        self:UpdateProgressBar()
+    else
+        local currentDungeonID = C_ChallengeMode.GetActiveChallengeMapID()
+        if not currentDungeonID or not self:GetProgressBarValue("enabled") then
+            self.progressBarFrame:Hide()
+            self._progressBarDungeonKey = nil
+        end
     end
 end
