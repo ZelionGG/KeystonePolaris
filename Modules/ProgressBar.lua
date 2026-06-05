@@ -413,6 +413,82 @@ local function GetCalloutRemainingPercent(target, currentPct)
     return remaining
 end
 
+local function BuildCalloutObjectiveCandidates(addon, dungeonKey, currentPct, bossKillStates, milestoneThresholds)
+    local candidates = {}
+
+    if dungeonKey then
+        for logicalOrder, target in ipairs(addon:GetOrderedBossTargets(dungeonKey)) do
+            local pct = target.percent
+            if pct and pct > 0 and currentPct < pct then
+                local bossKilled = bossKillStates and bossKillStates[target.bossIndex] or false
+                if not bossKilled then
+                    candidates[#candidates + 1] = {
+                        type = "boss",
+                        percent = pct,
+                        bossIndex = target.bossIndex,
+                        logicalOrder = logicalOrder,
+                    }
+                end
+            end
+        end
+    end
+
+    if addon:GetProgressBarValue("showMilestoneTicks") and milestoneThresholds then
+        for _, threshold in ipairs(milestoneThresholds) do
+            if currentPct < threshold.percent then
+                candidates[#candidates + 1] = {
+                    type = "milestone",
+                    percent = threshold.percent,
+                    milestone = threshold,
+                }
+            end
+        end
+    end
+
+    return candidates
+end
+
+local function GetNextCalloutObjective(candidates, currentPct)
+    local nextTarget = nil
+    for _, candidate in ipairs(candidates) do
+        if currentPct < candidate.percent and PreferObjectiveCandidate(candidate, nextTarget) then
+            nextTarget = candidate
+        end
+    end
+    return nextTarget
+end
+
+local function GetCalloutObjectiveLabel(addon, dungeonKey, objective)
+    if objective.type == "milestone" then
+        local milestone = objective.milestone
+        local label = milestone and milestone.label
+        if not label or label == "" then
+            label = string_format(L["MILESTONE"], milestone.milestoneIndex or 0)
+        end
+        return label
+    end
+
+    if objective.bossIndex and dungeonKey then
+        return addon:GetBossName(dungeonKey, objective.bossIndex) or ("Boss " .. tostring(objective.bossIndex))
+    end
+
+    return ""
+end
+
+function KeystonePolaris:ResolveProgressBarCallout(dungeonKey, currentPct, bossKillStates, milestoneThresholds)
+    if not dungeonKey then
+        return nil
+    end
+
+    local candidates = BuildCalloutObjectiveCandidates(self, dungeonKey, currentPct, bossKillStates, milestoneThresholds)
+    local objective = GetNextCalloutObjective(candidates, currentPct)
+    if not objective then
+        return nil
+    end
+
+    return objective.percent, GetCalloutRemainingPercent(objective, currentPct), GetCalloutObjectiveLabel(self, dungeonKey, objective)
+end
+
 local function GetCurrentBossTarget(addon, dungeonKey, _currentPct, bossKillStates)
     return GetNextAliveBossTarget(GetBossProgressTargets(addon, dungeonKey), bossKillStates)
 end
@@ -749,26 +825,31 @@ function KeystonePolaris:UpdateProgressBarCallout(segmentIndex, currentPct, sect
         return
     end
 
-    local segStart = boundaries[activeIdx]
-    local segEnd = boundaries[activeIdx + 1]
-    local segCenter = (segStart + segEnd) / 2
-
-    local bossKillStates = self:GetBossKillStates(self._progressBarDungeonKey)
-    local bossTarget = self._progressBarDungeonKey and GetCurrentBossTarget(self, self._progressBarDungeonKey, currentPct, bossKillStates)
-    local bossIdx = bossTarget and bossTarget.bossIndex
-    if bossTarget and bossTarget.percent then
-        segCenter = bossTarget.percent
-        segEnd = GetCalloutRemainingPercent(bossTarget, currentPct)
-    elseif activeIdx > #thresholds then
-        bossIdx = thresholds[#thresholds] and thresholds[#thresholds].bossIndex
+    local dungeonKey = self._progressBarDungeonKey
+    local bossKillStates
+    if self._progressBarPreview then
+        bossKillStates = {}
+        local scenario = self._progressBarPreviewScenarioRef
+        local bossesKilled = scenario and scenario.bossesKilled or 0
+        for idx = 1, bossesKilled do
+            bossKillStates[idx] = true
+        end
+    else
+        bossKillStates = self:GetBossKillStates(dungeonKey)
     end
 
-    local bossName = ""
-    if bossIdx and self._progressBarDungeonKey then
-        bossName = self:GetBossName(self._progressBarDungeonKey, bossIdx) or ("Boss " .. bossIdx)
+    local anchorPct, remaining, label = self:ResolveProgressBarCallout(
+        dungeonKey,
+        currentPct,
+        bossKillStates,
+        frame.milestoneThresholds
+    )
+    if not anchorPct then
+        frame.callout:Hide()
+        return
     end
 
-    local calloutText = string_format(L["PROGRESS_BAR_CALLOUT_FORMAT"], segEnd, bossName)
+    local calloutText = string_format(L["PROGRESS_BAR_CALLOUT_FORMAT"], remaining, label)
 
     local callout = frame.callout
     ApplyCalloutStyle(callout, pb)
@@ -781,7 +862,7 @@ function KeystonePolaris:UpdateProgressBarCallout(segmentIndex, currentPct, sect
 
     local barWidth = pb.width
     local isRTL = pb.direction == "RIGHT_TO_LEFT"
-    local xPos = barWidth * (segCenter / 100)
+    local xPos = barWidth * (anchorPct / 100)
     if isRTL then
         xPos = barWidth - xPos
     end

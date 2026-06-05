@@ -252,40 +252,6 @@ local function BuildPreviewThresholds(addon, dungeonKey)
     return thresholds, dungeonData
 end
 
-local function GetBossProgressTargets(addon, dungeonKey)
-    return addon:GetOrderedBossTargets(dungeonKey)
-end
-
-local function GetNextAliveBossTarget(targets, bossKillStates)
-    if not targets or #targets == 0 then return nil end
-
-    for _, target in ipairs(targets) do
-        local bossKilled = bossKillStates and bossKillStates[target.bossIndex] or false
-        if not bossKilled then
-            return target
-        end
-    end
-
-    return targets[#targets]
-end
-
-local function GetCalloutRemainingPercent(target, currentPct)
-    if not target or not target.percent then return 0 end
-
-    local remaining = target.percent - currentPct
-    if remaining < 0 then
-        remaining = 0
-    end
-    if remaining < 0.05 and remaining > 0 then
-        remaining = 0
-    end
-    return remaining
-end
-
-local function GetCurrentBossTarget(addon, dungeonKey, _currentPct, bossKillStates)
-    return GetNextAliveBossTarget(GetBossProgressTargets(addon, dungeonKey), bossKillStates)
-end
-
 local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentPct, bossKillStates)
     if not thresholds or #thresholds == 0 then return {} end
 
@@ -352,7 +318,7 @@ local function UpdateBorder(widget, addon)
     widget.borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
 end
 
-local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates)
+local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, scenario)
     local addon = KeystonePolaris
     local pb = addon.db.profile.progressBar
     if not addon:GetProgressBarValue("showCallout") or not thresholds or #thresholds == 0 then
@@ -380,30 +346,28 @@ local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dunge
         return
     end
 
-    local segStart = boundaries[activeIdx]
-    local segEnd = boundaries[activeIdx + 1]
-    local segCenter = (segStart + segEnd) / 2
-
-    local bossTarget = GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
-    local bossIdx = bossTarget and bossTarget.bossIndex
-    if bossTarget and bossTarget.percent then
-        segCenter = bossTarget.percent
-        segEnd = GetCalloutRemainingPercent(bossTarget, currentPct)
-    elseif activeIdx > #thresholds then
-        bossIdx = thresholds[#thresholds] and thresholds[#thresholds].bossIndex
+    local milestoneThresholds
+    if addon:GetProgressBarValue("showMilestoneTicks") and addon.GetProgressBarMilestoneThresholds then
+        milestoneThresholds = addon:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
     end
 
-    local bossName = ""
-    if bossIdx and addon.GetBossName then
-        bossName = addon:GetBossName(dungeonKey, bossIdx) or ("Boss " .. bossIdx)
+    local anchorPct, remaining, label = addon:ResolveProgressBarCallout(
+        dungeonKey,
+        currentPct,
+        bossKillStates,
+        milestoneThresholds
+    )
+    if not anchorPct then
+        widget.callout:Hide()
+        return
     end
 
     ApplyCalloutStyle(widget.callout, pb)
-    widget.callout.text:SetText(string_format(L["PROGRESS_BAR_CALLOUT_FORMAT"], segEnd, bossName))
+    widget.callout.text:SetText(string_format(L["PROGRESS_BAR_CALLOUT_FORMAT"], remaining, label))
     widget.callout:SetSize(widget.callout.text:GetStringWidth() + 12, widget.callout.text:GetStringHeight() + 8)
     widget.callout.bg:SetAllPoints(widget.callout)
 
-    local xPos = displayWidth * (segCenter / 100)
+    local xPos = displayWidth * (anchorPct / 100)
     if pb.direction == "RIGHT_TO_LEFT" then
         xPos = displayWidth - xPos
     end
@@ -580,7 +544,7 @@ local function RenderPreview(widget, scenarioIndex)
         end
     end
 
-    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates)
+    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, scenario)
 end
 
 local methods = {}
