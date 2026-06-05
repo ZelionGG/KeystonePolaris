@@ -6,6 +6,23 @@ local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, true)
 local widgetType = "KeystonePolaris_Preview"
 local widgetVersion = 1
 
+local function BuildPreviewMilestone(label, remainingPercent, triggerMet, triggerMatchedNow)
+    return {
+        label = label,
+        remainingPercent = remainingPercent,
+        triggerMet = triggerMet,
+        triggerMatchedNow = triggerMatchedNow,
+    }
+end
+
+local function PreviewMilestoneActive()
+    return BuildPreviewMilestone(L["PREVIEW_MILESTONE_LABEL"] or "Gates", 2.0, false, false)
+end
+
+local function PreviewMilestoneMissed()
+    return BuildPreviewMilestone(L["PREVIEW_MILESTONE_LABEL"] or "Gates", 3.5, true, false)
+end
+
 -- Scenario definitions (reused from RenderTestText in Display.lua)
 local TOTAL_COUNT = 220
 local SCENARIOS = {
@@ -15,6 +32,7 @@ local SCENARIOS = {
         isBossKilled = false, colorKey = "inProgress", inCombat = false,
         progressBarMode = "idle",
         barPercent = 45, bossesKilled = 1,
+        getMilestone = PreviewMilestoneActive,
     },
     {
         name = L["PREVIEW_PULLING"] or "Mid-dungeon (pulling)",
@@ -23,6 +41,7 @@ local SCENARIOS = {
         requiresMDT = true,
         progressBarMode = "pulling",
         barPercent = 45, bossesKilled = 1,
+        getMilestone = PreviewMilestoneActive,
     },
     {
         name = L["PREVIEW_PROJECTED"] or "Projected completes section",
@@ -38,6 +57,7 @@ local SCENARIOS = {
         isBossKilled = false, colorKey = "finished", inCombat = false,
         progressBarMode = "sectionDone",
         barPercent = 74, bossesKilled = 3,
+        milestoneDone = true,
     },
     {
         name = L["PREVIEW_MISSING"] or "Missing (boss killed)",
@@ -45,6 +65,7 @@ local SCENARIOS = {
         isBossKilled = true, colorKey = "missing", inCombat = true,
         progressBarMode = "missing",
         barPercent = 62, bossesKilled = 3,
+        getMilestone = PreviewMilestoneMissed,
     },
     {
         name = L["PREVIEW_ALMOST_DONE"] or "Almost done (pulling)",
@@ -116,6 +137,20 @@ local function RenderPreview(widget, scenarioIndex)
         -- Ensure color cache is populated
         if addon.UpdateColorCache then addon:UpdateColorCache() end
         text = addon:FormatMainDisplayText(base, s.currentPercent, s.pullPercent, remainingPercent, fmtData)
+
+        if cfg and cfg.showMilestones ~= false then
+            if s.milestoneDone and addon.BuildMilestoneDoneDisplayText then
+                text = addon.AppendSupplementaryDisplayText(text, addon:BuildMilestoneDoneDisplayText(), cfg)
+            else
+                local milestone = s.milestone
+                if not milestone and s.getMilestone then
+                    milestone = s.getMilestone()
+                end
+                if milestone and addon.BuildMilestoneDisplayText then
+                    text = addon.AppendSupplementaryDisplayText(text, addon:BuildMilestoneDisplayText(milestone), cfg)
+                end
+            end
+        end
 
         addon._testMode = origTest
         addon._testCombatContext = origCtx

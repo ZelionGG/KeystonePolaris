@@ -76,6 +76,7 @@ L["PREVIEW_SECTION_DONE"] = "Раздел завершён" -- TODO: "Section co
 L["PREVIEW_MISSING"] = "Пропущено (босс убит)" -- TODO: "Missing (boss killed)"
 L["PREVIEW_ALMOST_DONE"] = "очти готово (пулл)" -- TODO: "Almost done (pulling)"
 L["PREVIEW_DUNGEON_DONE"] = "Подземелье пройдено" -- TODO: "Dungeon complete"
+-- TODO: L["PREVIEW_MILESTONE_LABEL"] = "Gates"
 -- TODO: L["PROGRESS_BAR"] = "Progress Bar"
 -- TODO: L["PROGRESS_BAR_ENABLED"] = "Enable Progress Bar"
 -- TODO: L["PROGRESS_BAR_ENABLED_DESC"] = "Show a visual progress bar for enemy forces percentage."
