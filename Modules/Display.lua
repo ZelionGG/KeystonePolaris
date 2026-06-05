@@ -358,6 +358,7 @@ function KeystonePolaris:UpdateColorCache()
     local colors = self.db.profile.color
     if colors then
         self.colorCache.prefix = toHex(colors.prefix or {r=1, g=0.7960784, b=0.2})
+        self.colorCache.milestonePrefix = toHex(colors.milestonePrefix or colors.prefix or {r=1, g=0.7960784, b=0.2})
         self.colorCache.finished = toHex(colors.finished or {r=0, g=1, b=0})
         self.colorCache.inProgress = toHex(colors.inProgress or {r=1, g=1, b=1})
         self.colorCache.missing = toHex(colors.missing or {r=1, g=0, b=0})
@@ -1334,12 +1335,23 @@ local function colorizePrefix(text, hexColor)
     return string.format("|cff%s%s|r", hexColor or "cccccc", tostring(text or ""))
 end
 
+local function getMilestonePrefixHex(self)
+    if not self.colorCache.prefix then
+        self:UpdateColorCache()
+    end
+    local cfg = self.db and self.db.profile and self.db.profile.general and self.db.profile.general.mainDisplay
+    if cfg and cfg.customMilestonePrefixColor then
+        return self.colorCache.milestonePrefix or self.colorCache.prefix or "cccccc"
+    end
+    return self.colorCache.prefix or "cccccc"
+end
+
 function KeystonePolaris:BuildMilestoneDisplayText(milestone)
     if type(milestone) ~= "table" then return "" end
 
     if not self.colorCache.prefix then self:UpdateColorCache() end
     local cfg = self.db and self.db.profile and self.db.profile.general and self.db.profile.general.mainDisplay or nil
-    local hexPrefix = self.colorCache.prefix or "cccccc"
+    local hexMilestonePrefix = getMilestonePrefixHex(self)
     local hexMissing = self.colorCache.missing or "ff0000"
     local hexFinished = self.colorCache.finished or "00ff00"
 
@@ -1352,7 +1364,7 @@ function KeystonePolaris:BuildMilestoneDisplayText(milestone)
     end
 
     local milestonePrefixText = (cfg and cfg.milestoneLabel) or L["MILESTONE_DISPLAY_DEFAULT"]
-    local prefix = colorizePrefix(milestonePrefixText, hexPrefix)
+    local prefix = colorizePrefix(milestonePrefixText, hexMilestonePrefix)
     local remaining = tonumber(milestone.remainingPercent) or 0
     local valueText
     if remaining > 0 then
@@ -1374,10 +1386,10 @@ end
 
 function KeystonePolaris:BuildMilestoneDoneDisplayText()
     if not self.colorCache.prefix then self:UpdateColorCache() end
-    local hexPrefix = self.colorCache.prefix or "cccccc"
+    local hexMilestonePrefix = getMilestonePrefixHex(self)
     local hexFinished = self.colorCache.finished or "00ff00"
 
-    local message = colorizePrefix(L["MILESTONE_PERCENTAGE_DONE"], hexPrefix)
+    local message = colorizePrefix(L["MILESTONE_PERCENTAGE_DONE"], hexMilestonePrefix)
     return string.format("|cff%s%s|r", hexFinished, message)
 end
 

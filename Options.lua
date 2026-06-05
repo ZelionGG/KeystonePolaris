@@ -134,6 +134,13 @@ local function ColumnRow(order, left, right, spacerWidth)
     }
 end
 
+local function RefreshDisplayColorSettings(self)
+    if self.UpdateColorCache then self:UpdateColorCache() end
+    if self.UpdatePercentageText then self:UpdatePercentageText() end
+    self:Refresh()
+    RefreshPreviewWidget()
+end
+
 local function MakeStatusColorOption(name, desc, colorKey, self, order)
     return {
         name = name,
@@ -147,12 +154,42 @@ local function MakeStatusColorOption(name, desc, colorKey, self, order)
         end,
         set = function(_, r, g, b, a)
             self.db.profile.color[colorKey] = { r = r, g = g, b = b, a = a }
-            if self.UpdateColorCache then self:UpdateColorCache() end
-            if self.UpdatePercentageText then self:UpdatePercentageText() end
-            self:Refresh()
-            RefreshPreviewWidget()
+            RefreshDisplayColorSettings(self)
         end
     }
+end
+
+local function MakeMilestonePrefixColorRow(self, order)
+    return ColumnRow(order, {
+        name = L["CUSTOM_MILESTONE_PREFIX_COLOR"],
+        desc = L["CUSTOM_MILESTONE_PREFIX_COLOR_DESC"],
+        type = "toggle",
+        get = function()
+            return self.db.profile.general.mainDisplay.customMilestonePrefixColor == true
+        end,
+        set = function(_, value)
+            self.db.profile.general.mainDisplay.customMilestonePrefixColor = value == true
+            RefreshDisplayColorSettings(self)
+        end,
+        disabled = function()
+            return self.db.profile.general.mainDisplay.showMilestones == false
+        end,
+    }, {
+        name = L["MILESTONE_PREFIX_COLOR"],
+        desc = L["MILESTONE_PREFIX_COLOR_DESC"],
+        type = "color",
+        get = function()
+            local color = self.db.profile.color.milestonePrefix or self.db.profile.color.prefix
+            return color.r, color.g, color.b, color.a
+        end,
+        set = function(_, r, g, b, a)
+            self.db.profile.color.milestonePrefix = { r = r, g = g, b = b, a = a }
+            RefreshDisplayColorSettings(self)
+        end,
+        hidden = function()
+            return not self.db.profile.general.mainDisplay.customMilestonePrefixColor
+        end,
+    })
 end
 
 -- ---------------------------------------------------------------------------
@@ -264,6 +301,7 @@ KeystonePolaris.defaults = {
                 pullLabel = L["PULL_DEFAULT"],         -- Label for current pull percent
                 showMilestones = true,                 -- Show milestone supplementary text and logic
                 milestoneLabel = L["MILESTONE_DISPLAY_DEFAULT"], -- Label for milestone supplementary text
+                customMilestonePrefixColor = false,    -- Use color.milestonePrefix instead of color.prefix for milestone labels
                 formatMode = "percent",               -- Display format: "percent" or "count"
                 singleLineSeparator = " | ",           -- Separator for single-line layout
                 textAlign = "CENTER",                  -- Horizontal font alignment: LEFT, CENTER, RIGHT
@@ -275,7 +313,8 @@ KeystonePolaris.defaults = {
             inProgress = {r = 1, g = 1, b = 1, a = 1},
             finished = {r = 0, g = 1, b = 0, a = 1},
             missing = {r = 1, g = 0, b = 0, a = 1},
-            prefix = {r = 1, g = 0.7960784, b = 0.2, a = 1}
+            prefix = {r = 1, g = 0.7960784, b = 0.2, a = 1},
+            milestonePrefix = {r = 1, g = 0.7960784, b = 0.2, a = 1}
         },
         advanced = {},
         progressBar = {
@@ -558,6 +597,7 @@ function KeystonePolaris:GetAppearanceOptions()
             },
             prefixColor = MakeStatusColorOption(L["PREFIX"], L["PREFIX_COLOR_DESC"], "prefix", self, 4),
             inProgressColor = MakeStatusColorOption(L["IN_PROGRESS"], L["IN_PROGRESS_COLOR_DESC"], "inProgress", self, 5),
+            milestonePrefixColorRow = MakeMilestonePrefixColorRow(self, 4.5),
             missingColor = MakeStatusColorOption(L["MISSING"], L["MISSING_COLOR_DESC"], "missing", self, 6),
             finishedColor = MakeStatusColorOption(L["FINISHED_COLOR"], L["FINISHED_COLOR_DESC"], "finished", self, 7),
         }
