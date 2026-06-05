@@ -1391,12 +1391,9 @@ function KeystonePolaris:BuildMilestoneDisplayText(milestone)
 end
 
 function KeystonePolaris:BuildMilestoneDoneDisplayText()
-    if not self.colorCache.prefix then self:UpdateColorCache() end
-    local hexMilestonePrefix = getMilestonePrefixHex(self)
+    if not self.colorCache.finished then self:UpdateColorCache() end
     local hexFinished = self.colorCache.finished or "00ff00"
-
-    local message = colorizePrefix(L["MILESTONE_PERCENTAGE_DONE"], hexMilestonePrefix)
-    return string.format("|cff%s%s|r", hexFinished, message)
+    return string.format("|cff%s%s|r", hexFinished, L["MILESTONE_PERCENTAGE_DONE"])
 end
 
 -- FormatMainDisplayText: builds the final display string with optional Current/Pull/Required parts and projected values.

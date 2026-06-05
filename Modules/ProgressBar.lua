@@ -420,18 +420,25 @@ local function BuildCalloutObjectiveCandidates(addon, dungeonKey, currentPct, bo
     local candidates = {}
 
     if dungeonKey then
-        for logicalOrder, target in ipairs(addon:GetOrderedBossTargets(dungeonKey)) do
-            local pct = target.percent
-            if pct and pct > 0 and currentPct < pct then
-                local bossKilled = bossKillStates and bossKillStates[target.bossIndex] or false
-                if not bossKilled then
-                    candidates[#candidates + 1] = {
-                        type = "boss",
-                        percent = pct,
-                        bossIndex = target.bossIndex,
-                        logicalOrder = logicalOrder,
-                    }
+        local targets = addon:GetOrderedBossTargets(dungeonKey)
+        local currentBoss = GetNextAliveBossTarget(targets, bossKillStates)
+        if currentBoss and currentBoss.percent and currentBoss.percent > 0 then
+            local bossKilled = bossKillStates and bossKillStates[currentBoss.bossIndex] or false
+            if not bossKilled then
+                local logicalOrder
+                for idx, target in ipairs(targets) do
+                    if target.bossIndex == currentBoss.bossIndex then
+                        logicalOrder = idx
+                        break
+                    end
                 end
+                candidates[#candidates + 1] = {
+                    type = "boss",
+                    percent = currentBoss.percent,
+                    bossIndex = currentBoss.bossIndex,
+                    logicalOrder = logicalOrder,
+                    isCurrentBoss = true,
+                }
             end
         end
     end
@@ -451,10 +458,18 @@ local function BuildCalloutObjectiveCandidates(addon, dungeonKey, currentPct, bo
     return candidates
 end
 
+local function IsCalloutCandidateEligible(candidate, currentPct)
+    if currentPct < candidate.percent then
+        return true
+    end
+    return candidate.type == "boss" and candidate.isCurrentBoss == true
+end
+
 local function GetNextCalloutObjective(candidates, currentPct)
     local nextTarget = nil
     for _, candidate in ipairs(candidates) do
-        if currentPct < candidate.percent and PreferObjectiveCandidate(candidate, nextTarget) then
+        if IsCalloutCandidateEligible(candidate, currentPct)
+            and PreferObjectiveCandidate(candidate, nextTarget) then
             nextTarget = candidate
         end
     end
