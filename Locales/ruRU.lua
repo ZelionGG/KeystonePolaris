@@ -338,7 +338,7 @@ L["IMPORT_PROFILE_ACTIVATE"] = "Импортировать и активиров
 L["IMPORT_PROFILE_ONLY"] = "Только импортировать"
 L["PROFILE_SCOPE_FULL"] = "полный профиль"
 L["PROFILE_SCOPE_SETTINGS"] = "только настройки"
-L["IMPORT_PROFILE_SUCCESS"] = "Профиль импортирован в "%s"."
+L["IMPORT_PROFILE_SUCCESS"] = "Профиль импортирован в '%s'."
 L["IMPORT_PROFILE_ERROR"] = "Неверная строка импорта профиля."
 L["IMPORT_PROFILE_UNKNOWN_VERSION"] = "Неподдерживаемая версия экспорта профиля."
 L["IMPORT_PROFILE_EXISTS"] = "Профиль '%s' уже существует и будет перезаписан."
@@ -352,7 +352,7 @@ L["MOB_INDICATOR_INFO"] = "• |cff00ff00Индикаторы мобов|r: Ст
 -- Mob Percentages
 L["MOB_PERCENTAGES"] = "Проценты мобов"
 L["ENABLE_MOB_PERCENTAGES"] = "Отображать проценты мобов"
-L["ENABLE_MOB_PERCENTAGES_DESC"] = "Показывать процент каждого моба в подземельях M+"
+L["ENABLE_MOB_PERCENTAGES_DESC"] = "Показывать процент каждого моба в М+ подземельях"
 L["MOB_PERCENTAGE_FONT_SIZE"] = "Размер шрифта"
 L["MOB_PERCENTAGE_FONT_SIZE_DESC"] = "Установить размер шрифта для текста процента мобов"
 L["MOB_PERCENTAGE_POSITION"] = "Положение"
