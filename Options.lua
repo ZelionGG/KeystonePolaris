@@ -62,6 +62,10 @@ local function SetPreviewScenario(value)
     if displayPreview and displayPreview.RefreshPreview then
         displayPreview:RefreshPreview()
     end
+    local progressBarPreview = KeystonePolaris._progressBarPreviewWidget
+    if progressBarPreview and progressBarPreview.RefreshPreview then
+        progressBarPreview:RefreshPreview()
+    end
     ACR:NotifyChange(AddOnName)
 end
 

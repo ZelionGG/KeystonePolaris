@@ -396,9 +396,6 @@ function methods.OnAcquire(self)
     self:SetHeight(90)
     self:SetFullWidth(true)
     KeystonePolaris._progressBarPreviewWidget = self
-    if KeystonePolaris.EnableProgressBarOptionsPreview then
-        KeystonePolaris:EnableProgressBarOptionsPreview()
-    end
     RenderPreview(self, self.scenarioIndex)
 end
 
@@ -406,9 +403,6 @@ function methods.OnRelease(self)
     self.scenarioIndex = nil
     if KeystonePolaris._progressBarPreviewWidget == self then
         KeystonePolaris._progressBarPreviewWidget = nil
-    end
-    if KeystonePolaris.DisableProgressBarOptionsPreview then
-        KeystonePolaris:DisableProgressBarOptionsPreview()
     end
 end
 
@@ -497,12 +491,7 @@ local function Constructor()
     local ACR = LibStub("AceConfigRegistry-3.0", true)
     if ACR then
         ACR.RegisterCallback(widget, "ConfigTableChange", function(_, appName)
-            if appName ~= AddOnName or not widget.scenarioIndex then return end
-            if KeystonePolaris.RefreshProgressBar
-                and KeystonePolaris._progressBarOptionsPreview
-                and not KeystonePolaris._progressBarOptionsPreviewSuspended then
-                KeystonePolaris:RefreshProgressBar()
-            else
+            if appName == AddOnName and widget.scenarioIndex then
                 RenderPreview(widget, widget.scenarioIndex)
             end
         end)

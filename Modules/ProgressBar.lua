@@ -14,9 +14,6 @@ local math_min = math.min
 local string_format = string.format
 local select = select
 local GetCursorPosition = GetCursorPosition
-local InCombatLockdown = InCombatLockdown
-
-local optionsPreviewEventFrame
 
 local function Lerp(startValue, endValue, amount)
     return startValue + (endValue - startValue) * amount
@@ -1386,94 +1383,6 @@ function KeystonePolaris:ApplyProgressBarPreviewScenario()
     return pct, bossKillStates
 end
 
-local function EnsureProgressBarOptionsPreviewEventFrame(addon)
-    if optionsPreviewEventFrame then return end
-
-    local frame = CreateFrame("Frame")
-    frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    frame:SetScript("OnEvent", function(_, event)
-        if event == "PLAYER_REGEN_DISABLED" then
-            if addon.SuspendProgressBarOptionsPreviewForCombat then
-                addon:SuspendProgressBarOptionsPreviewForCombat()
-            end
-        elseif event == "PLAYER_REGEN_ENABLED" then
-            if addon.ResumeProgressBarOptionsPreviewAfterCombat then
-                addon:ResumeProgressBarOptionsPreviewAfterCombat()
-            end
-        end
-    end)
-    optionsPreviewEventFrame = frame
-end
-
-function KeystonePolaris:SuspendProgressBarOptionsPreviewForCombat()
-    if not self._progressBarOptionsPreview or self._progressBarOptionsPreviewSuspended then return end
-    if self._progressBarPositioning or self._positioningMode then return end
-
-    self._progressBarOptionsPreviewSuspended = true
-    self._progressBarPreview = false
-    self._progressBarPreviewPct = nil
-    self._progressBarPreviewScenarioRef = nil
-    self._progressBarPreviewBossKillStates = nil
-
-    if self.UpdateProgressBar then
-        self:UpdateProgressBar()
-    end
-end
-
-function KeystonePolaris:ResumeProgressBarOptionsPreviewAfterCombat()
-    if not self._progressBarOptionsPreview or not self._progressBarOptionsPreviewSuspended then return end
-    if InCombatLockdown() then return end
-    if self._progressBarPositioning or self._positioningMode then return end
-
-    self._progressBarOptionsPreviewSuspended = false
-    self:EnableProgressBarPreview()
-end
-
-function KeystonePolaris:EnableProgressBarOptionsPreview()
-    if self._progressBarPositioning or self._positioningMode then return end
-
-    EnsureProgressBarOptionsPreviewEventFrame(self)
-    local wasActive = self._progressBarOptionsPreview == true
-    self._progressBarOptionsPreview = true
-
-    if InCombatLockdown() then
-        self._progressBarOptionsPreviewSuspended = true
-        return
-    end
-
-    self._progressBarOptionsPreviewSuspended = false
-    if not wasActive or not self._progressBarPreview then
-        self:EnableProgressBarPreview()
-    else
-        self:RefreshProgressBar()
-    end
-end
-
-function KeystonePolaris:DisableProgressBarOptionsPreview()
-    if not self._progressBarOptionsPreview then return end
-
-    self._progressBarOptionsPreview = false
-    self._progressBarOptionsPreviewSuspended = false
-
-    if self._progressBarPositioning or self._positioningMode then return end
-
-    self._progressBarPreview = false
-    self._progressBarPreviewPct = nil
-    self._progressBarPreviewScenarioRef = nil
-    self._progressBarPreviewBossKillStates = nil
-
-    if self.UpdateProgressBar then
-        self:UpdateProgressBar()
-    elseif self.progressBarFrame then
-        local currentDungeonID = C_ChallengeMode.GetActiveChallengeMapID()
-        if not currentDungeonID or not self:GetProgressBarValue("enabled") then
-            self.progressBarFrame:Hide()
-            self._progressBarDungeonKey = nil
-        end
-    end
-end
-
 function KeystonePolaris:RefreshProgressBar()
     local frame = self.progressBarFrame
     if frame then
@@ -1493,12 +1402,6 @@ function KeystonePolaris:RefreshProgressBar()
         if self._progressBarDungeonKey then
             self:BuildProgressBarTicks(self._progressBarDungeonKey)
             self:BuildProgressBarMilestoneTicks(self._progressBarDungeonKey)
-
-            if self._progressBarOptionsPreview
-                and not self._progressBarOptionsPreviewSuspended
-                and self._progressBarPreview then
-                self:ApplyProgressBarPreviewScenario()
-            end
 
             local currentPct, bossKillStates
             if self._progressBarPreview then
