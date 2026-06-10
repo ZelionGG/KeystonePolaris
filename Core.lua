@@ -132,6 +132,8 @@ local function BuildModulesOverviewDescription()
     local mobPercentagesDesc = L["MODULES_SUMMARY_MOB_PERCENTAGES_DESC"]
     local groupReminderTitle = L["KPL_GR_HEADER"]
     local groupReminderDesc = L["MODULES_SUMMARY_GROUP_REMINDER_DESC"]
+    local automarkerTitle = L["KPL_AM_HEADER"]
+    local automarkerDesc = L["MODULES_SUMMARY_AUTOMARKER_DESC"]
 
     return table.concat({
         intro,
@@ -141,6 +143,9 @@ local function BuildModulesOverviewDescription()
         "",
         featureIcon .. " |cffffd100" .. groupReminderTitle .. "|r",
         "   |cff9d9d9d" .. groupReminderDesc .. "|r",
+        "",
+        featureIcon .. " |cffffd100" .. automarkerTitle .. "|r",
+        "   |cff9d9d9d" .. automarkerDesc .. "|r",
     }, "\n")
 end
 
@@ -438,6 +443,7 @@ function KeystonePolaris:OnInitialize()
                     },
                     mobPercentages = self:GetMobPercentagesOptions(),
                     groupReminder = self:GetGroupReminderOptions(),
+                    automarker = self:GetAutomarkerOptions(),
                 }
             },
             advanced = self:GetAdvancedOptions()
@@ -467,6 +473,11 @@ function KeystonePolaris:OnInitialize()
     -- Initialize group reminder module if enabled
     if self.db.profile.groupReminder and self.db.profile.groupReminder.enabled then
         self:InitializeGroupReminder()
+    end
+
+    -- Initialize automarker module if enabled
+    if self.db.profile.automarker and self.db.profile.automarker.enabled then
+        self:InitializeAutomarker()
     end
 end
 
@@ -750,6 +761,9 @@ function KeystonePolaris:RefreshForActiveProfile()
     end
     if self.db.profile.groupReminder and self.db.profile.groupReminder.enabled then
         if self.InitializeGroupReminder then self:InitializeGroupReminder() end
+    end
+    if self.db.profile.automarker and self.db.profile.automarker.enabled then
+        if self.InitializeAutomarker then self:InitializeAutomarker() end
     end
 end
 

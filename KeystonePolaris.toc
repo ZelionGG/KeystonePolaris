@@ -41,6 +41,7 @@ Data/Seasons/Seasons.xml
 Modules/DungeonManager.lua
 Modules/PullTracker.lua
 Modules/GroupReminder.lua
+Modules/Automarker.lua
 Modules/Display.lua
 Modules/ProgressBar.lua
 Modules/About.lua

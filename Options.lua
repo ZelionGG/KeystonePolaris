@@ -301,6 +301,13 @@ KeystonePolaris.defaults = {
     }
 }
 
+KeystonePolaris.defaults.profile.automarker = {
+    enabled = false,
+    tankMarker = 6,
+    healerMarker = 1,
+    onlyWhenLeader = true,
+}
+
 KeystonePolaris.defaults.profile.groupReminder = {
     enabled = true,
     showPopup = true,
