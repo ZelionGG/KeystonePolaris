@@ -57,7 +57,7 @@ L["MODULES_SUMMARY_DESC"] = "Краткий обзор доступных мод
 L["MODULES_SUMMARY_INTRO"] = "Краткий обзор доступных модулей:"
 L["MODULES_SUMMARY_MOB_PERCENTAGES_DESC"] = "Показывает вклад в силу врагов прямо на индикаторах здоровья."
 L["MODULES_SUMMARY_GROUP_REMINDER_DESC"] = "При вступлении в группу отображается всплывающее напоминание с ключевыми сведениями: название группы, подземелье и роль, которая была указана при присоединении к группе."
--- TODO: L["MODULES_SUMMARY_AUTOMARKER_DESC"] = "Automatically marks the tank and healer when your Mythic+ LFG group reaches 5 players."
+-- TODO: L["MODULES_SUMMARY_AUTOMARKER_DESC"] = "Automatically marks the tank and healer in Mythic+ LFG groups as members join."
 L["FINISHED"] = "Процент подземелья выполнен"
 L["SECTION_DONE"] = "Часть подземелья завершена"
 L["DONE"] = "Процент части подземелья выполнен"
@@ -413,7 +413,8 @@ L["KPL_GR_SHOW_PLAYSTYLE"] = "Показать групповой стиль и�
 
 -- Automarker
 -- TODO: L["KPL_AM_HEADER"] = "Automarker"
--- TODO: L["KPL_AM_DESC_LONG"] = "Automatically marks the tank and healer when your Mythic+ LFG group reaches 5 players."
+-- TODO: L["KPL_AM_DESC_LONG"] = "Marks configured roles in Mythic+ LFG groups as members join. Set a role to None to skip it. Since Midnight, WoW requires one click on the mark button (/tm) to place raid markers."
+-- TODO: L["KPL_AM_MARK"] = "Mark"
 -- TODO: L["KPL_AM_TANK_MARKER"] = "Tank marker"
 -- TODO: L["KPL_AM_HEALER_MARKER"] = "Healer marker"
 -- TODO: L["KPL_AM_ONLY_WHEN_LEADER"] = "Only when leader"

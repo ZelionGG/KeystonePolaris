@@ -58,7 +58,7 @@ L["MODULES_SUMMARY_DESC"] = "Quick tour of available modules:\n\n• MythicDunge
 L["MODULES_SUMMARY_INTRO"] = "Quick tour of available modules:"
 L["MODULES_SUMMARY_MOB_PERCENTAGES_DESC"] = "Shows enemy-forces contribution directly on nameplates."
 L["MODULES_SUMMARY_GROUP_REMINDER_DESC"] = "Displays a quick reminder popup when you join a group, with key details such as the group name, dungeon, and the role you were accepted for."
-L["MODULES_SUMMARY_AUTOMARKER_DESC"] = "Automatically marks the tank and healer when your Mythic+ LFG group reaches 5 players."
+L["MODULES_SUMMARY_AUTOMARKER_DESC"] = "Automatically marks the tank and healer in Mythic+ LFG groups as members join."
 L["FINISHED"] = "Dungeon Percentage Done"
 L["SECTION_DONE"] = "Section Finished"
 L["DONE"] = "Section Percentage Done"
@@ -416,7 +416,8 @@ L["KPL_GR_SHOW_PLAYSTYLE"] = "Show group playstyle"
 
 -- Automarker
 L["KPL_AM_HEADER"] = "Automarker"
-L["KPL_AM_DESC_LONG"] = "Automatically marks the tank and healer when your Mythic+ LFG group reaches 5 players."
+L["KPL_AM_DESC_LONG"] = "Marks configured roles in Mythic+ LFG groups as members join. Set a role to None to skip it. Since Midnight, WoW requires one click on the mark button (/tm) to place raid markers."
+L["KPL_AM_MARK"] = "Mark"
 L["KPL_AM_TANK_MARKER"] = "Tank marker"
 L["KPL_AM_HEALER_MARKER"] = "Healer marker"
 L["KPL_AM_ONLY_WHEN_LEADER"] = "Only when leader"

@@ -57,7 +57,7 @@ L["MODULES_SUMMARY_DESC"] = "사용 가능한 모듈에 대한 간략한 소개:
 -- TODO: L["MODULES_SUMMARY_INTRO"] = "Quick tour of available modules:"
 -- TODO: L["MODULES_SUMMARY_MOB_PERCENTAGES_DESC"] = "Shows enemy-forces contribution directly on nameplates."
 -- TODO: L["MODULES_SUMMARY_GROUP_REMINDER_DESC"] = "Displays a quick reminder popup when you join a group, with key details such as the group name, dungeon, and the role you were accepted for."
--- TODO: L["MODULES_SUMMARY_AUTOMARKER_DESC"] = "Automatically marks the tank and healer when your Mythic+ LFG group reaches 5 players."
+-- TODO: L["MODULES_SUMMARY_AUTOMARKER_DESC"] = "Automatically marks the tank and healer in Mythic+ LFG groups as members join."
 L["FINISHED"] = "던전 퍼센트 완료"
 L["SECTION_DONE"] = "구역 완료"
 L["DONE"] = "구역 퍼센트 완료"
@@ -413,7 +413,8 @@ L["KPL_GR_SHOW_PLAYSTYLE"] = "플레이 방식 표시" -- TODO: "Show group play
 
 -- Automarker
 -- TODO: L["KPL_AM_HEADER"] = "Automarker"
--- TODO: L["KPL_AM_DESC_LONG"] = "Automatically marks the tank and healer when your Mythic+ LFG group reaches 5 players."
+-- TODO: L["KPL_AM_DESC_LONG"] = "Marks configured roles in Mythic+ LFG groups as members join. Set a role to None to skip it. Since Midnight, WoW requires one click on the mark button (/tm) to place raid markers."
+-- TODO: L["KPL_AM_MARK"] = "Mark"
 -- TODO: L["KPL_AM_TANK_MARKER"] = "Tank marker"
 -- TODO: L["KPL_AM_HEALER_MARKER"] = "Healer marker"
 -- TODO: L["KPL_AM_ONLY_WHEN_LEADER"] = "Only when leader"

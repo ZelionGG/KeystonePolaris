@@ -57,7 +57,7 @@ L["MODULES_SUMMARY_DESC"] = "Tour rapide des modules disponibles :\n\n• Intég
 L["MODULES_SUMMARY_INTRO"] = "Tour rapide des modules disponibles :"
 L["MODULES_SUMMARY_MOB_PERCENTAGES_DESC"] = "Affiche la contribution des forces ennemies directement sur les barres de nom."
 L["MODULES_SUMMARY_GROUP_REMINDER_DESC"] = "Affiche une fenêtre de rappel rapide lorsque vous rejoignez un groupe, avec les informations essentielles comme le nom du groupe, le donjon et le rôle pour lequel vous avez été accepté."
--- TODO: L["MODULES_SUMMARY_AUTOMARKER_DESC"] = "Automatically marks the tank and healer when your Mythic+ LFG group reaches 5 players."
+-- TODO: L["MODULES_SUMMARY_AUTOMARKER_DESC"] = "Automatically marks the tank and healer in Mythic+ LFG groups as members join."
 L["FINISHED"] = "Pourcentage du donjon atteint"
 L["SECTION_DONE"] = "Section de donjon terminée"
 L["DONE"] = "Pourcentage de la section atteint"
@@ -413,7 +413,8 @@ L["KPL_GR_SHOW_PLAYSTYLE"] = "Afficher le style de jeu du groupe"
 
 -- Automarker
 L["KPL_AM_HEADER"] = "Marqueur automatique"
-L["KPL_AM_DESC_LONG"] = "Marque automatiquement le tank et le healer lorsque votre groupe Mythique+ LFG atteint 5 joueurs."
+L["KPL_AM_DESC_LONG"] = "Marque les rôles configurés dans les groupes Mythique+ LFG au fur et à mesure des arrivées. Réglez None pour ignorer un rôle. Depuis Midnight, WoW exige un clic sur le bouton (/tm) pour poser les marqueurs."
+L["KPL_AM_MARK"] = "Marquer"
 L["KPL_AM_TANK_MARKER"] = "Marqueur tank"
 L["KPL_AM_HEALER_MARKER"] = "Marqueur healer"
 L["KPL_AM_ONLY_WHEN_LEADER"] = "Uniquement si chef de groupe"
