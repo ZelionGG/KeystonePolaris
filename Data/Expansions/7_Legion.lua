@@ -120,9 +120,18 @@ KeystonePolaris.LEGION_DUNGEON_DATA = {
         bosses = {
             {1, 14.61, false, 1, 1979, "Zuraal the Ascended", 122313}, -- Zuraal the Ascended
             {2, 56.87, false, 2, 1980, "Saprish", {122316, 122319}}, -- Saprish
-            {3, 100,   false, 3, 1981, "Viceroy Nezhar", 122056}, -- Viceroy Nezhar
+            {3, 100,   true,  3, 1981, "Viceroy Nezhar", 122056}, -- Viceroy Nezhar
             {4, 100,   true,  4, 1982, "L'ura", {124729, 125340}} -- L'ura
-        }
+        },
+        milestones = {
+            {
+                id = 1,
+                label = "Before Nezhar's arena",
+                thresholdPercent = 81.33,
+                triggerType = "none",
+                creationOrder = 1,
+            },
+        },
     },
     ARCW = { -- The Arcway
         id = 209,
