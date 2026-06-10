@@ -2224,6 +2224,10 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
     end
 
     local function EnsureMilestonesTable()
+        if self.MergeDungeonMilestoneDefaults then
+            self:MergeDungeonMilestoneDefaults(dungeonKey)
+        end
+
         local advanced = self.db.profile.advanced[dungeonKey]
         if type(advanced.milestones) ~= "table" then
             advanced.milestones = {}
@@ -2249,17 +2253,6 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
             milestone.matchAreaID = tonumber(milestone.matchAreaID)
             milestone.matchMapID = tonumber(milestone.matchMapID)
             milestone.matchText = tostring(milestone.matchText or "")
-            if milestone.matchText == "" then
-                local displayName
-                if milestone.matchAreaID and KeystonePolaris.GetLocalizedAreaName then
-                    displayName = KeystonePolaris.GetLocalizedAreaName(milestone.matchAreaID)
-                elseif milestone.matchMapID and KeystonePolaris.GetLocalizedMapName then
-                    displayName = KeystonePolaris.GetLocalizedMapName(milestone.matchMapID)
-                end
-                if displayName and displayName ~= "" then
-                    milestone.matchText = displayName
-                end
-            end
             milestone.label = tostring(milestone.label or "")
             milestone.informSuffix = tostring(milestone.informSuffix or "")
             milestone.inform = milestone.inform == true
@@ -2587,7 +2580,11 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                 order = 1,
                 name = L["MILESTONE_ADD"],
                 func = function()
+                    local advanced = self.db.profile.advanced[dungeonKey]
                     local milestones = EnsureMilestonesTable()
+                    if advanced then
+                        advanced.milestonesUserEdited = true
+                    end
                     milestones[#milestones + 1] = {
                         id = NextMilestoneId(milestones),
                         label = "",
@@ -2801,6 +2798,10 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     confirm = true,
                     confirmText = L["MILESTONE_REMOVE_CONFIRM"],
                     func = function()
+                        local advanced = self.db.profile.advanced[dungeonKey]
+                        if advanced then
+                            advanced.milestonesUserEdited = true
+                        end
                         local currentMilestones = EnsureMilestonesTable()
                         table.remove(currentMilestones, milestoneIndex)
                         if RebuildMilestoneOptionGroups then
