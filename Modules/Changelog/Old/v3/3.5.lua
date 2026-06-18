@@ -2,7 +2,7 @@ local AddOnName, KeystonePolaris = ...;
 
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, true);
 
-KeystonePolaris.Changelog[3500] = {
+KeystonePolaris.Changelog["3.5"] = {
     version_string = "3.5",
     release_date = "2026/03/28",
     header = {
