@@ -787,7 +787,12 @@ end
 
 function KeystonePolaris.CreateProgressBarCallout(_, parentFrame)
     local callout = CreateFrame("Frame", nil, parentFrame)
-    callout:SetFrameStrata("HIGH")
+    local overlay = parentFrame.milestoneOverlay
+    if overlay then
+        callout:SetFrameLevel(overlay:GetFrameLevel() + 1)
+    else
+        callout:SetFrameLevel(parentFrame:GetFrameLevel() + 12)
+    end
 
     local text = callout:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     text:SetPoint("CENTER", callout, "CENTER", 0, 0)

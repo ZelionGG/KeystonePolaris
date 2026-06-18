@@ -810,6 +810,108 @@ function KeystonePolaris.GetMilestoneTriggerDisplayText(milestone)
     return tostring(milestone.matchText or "")
 end
 
+-- No direct C_Map.GetBestAreaForUnit; use exploration area IDs at player position.
+local function resolveAreaIDAtPlayer(subzoneText)
+    local target = NormalizeMilestoneText(subzoneText)
+    if target == "" then
+        return nil
+    end
+    if not C_Map or not C_Map.GetBestMapForUnit or not C_Map.GetPlayerMapPosition then
+        return nil
+    end
+    if not C_MapExplorationInfo or not C_MapExplorationInfo.GetExploredAreaIDsAtPosition then
+        return nil
+    end
+
+    local mapID = C_Map.GetBestMapForUnit("player")
+    if not mapID then
+        return nil
+    end
+
+    local pos = C_Map.GetPlayerMapPosition(mapID, "player")
+    if not pos then
+        return nil
+    end
+
+    local areaIDs = C_MapExplorationInfo.GetExploredAreaIDsAtPosition(mapID, pos)
+    if type(areaIDs) ~= "table" then
+        return nil
+    end
+
+    for _, areaID in ipairs(areaIDs) do
+        local name = KeystonePolaris.GetLocalizedAreaName(areaID)
+        if name and NormalizeMilestoneText(name) == target then
+            return tonumber(areaID)
+        end
+    end
+
+    return nil
+end
+
+local function resolveUiMapIDForZone(zoneText)
+    local target = NormalizeMilestoneText(zoneText)
+    if target == "" then
+        return nil
+    end
+    if not C_Map or not C_Map.GetBestMapForUnit or not C_Map.GetMapInfo then
+        return nil
+    end
+
+    local mapID = C_Map.GetBestMapForUnit("player")
+    while mapID do
+        local name = KeystonePolaris.GetLocalizedMapName(mapID)
+        if name and NormalizeMilestoneText(name) == target then
+            return mapID
+        end
+        local info = C_Map.GetMapInfo(mapID)
+        mapID = info and info.parentMapID
+    end
+
+    return nil
+end
+
+function KeystonePolaris:CaptureMilestoneTrigger(milestone, triggerType)
+    if type(milestone) ~= "table" then
+        return false
+    end
+
+    triggerType = tostring(triggerType or "none"):lower()
+    milestone.matchAreaID = nil
+    milestone.matchMapID = nil
+    milestone.matchText = ""
+
+    local captured = false
+    if triggerType == "subzone" then
+        local subzoneText = GetSubZoneText()
+        local areaID = resolveAreaIDAtPlayer(subzoneText)
+        if areaID then
+            milestone.matchAreaID = areaID
+            captured = true
+        else
+            milestone.matchText = tostring(subzoneText or "")
+        end
+    elseif triggerType == "zone" then
+        local zoneText = GetZoneText()
+        local uiMapID = resolveUiMapIDForZone(zoneText)
+        if uiMapID then
+            milestone.matchMapID = uiMapID
+            captured = true
+        else
+            milestone.matchText = tostring(zoneText or "")
+        end
+    end
+
+    if not captured then
+        local prefix = (self.GetChatPrefix and self:GetChatPrefix()) or "Keystone Polaris"
+        local warnText = L and L["MILESTONE_CAPTURE_FALLBACK_WARN"]
+        if warnText and warnText ~= "" then
+            print(prefix .. ": " .. warnText)
+        end
+    end
+
+    return captured
+end
+
 -- Send a chat message to inform the group about missing percentage
 function KeystonePolaris:InformGroup(percentage)
     if not self.db.profile.general.informGroup then return end

@@ -177,6 +177,7 @@ L["EXPANSION_WOTLK"] = "Wrath of the Lich King" -- TODO: "Wrath of the Lich King
 -- TODO: L["MILESTONE_INFORM_SUFFIX_DESC"] = "Optional text appended after the percentage for this milestone's inform message."
 -- TODO: L["MILESTONE_CAPTURE_ZONE"] = "Capture Current Zone"
 -- TODO: L["MILESTONE_CAPTURE_SUBZONE"] = "Capture Current Subzone"
+-- TODO: L["MILESTONE_CAPTURE_FALLBACK_WARN"] = "Could not resolve a zone ID; saved localized text instead (not portable across clients)."
 -- TODO: L["MILESTONE_PERCENTAGE_DONE"] = "Milestone Percentage Done"
 -- TODO: L["FONT"] = "Font"
 -- TODO: L["FONT_SIZE"] = "Font Size"

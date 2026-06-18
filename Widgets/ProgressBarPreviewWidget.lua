@@ -461,7 +461,7 @@ local function Constructor()
     milestoneOverlay:EnableMouse(false)
 
     local callout = CreateFrame("Frame", nil, frame)
-    callout:SetFrameStrata("HIGH")
+    callout:SetFrameLevel(milestoneOverlay:GetFrameLevel() + 1)
     local calloutText = callout:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     calloutText:SetPoint("CENTER", callout, "CENTER", 0, 0)
     callout.text = calloutText

@@ -2209,20 +2209,6 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
         return milestone and milestone.matchText or ""
     end
 
-    local function CaptureMilestoneMap(milestone, triggerType)
-        if not milestone then return end
-        milestone.matchAreaID = nil
-        local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
-        if mapID then
-            milestone.matchMapID = mapID
-        end
-        if triggerType == "zone" then
-            milestone.matchText = tostring(GetZoneText() or "")
-        else
-            milestone.matchText = tostring(GetSubZoneText() or "")
-        end
-    end
-
     local function EnsureMilestonesTable()
         if self.MergeDungeonMilestoneDefaults then
             self:MergeDungeonMilestoneDefaults(dungeonKey)
@@ -2727,9 +2713,15 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         return not current or current.triggerType ~= "zone"
                     end,
                     func = function()
+                        local advanced = self.db.profile.advanced[dungeonKey]
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
-                        CaptureMilestoneMap(current, "zone")
+                        if advanced then
+                            advanced.milestonesUserEdited = true
+                        end
+                        if self.CaptureMilestoneTrigger then
+                            self:CaptureMilestoneTrigger(current, "zone")
+                        end
                         RefreshMilestoneRuntime()
                         ACR:NotifyChange(AddOnName)
                     end
@@ -2744,9 +2736,15 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                         return not current or current.triggerType ~= "subzone"
                     end,
                     func = function()
+                        local advanced = self.db.profile.advanced[dungeonKey]
                         local current = EnsureMilestonesTable()[milestoneIndex]
                         if not current then return end
-                        CaptureMilestoneMap(current, "subzone")
+                        if advanced then
+                            advanced.milestonesUserEdited = true
+                        end
+                        if self.CaptureMilestoneTrigger then
+                            self:CaptureMilestoneTrigger(current, "subzone")
+                        end
                         RefreshMilestoneRuntime()
                         ACR:NotifyChange(AddOnName)
                     end
