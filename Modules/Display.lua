@@ -310,8 +310,7 @@ function KeystonePolaris:PrepareInformMacro(message)
         slash = "s"
     end
 
-    local safeMessage = tostring(resolvedMessage or ""):gsub("%%", "%%%%")
-    local macroText = string.format("/%s %s", slash, safeMessage)
+    local macroText = string.format("/%s %s", slash, tostring(resolvedMessage or ""))
     self:EnsureInformSecureButton(macroText)
     local btn = self.informSecureButton
     btn:SetAlpha(1)
@@ -897,7 +896,7 @@ function KeystonePolaris:CreateDisplayFrame()
 
         -- Create percentage text
         self.displayFrame.text = self.displayFrame:CreateFontString(nil, "OVERLAY")
-        self.displayFrame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font), self.db.profile.general.fontSize, "OUTLINE")
+        self.displayFrame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font), self.db.profile.general.fontSize, self:GetFontFlags())
         self.displayFrame.text:SetPoint("CENTER")
         self.displayFrame.text:SetText("0.0%") -- Set initial text
 
@@ -1025,6 +1024,10 @@ function KeystonePolaris:UpdatePercentageText()
     -- Check if we're in a supported dungeon
     local currentDungeonID = C_ChallengeMode.GetActiveChallengeMapID()
     if currentDungeonID == nil or not self.DUNGEONS[currentDungeonID] then
+        if self.progressBarFrame and not self._progressBarPreview then
+            self.progressBarFrame:Hide()
+            self._progressBarDungeonKey = nil
+        end
         self.displayFrame.text:SetText("")
         return
     end
@@ -1209,8 +1212,7 @@ function KeystonePolaris:UpdatePercentageText()
             else
                 slash = "s"
             end
-            local safeMessage = tostring(message or ""):gsub("%%", "%%%%")
-            local macroText = string.format("/%s %s", slash, safeMessage)
+            local macroText = string.format("/%s %s", slash, tostring(message or ""))
             self:EnsureInformSecureButton(macroText)
             informBtn = self.informSecureButton
         elseif not informBtn and self.db.profile.general.informGroup and self.EnsureInformSecureButton then
@@ -1613,8 +1615,8 @@ function KeystonePolaris:ShowTestOverlay()
         local baseSize = (self.db and self.db.profile and self.db.profile.general and self.db.profile.general.fontSize) or 12
         if fontPath then
             local b = baseSize or 12
-            title:SetFont(fontPath, b + 2, "OUTLINE")
-            hint:SetFont(fontPath, math.max(8, b - 2), "OUTLINE")
+            title:SetFont(fontPath, b + 2, self:GetFontFlags())
+            hint:SetFont(fontPath, math.max(8, b - 2), self:GetFontFlags())
         else
             local hf, hs, hflags = hint:GetFont(); if hf then hint:SetFont(hf, (hs or 12) + 3, hflags) end
         end
@@ -1840,7 +1842,7 @@ function KeystonePolaris:Refresh()
     end
 
     -- Update font size and font
-    self.displayFrame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font), self.db.profile.general.fontSize, "OUTLINE")
+    self.displayFrame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font), self.db.profile.general.fontSize, self:GetFontFlags())
     -- Update horizontal alignment
     self:ApplyTextLayout()
 

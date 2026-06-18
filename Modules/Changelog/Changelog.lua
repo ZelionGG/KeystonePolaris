@@ -26,6 +26,14 @@ function KeystonePolaris.RGBToHex(r, g, b, header, ending)
     return hex
 end
 
+local function versionToSortKey(versionString)
+    local major, minor, patch = versionString:match("^(%d+)%.(%d+)%.?(%d*)")
+    if not major then return 0 end
+    return (tonumber(major) or 0) * 1000000
+         + (tonumber(minor) or 0) * 10000
+         + (tonumber(patch) or 0) * 100
+end
+
 function KeystonePolaris:GenerateChangelog()
     self.changelogOptions = {
         type = "group",
@@ -125,7 +133,7 @@ function KeystonePolaris:GenerateChangelog()
             end
 
             self.changelogOptions.args[tostring(version)] = {
-                order = 10000 - version,
+                order = 10000000 - versionToSortKey(data.version_string),
                 name = versionString,
                 type = "group",
                 args = {

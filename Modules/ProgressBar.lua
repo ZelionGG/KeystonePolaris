@@ -177,11 +177,11 @@ local function GetProgressBarTooltipSection(addon, frame)
 end
 
 local function ApplyCalloutStyle(callout, pb)
-    local currentFontFile, _, fontFlags = callout.text:GetFont()
+    local currentFontFile = callout.text:GetFont()
     local fontName = pb.calloutFont or KeystonePolaris.db.profile.text.font
     local fontFile = KeystonePolaris.LSM and KeystonePolaris.LSM:Fetch("font", fontName, true)
     if fontFile or currentFontFile then
-        callout.text:SetFont(fontFile or currentFontFile, pb.calloutFontSize or 10, fontFlags)
+        callout.text:SetFont(fontFile or currentFontFile, pb.calloutFontSize or 10, KeystonePolaris:GetFontFlags())
     end
 
     local textColor = pb.calloutTextColor or { r = 1, g = 0.82, b = 0, a = 1 }

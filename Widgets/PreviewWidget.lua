@@ -127,7 +127,7 @@ local function RenderPreview(widget, scenarioIndex)
     local fontPath = LSM:Fetch("font", addon.db.profile.text.font)
     local fontSize = addon.db.profile.general.fontSize or 12
     local textOpacity = addon.db.profile.general.textOpacity or 1
-    widget.previewText:SetFont(fontPath, fontSize, "OUTLINE")
+    widget.previewText:SetFont(fontPath, fontSize, addon:GetFontFlags())
     if textColor then
         widget.previewText:SetTextColor(textColor.r, textColor.g, textColor.b, 1)
     end

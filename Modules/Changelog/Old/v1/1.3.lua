@@ -1,6 +1,6 @@
 local AddOnName, KeystonePolaris = ...;
 
-KeystonePolaris.Changelog[1300] = {
+KeystonePolaris.Changelog["1.3"] = {
     version_string = "1.3",
     release_date = "2025/03/03",
     important = {

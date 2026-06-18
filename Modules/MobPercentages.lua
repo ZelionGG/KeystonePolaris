@@ -85,7 +85,11 @@ function KeystonePolaris:HideAllMobPercentageFrames()
 end
 
 function KeystonePolaris:RefreshMobPercentageFrames()
-    for unit in pairs(self.nameplateTextFrames or {}) do
+    for unit, textFrame in pairs(self.nameplateTextFrames or {}) do
+        if textFrame and textFrame.text then
+            textFrame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font),
+                self.db.profile.mobPercentages.fontSize or 8, self:GetFontFlags())
+        end
         self:UpdateNameplate(unit)
     end
 end
@@ -177,7 +181,7 @@ function KeystonePolaris:UpdateNameplate(unit)
         textFrame.text = textFrame:CreateFontString(nil, "OVERLAY")
         textFrame.text:SetPoint("CENTER")
         textFrame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font),
-            self.db.profile.mobPercentages.fontSize or 8, "OUTLINE")
+            self.db.profile.mobPercentages.fontSize or 8, self:GetFontFlags())
         textFrame.text:SetTextColor(
             self.db.profile.mobPercentages.textColor.r or 1,
             self.db.profile.mobPercentages.textColor.g or 1,
@@ -395,7 +399,7 @@ function KeystonePolaris:GetMobPercentagesOptions()
                         set = function(_, value)
                             self.db.profile.mobPercentages.fontSize = value
                             for _, frame in pairs(self.nameplateTextFrames or {}) do
-                                frame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font), value, "OUTLINE")
+                                frame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font), value, self:GetFontFlags())
                             end
                         end,
                         disabled = function()

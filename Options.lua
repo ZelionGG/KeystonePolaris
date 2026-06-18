@@ -255,7 +255,10 @@ KeystonePolaris.defaults = {
                 showProjected = false                   -- Append projected values next to Current/Required
             }
         },
-        text = {font = "Friz Quadrata TT"},
+        text = {
+            font = "Friz Quadrata TT",
+            fontFlags = KeystonePolaris.DEFAULT_FONT_FLAG_PRESET,
+        },
         color = {
             inProgress = {r = 1, g = 1, b = 1, a = 1},
             finished = {r = 0, g = 1, b = 0, a = 1},
@@ -530,6 +533,27 @@ function KeystonePolaris:GetAppearanceOptions()
                     RefreshPreviewWidget()
                 end,
             }),
+            fontFlags = {
+                name = L["FONT_FLAGS"],
+                desc = L["FONT_FLAGS_DESC"],
+                type = "select",
+                order = 2.5,
+                width = 1.25,
+                sorting = KeystonePolaris.fontFlagPresetSorting,
+                values = function()
+                    return self:GetFontFlagSelectValues()
+                end,
+                get = function()
+                    return self:GetFontFlagsPreset()
+                end,
+                set = function(_, value)
+                    self.db.profile.text.fontFlags = value or KeystonePolaris.DEFAULT_FONT_FLAG_PRESET
+                    self:Refresh()
+                    if self.RefreshMobPercentageFrames then self:RefreshMobPercentageFrames() end
+                    if self.RefreshProgressBar then self:RefreshProgressBar() end
+                    RefreshPreviewWidget()
+                end,
+            },
             colorsSpacer = {
                 type = "description",
                 name = " ",
