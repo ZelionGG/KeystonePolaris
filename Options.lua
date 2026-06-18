@@ -538,7 +538,7 @@ function KeystonePolaris:GetAppearanceOptions()
                 desc = L["FONT_FLAGS_DESC"],
                 type = "select",
                 order = 2.5,
-                width = "full",
+                width = 1.25,
                 sorting = KeystonePolaris.fontFlagPresetSorting,
                 values = function()
                     return self:GetFontFlagSelectValues()
