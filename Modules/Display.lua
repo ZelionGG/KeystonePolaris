@@ -1024,6 +1024,10 @@ function KeystonePolaris:UpdatePercentageText()
     -- Check if we're in a supported dungeon
     local currentDungeonID = C_ChallengeMode.GetActiveChallengeMapID()
     if currentDungeonID == nil or not self.DUNGEONS[currentDungeonID] then
+        if self.progressBarFrame and not self._progressBarPreview then
+            self.progressBarFrame:Hide()
+            self._progressBarDungeonKey = nil
+        end
         self.displayFrame.text:SetText("")
         return
     end
