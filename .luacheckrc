@@ -21,6 +21,7 @@ read_globals = {
     'C_DateAndTime',
     'C_LFGList',
     'C_Map',
+    'C_MapExplorationInfo',
     'C_NamePlate',
     'C_ScenarioInfo',
     'C_Spell',
