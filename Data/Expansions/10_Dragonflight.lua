@@ -13,5 +13,15 @@ KeystonePolaris.DF_DUNGEON_DATA = {
             {3, 21.52, false, 1, 2512, "Overgrown Ancient", 196482}, -- Overgrown Ancient
             {4, 100,   true,  4, 2514, "Echo of Doragosa", 190609} -- Echo of Doragosa
         }
+    },
+    RLP = {
+        id = 399,
+        mapID = 2521,
+        teleportID = 393256,
+        bosses = {
+            {1, 20.17, false, 1, 2485, "Melidrussa Chillworn", 188252}, -- Melidrussa Chillworn
+            {2, 51.09, false, 2, 2488, "Kokia Blazehoof", 189232}, -- Kokia Blazehoof
+            {3, 100, false, 3, 2503, "Kyrakka and Erkhart Stormvein", {199790, 199791}}, -- Kyrakka and Erkhart Stormvein
+        }
     }
 }

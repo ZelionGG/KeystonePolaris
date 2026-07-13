@@ -49,4 +49,61 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
             {4, 100,   true,  4, 2658, "The Restless Heart", 231636}, -- The Restless Heart
         }
     },
+    MR = {
+        id = 587,
+        mapID = 2813,
+        displayName = "Murder Row",
+        teleportID = 1286809,
+        bosses = {
+            {1, 45.35, false, 1, 3101, "Kystia Manaheart", 252458}, -- Kystia Manaheart
+            {2, 57.36, false, 2, 3102, "Zaen Bladesorrow", 234649}, -- Zaen Bladesorrow
+            {3, 100,   true,  3, 3103, "Xathuux the Annihilator", 234647}, -- Xathuux the Annihilator
+            {4, 100,   true,  4, 3104, "Lithiel Cinderfury", 237415}, -- Lithiel Cinderfury
+        }
+    },
+    DoN = {
+        id = 586,
+        mapID = 2825,
+        displayName = "Den of Nalorakk",
+        teleportID = 1286807,
+        bosses = {
+            {1, 45.35, false, 1, 3207, "The Hoardmonger", 248710}, -- The Hoardmonger
+            {2, 57.36, false, 2, 3208, "Sentinel of Winter", 261053}, -- Sentinel of Winter
+            {3, 100,   true,  3, 3209, "Nalorakk", 258877}, -- Nalorakk
+        }
+    },
+    TBV = {
+        id = 584,
+        mapID = 2859,
+        displayName = "The Blinding Vale",
+        teleportID = 1286801,
+        bosses = {
+            {1, 45.35, false, 1, 3199, "Lightblossom Trinity", {243028, 243030, 243029}}, -- Lightblossom Trinity
+            {2, 57.36, false, 2, 3200, "Ikuzz the Light Hunter", 244887}, -- Ikuzz the Light Hunter
+            {3, 100,   true,  3, 3201, "Lightwarden Ruia", 245912}, -- Lightwarden Ruia
+            {4, 100,   true,  4, 3202, "Ziekket", 247676}, -- Ziekket
+        }
+    },
+    VSA = {
+        id = 585,
+        mapID = 2923,
+        displayName = "Voidscar Arena",
+        teleportID = 1286804,
+        bosses = {
+            {1, 45.35, false, 1, 3285, "Taz'Rah", 238887}, -- Taz'Rah
+            {2, 57.36, false, 2, 3286, "Atroxus", 239008}, -- Atroxus
+            {3, 100,   true,  3, 3287, "Charonus", 248015}, -- Charonus
+        }
+    },
+    AoFa = {
+        id = 588,
+        mapID = 2993,
+        displayName = "Altar of Fangs",
+        teleportID = 1286804,
+        bosses = {
+            {1, 45.35, false, 1, 3456, "Rav'i", 259445}, -- Rav'i
+            {2, 57.36, false, 2, 3457, "The Writhing Coil", 259446}, -- The Writhing Coil
+            {3, 100,   true,  3, 3458, "Zul'jan", 259447}, -- Zul'jan
+        }
+    },
 }
