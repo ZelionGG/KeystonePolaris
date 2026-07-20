@@ -715,13 +715,13 @@ function KeystonePolaris:GetAdvancedOptions()
             return defaults and defaults[dungeonKey] or nil
         end
 
-        local expansionTitle = "|cffffffff" .. L[expansion.name] .. "|r"
+        local expansionTitle = "|cffffffff" .. expansion.name .. "|r"
         args[sectionKey] = {
             name = expansionTitle,
             type = "group",
             childGroups = "tree",
             order = expansion.order + 4, -- Shift expansion orders to after next season
-            args = CreateGenericSectionArgs(L[expansion.name], keys, filter, getDefaultsFn, expansionTitle)
+            args = CreateGenericSectionArgs(expansion.name, keys, filter, getDefaultsFn, expansionTitle)
         }
     end
     return {
