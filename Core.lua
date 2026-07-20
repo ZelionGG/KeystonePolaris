@@ -371,7 +371,7 @@ function KeystonePolaris:OnInitialize()
     -- Check if routes have been updated in a new version
     self:CheckForNewRoutes()
 
-    -- Initialize Display (Frames, Overlay, Anchors) - Moved to Modules/Display.lua
+    -- Initialize Display (Frames, Overlay, Anchors) - Modules/DisplayFrame.lua
     if self.InitializeDisplay then
         self:InitializeDisplay()
     end
