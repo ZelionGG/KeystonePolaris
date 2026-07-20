@@ -275,10 +275,17 @@ function KeystonePolaris:InitializeMinimapIcon()
                     self:ToggleConfig()
                 end
             end,
-            OnTooltipShow = function(tooltip)
-                if not tooltip or not tooltip.AddLine then return end
-                tooltip:AddLine("Keystone Polaris")
-                tooltip:AddLine("Click to open options", 1, 1, 1)
+            -- Use GameTooltip via OnEnter/OnLeave instead of OnTooltipShow:
+            -- LibDBIconTooltip (GameTooltipTemplate) often has a missing/transparent
+            -- backdrop on Midnight and with tooltip-skinning addons.
+            OnEnter = function(frame)
+                GameTooltip:SetOwner(frame, "ANCHOR_LEFT")
+                GameTooltip:AddLine("Keystone Polaris")
+                GameTooltip:AddLine("Click to open options", 1, 1, 1)
+                GameTooltip:Show()
+            end,
+            OnLeave = function()
+                GameTooltip:Hide()
             end,
         })
     end
