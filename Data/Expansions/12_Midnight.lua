@@ -45,9 +45,7 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
                 triggerType = "subzone",
                 -- Core Defense Nullward (AreaTable ID; parent 16573, continent/uiMap 2915)
                 matchAreaID = 16575,
-                inform = true,
-                informSuffix = "before entering Nysarra's arena.",
-                creationOrder = 1,
+                inform = false,
             },
         },
     },

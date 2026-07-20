@@ -21,9 +21,7 @@ KeystonePolaris.WOTLK_DUNGEON_DATA = {
                 triggerType = "subzone",
                 -- The Dark Approach (AreaTable ID; parent 4813, continent/uiMap 658)
                 matchAreaID = 4904,
-                inform = true,
-                informSuffix = "before leaving the Dark Approach.",
-                creationOrder = 1,
+                inform = false,
             },
         },
     }
