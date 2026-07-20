@@ -62,18 +62,11 @@ KeystonePolaris.constants = {
 }
 
 -- Track the last routes update version for prompting users
-KeystonePolaris.lastRoutesUpdate = "3.4" -- Set to true when routes have been updated
+KeystonePolaris.lastRoutesUpdate = "3.11" -- Set to true when routes have been updated
 
 -- Table to store dungeons with changed routes
 KeystonePolaris.CHANGED_ROUTES_DUNGEONS = {
-    ["WIS"] = true, -- Windrunner Spire
-    ["MAGI"] = true, -- Magisters' Terrace
     ["NPX"] = true, -- Nexus-Point Xenas
-    ["MAIS"] = true, -- Maisara Caverns
-    ["AA"] = true, -- Algeth'ar Academy
-    ["SotT"] = true, -- Seat of the Triumvirate
-    ["SKY"] = true, -- Skyreach
-    ["PoS"] = true, -- Pit of Saron
 }
 
 -- Initialize Ace3 configuration libraries
