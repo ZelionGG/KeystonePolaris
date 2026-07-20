@@ -244,11 +244,7 @@ function KeystonePolaris:GetAdvancedOptions()
         end
         if daysUntil <= 14 then
             local weeks = math.ceil(daysUntil / 7)
-            local weekKey = weeks == 1 and "_WEEK" or "_WEEKS"
-            local weekText = L[prefixKey .. weekKey]
-            if weeks ~= 1 then
-                weekText = weekText:format(weeks)
-            end
+            local weekText = L[prefixKey .. "_WEEKS"]:format(weeks)
             return iconPrefix .. weekText
         end
         if daysUntil <= 30 then
