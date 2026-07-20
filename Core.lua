@@ -912,18 +912,6 @@ function KeystonePolaris:CaptureMilestoneTrigger(milestone, triggerType)
     return captured
 end
 
--- Send a chat message to inform the group about missing percentage
-function KeystonePolaris:InformGroup(percentage)
-    if not self.db.profile.general.informGroup then return end
-
-    local percentageStr = string.format("%.2f%%", percentage)
-    -- Don't send message if percentage is 0
-    if percentageStr == "0.00%" then return end
-    local prefix = (self.GetChatPrefix and self:GetChatPrefix(true, true)) or "[Keystone Polaris]"
-    self:PrepareInformMacro(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr)
-    -- SendChatMessage(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr, channel)
-end
-
 function KeystonePolaris.IsSectionTriggerMet(_, section)
     if type(section) ~= "table" then
         return false
@@ -1251,17 +1239,6 @@ function KeystonePolaris:BuildInformMessage(percentage, suffixOverride)
     end
 
     return baseMessage
-end
-
--- Send a chat message to inform the group about missing percentage
-function KeystonePolaris:InformGroup(percentage)
-    if not self.db.profile.general.informGroup then return end
-
-    local percentageStr = string.format("%.2f%%", percentage)
-    -- Don't send message if percentage is 0
-    if percentageStr == "0.00%" then return end
-    self:PrepareInformMacro(self:BuildInformMessage(percentage))
-    -- SendChatMessage(prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. percentageStr, channel)
 end
 
 function KeystonePolaris:GetProfileOptions()

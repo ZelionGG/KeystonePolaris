@@ -8,8 +8,7 @@
 ## Notes-frFR: Addon conçu pour vous aider à savoir le pourcentage requis avant chaque boss en Mythique+.
 ## Notes-ruRU: Дополнение, которое поможет Вам отслеживать проценты, необходимые для каждой части подземелья M+.
 
-## SavedVariables: KeystonePercentageHelperDB, KeystonePolarisDB
-## OptionalDeps: KeystonePercentageHelper
+## SavedVariables: KeystonePolarisDB
 
 ## X-Website: https://github.com/ZelionGG/KeystonePolaris
 ## X-Issues: https://github.com/ZelionGG/KeystonePolaris/issues
