@@ -1025,10 +1025,9 @@ function KeystonePolaris:GetAdvancedOptions()
     local function GetDungeonNameWithIcon(dungeonKey)
         local mapId = self:GetDungeonIdByKey(dungeonKey)
 
-        local name, texture
+        local name
         if mapId then
             name = select(1, C_ChallengeMode.GetMapUIInfo(mapId))
-            texture = select(4, C_ChallengeMode.GetMapUIInfo(mapId))
         end
 
         -- Retrieve manual display name
@@ -1041,8 +1040,7 @@ function KeystonePolaris:GetAdvancedOptions()
             end
         end
 
-        -- Fallbacks
-        local icon = texture or "Interface\\Icons\\INV_Misc_QuestionMark"
+        local icon = self:GetDungeonIcon(dungeonKey)
         local displayName = name or manualName or dungeonKey or "Unknown"
 
         return '|T' .. icon .. ":20:20:0:0|t " .. displayName
@@ -2301,15 +2299,12 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
         name = function()
             local mapId = self:GetDungeonIdByKey(dungeonKey)
 
-            local name, texture
+            local name
             if mapId then
                 name = select(1, C_ChallengeMode.GetMapUIInfo(mapId))
-                texture = select(4, C_ChallengeMode.GetMapUIInfo(mapId))
             end
 
-            -- Fallback if name/texture is missing
             if not name then
-                -- Try to find manual name
                 for _, expansion in ipairs(expansions) do
                     local names = self[expansion.id .. "_DUNGEON_NAMES"]
                     if names and names[dungeonKey] then
@@ -2319,9 +2314,8 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                 end
             end
             name = name or dungeonKey or "Unknown"
-            texture = texture or "Interface\\Icons\\INV_Misc_QuestionMark"
 
-            return '|T' .. texture .. ":16:16:0:0|t " .. (name)
+            return '|T' .. self:GetDungeonIcon(dungeonKey) .. ":16:16:0:0|t " .. (name)
         end,
         type = "group",
         order = order,
@@ -2333,15 +2327,12 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                 name = function()
                     local mapId = self:GetDungeonIdByKey(dungeonKey)
 
-                    local name, texture
+                    local name
                     if mapId then
                         name = select(1, C_ChallengeMode.GetMapUIInfo(mapId))
-                        texture = select(4, C_ChallengeMode.GetMapUIInfo(mapId))
                     end
 
-                    -- Fallback if name/texture is missing
                     if not name then
-                         -- Try to find manual name
                          for _, expansion in ipairs(expansions) do
                              local names = self[expansion.id .. "_DUNGEON_NAMES"]
                              if names and names[dungeonKey] then
@@ -2351,9 +2342,8 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                          end
                     end
                     name = name or dungeonKey or "Unknown"
-                    texture = texture or "Interface\\Icons\\INV_Misc_QuestionMark"
 
-                    return "|T" .. texture .. ":20:20:0:0|t |cff40E0D0" ..
+                    return "|T" .. self:GetDungeonIcon(dungeonKey) .. ":20:20:0:0|t |cff40E0D0" ..
                                (name) .. "|r"
                 end
             },

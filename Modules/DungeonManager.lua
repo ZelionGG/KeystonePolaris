@@ -519,6 +519,47 @@ function KeystonePolaris:GetDungeonKeyById(dungeonId)
     return self.GlobalDungeonIDLookup and self.GlobalDungeonIDLookup[dungeonId] or nil
 end
 
+local DUNGEON_ICON_PLACEHOLDER = "Interface\\Icons\\INV_Misc_QuestionMark"
+
+function KeystonePolaris:GetDungeonIcon(dungeonKey)
+    if not dungeonKey then return DUNGEON_ICON_PLACEHOLDER end
+
+    local dungeonData = self.GlobalDungeonLookup and self.GlobalDungeonLookup[dungeonKey]
+    local mapId = dungeonData and dungeonData.id
+
+    if mapId then
+        local texture = select(4, C_ChallengeMode.GetMapUIInfo(mapId))
+        if texture then return texture end
+    end
+
+    local teleportID = dungeonData and dungeonData.teleportID
+    if teleportID and type(teleportID) == "number" then
+        local icon
+        if C_Spell and C_Spell.GetSpellTexture then
+            icon = C_Spell.GetSpellTexture(teleportID)
+        elseif GetSpellInfo then
+            icon = select(3, GetSpellInfo(teleportID))
+        end
+        if icon then return icon end
+    end
+
+    local lfgID = dungeonData and dungeonData.lfgID
+    if lfgID and type(lfgID) == "number" then
+        if C_LFGInfo and C_LFGInfo.GetDungeonInfo then
+            local info = C_LFGInfo.GetDungeonInfo(lfgID)
+            if info and info.iconID then return info.iconID end
+        end
+        if GetLFGDungeonInfo then
+            local textureFilename = select(11, GetLFGDungeonInfo(lfgID))
+            if textureFilename and textureFilename ~= "" then
+                return "Interface\\LFGFrame\\LFGIcon-" .. textureFilename .. ".blp"
+            end
+        end
+    end
+
+    return DUNGEON_ICON_PLACEHOLDER
+end
+
 function KeystonePolaris:GetDungeonDisplayName(dungeonKey)
     if not dungeonKey then return "Unknown Dungeon" end
 
