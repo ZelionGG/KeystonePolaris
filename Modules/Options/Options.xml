@@ -1,0 +1,9 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Script file="Helpers.lua"/>
+  <Script file="Defaults.lua"/>
+  <Script file="DisplayOptions.lua"/>
+  <Script file="ProgressBarOptions.lua"/>
+  <Script file="InformGroupOptions.lua"/>
+  <Script file="InterfaceOptions.lua"/>
+  <Script file="AdvancedOptions.lua"/>
+</Ui>

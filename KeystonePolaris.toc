@@ -46,7 +46,7 @@ Modules/About.lua
 Modules/Changelog/Changelog.lua
 Widgets/PreviewWidget.lua
 Widgets/ProgressBarPreviewWidget.lua
-Options.lua
+Modules/Options/Options.xml
 Modules/ImportExport.lua
 Modules/MobPercentages.lua
 
