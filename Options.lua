@@ -1102,6 +1102,85 @@ function KeystonePolaris:GetAdvancedOptions()
             else
                 text = text .. "\n"
             end
+
+            -- Show default milestones if available
+            local milestones = defaults.milestones
+            if type(milestones) == "table" and #milestones > 0 then
+                local sorted = {}
+                for _, milestone in ipairs(milestones) do
+                    if type(milestone) == "table" then
+                        sorted[#sorted + 1] = milestone
+                    end
+                end
+                table.sort(sorted, function(left, right)
+                    local leftPct = tonumber(left.thresholdPercent) or 0
+                    local rightPct = tonumber(right.thresholdPercent) or 0
+                    if leftPct ~= rightPct then
+                        return leftPct < rightPct
+                    end
+                    local leftCreation = tonumber(left.creationOrder) or 0
+                    local rightCreation = tonumber(right.creationOrder) or 0
+                    if leftCreation ~= rightCreation then
+                        return leftCreation < rightCreation
+                    end
+                    return (tonumber(left.id) or 0) < (tonumber(right.id) or 0)
+                end)
+
+                local milestonesTitle = "|cffffa500" .. L["MILESTONES"] .. "|r"
+                text = text .. "  " .. milestonesTitle .. ":\n"
+
+                for _, milestone in ipairs(sorted) do
+                    local label = tostring(milestone.label or ""):match("^%s*(.-)%s*$") or ""
+                    if label == "" then
+                        if KeystonePolaris.GetMilestoneTriggerDisplayText then
+                            label = KeystonePolaris.GetMilestoneTriggerDisplayText(milestone) or ""
+                        else
+                            label = tostring(milestone.matchText or "")
+                        end
+                        label = tostring(label):match("^%s*(.-)%s*$") or ""
+                    end
+                    if label == "" then
+                        label = L["MILESTONE"]
+                    end
+
+                    local informText = milestone.inform and
+                                           ('|cff00ff00' .. L["YES"] .. '|r') or
+                                           ('|cffff0000' .. L["NO"] .. '|r')
+                    local line = string.format(
+                                     "    %s: |cff40E0D0%.2f%%|r - " ..
+                                         L["SHOW_INFORM_GROUP_BUTTON"] .. ": %s",
+                                     label, tonumber(milestone.thresholdPercent) or
+                                         0, informText)
+
+                    local triggerType = tostring(milestone.triggerType or "none"):lower()
+                    if triggerType == "zone" or triggerType == "subzone" then
+                        local triggerLabel = triggerType == "zone" and
+                                                 L["MILESTONE_TRIGGER_ZONE"] or
+                                                 L["MILESTONE_TRIGGER_SUBZONE"]
+                        local matchText
+                        if KeystonePolaris.GetMilestoneTriggerDisplayText then
+                            matchText =
+                                KeystonePolaris.GetMilestoneTriggerDisplayText(
+                                    milestone) or ""
+                        else
+                            matchText = tostring(milestone.matchText or "")
+                        end
+                        matchText = tostring(matchText):match("^%s*(.-)%s*$") or
+                                        ""
+                        if matchText ~= "" then
+                            line = line ..
+                                       string.format(" - %s: %s", triggerLabel,
+                                                     matchText)
+                        else
+                            line = line .. " - " .. triggerLabel
+                        end
+                    end
+
+                    text = text .. line .. "\n"
+                end
+
+                text = text .. "\n"
+            end
         end
         return text
     end
