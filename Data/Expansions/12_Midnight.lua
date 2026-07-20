@@ -3,6 +3,7 @@ local AddOnName, KeystonePolaris = ...
 -- Define a single source of truth for dungeon data
 KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
     -- Format: [shortName] = {id = dungeonID, bosses = {{bossID, percent, shouldInform, bossOrder, journalEncounterID}, ...}}
+    -- lfgID: optional LFG dungeon ID for icon fallback before Challenge Mode registration
     MAGI = { -- Magisters' Terrace
         id = 558,
         mapID = 2811,
@@ -52,6 +53,7 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
     MR = {
         id = 587,
         mapID = 2813,
+        lfgID = 3090,
         displayName = "Murder Row",
         teleportID = 1286809,
         bosses = {
@@ -64,6 +66,7 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
     DoN = {
         id = 586,
         mapID = 2825,
+        lfgID = 3051,
         displayName = "Den of Nalorakk",
         teleportID = 1286807,
         bosses = {
@@ -75,6 +78,7 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
     TBV = {
         id = 584,
         mapID = 2859,
+        lfgID = 3102,
         displayName = "The Blinding Vale",
         teleportID = 1286801,
         bosses = {
@@ -87,6 +91,7 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
     VSA = {
         id = 585,
         mapID = 2923,
+        lfgID = 3106,
         displayName = "Voidscar Arena",
         teleportID = 1286804,
         bosses = {
@@ -98,8 +103,9 @@ KeystonePolaris.MIDNIGHT_DUNGEON_DATA = {
     AoFa = {
         id = 588,
         mapID = 2993,
+        lfgID = 3191,
         displayName = "Altar of Fangs",
-        teleportID = 1286804,
+        teleportID = 1286812,
         bosses = {
             {1, 45.35, false, 1, 3456, "Rav'i", 259445}, -- Rav'i
             {2, 57.36, false, 2, 3457, "The Writhing Coil", 259446}, -- The Writhing Coil
