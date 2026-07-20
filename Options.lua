@@ -2765,7 +2765,7 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     desc = L["MILESTONE_INFORM_SUFFIX_DESC"],
                     hidden = function()
                         local current = EnsureMilestonesTable()[milestoneIndex]
-                        return not current or current.triggerType == "none"
+                        return not current or current.triggerType == "none" or current.inform == false
                     end,
                     get = function()
                         local current = EnsureMilestonesTable()[milestoneIndex]
