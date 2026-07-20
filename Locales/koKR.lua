@@ -38,16 +38,6 @@ L["SEASON_STARTS_IN_DAYS"] = "다음 시즌은 %d일 후에 시작됩니다." --
 L["SEASON_STARTS_IN_TOMORROW"] = "다음 시즌이 내일 시작됩니다." -- TODO: "Next season starts tomorrow."
 -- TODO: L["WEEKDAY_NEXT_FORMAT"] = "(next %s)"
 
-L["EXPANSION_MIDNIGHT"] = "한밤" -- TODO: "Midnight"
-L["EXPANSION_WW"] = "내부전쟁" -- TODO: "The War Within"
-L["EXPANSION_DF"] = "용군단" -- TODO: "Dragonflight"
-L["EXPANSION_SL"] = "어둠땅" -- TODO: "Shadowlands"
-L["EXPANSION_BFA"] = "격전의 아제로스" -- TODO: "Battle for Azeroth"
-L["EXPANSION_LEGION"] = "군단" -- TODO: "Legion"
-L["EXPANSION_WOD"] = "드레노어의 전쟁군주" -- TODO: "Warlords of Draenor"
-L["EXPANSION_CATA"] = "대격변" -- TODO: "Cataclysm"
-L["EXPANSION_WOTLK"] = "리치 왕의 분노" -- TODO: "Wrath of the Lich King"
-
 -- UI Strings
 L["MODULES"] = "모듈" -- TODO: "Modules"
 L["MODULES_SUMMARY_HEADER"] = "모듈 개요" -- TODO: "Modules Overview"

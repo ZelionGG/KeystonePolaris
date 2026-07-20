@@ -38,16 +38,6 @@ L["SEASON_STARTS_IN_DAYS"] = "A próxima temporada começa em %d dias." -- TODO:
 L["SEASON_STARTS_IN_TOMORROW"] = "A próxima temporada começa amanhã." -- TODO: "Next season starts tomorrow."
 -- TODO: L["WEEKDAY_NEXT_FORMAT"] = "(next %s)"
 
-L["EXPANSION_MIDNIGHT"] = "Midnight" -- TODO: "Midnight"
-L["EXPANSION_WW"] = "The War Within" -- TODO: "The War Within"
-L["EXPANSION_DF"] = "Dragonflight" -- TODO: "Dragonflight"
-L["EXPANSION_SL"] = "Shadowlands" -- TODO: "Shadowlands"
-L["EXPANSION_BFA"] = "Battle for Azeroth" -- TODO: "Battle for Azeroth"
-L["EXPANSION_LEGION"] = "Legion" -- TODO: "Legion"
-L["EXPANSION_WOD"] = "Warlords of Draenor" -- TODO: "Warlords of Draenor"
-L["EXPANSION_CATA"] = "Cataclysm" -- TODO: "Cataclysm"
-L["EXPANSION_WOTLK"] = "Wrath of the Lich King" -- TODO: "Wrath of the Lich King"
-
 -- UI Strings
 L["MODULES"] = "Módulos" -- TODO: "Modules"
 L["MODULES_SUMMARY_HEADER"] = "Visão geral dos módulos" -- TODO: "Modules Overview"

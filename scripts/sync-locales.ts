@@ -30,18 +30,6 @@ export type LocaleEntryStatus =
   | "stale-flagged";
 
 const SAME_VALUE_ALLOWLIST: ReadonlySet<string> = new Set([
-  // Expansion names are intentionally kept in English by most translators
-  "EXPANSION_MIDNIGHT",
-  "EXPANSION_WW",
-  "EXPANSION_DF",
-  "EXPANSION_SL",
-  "EXPANSION_BFA",
-  "EXPANSION_LEGION",
-  "EXPANSION_WOD",
-  "EXPANSION_CATA",
-  "EXPANSION_WOTLK",
-  "EXPANSION_MOP",
-  "EXPANSION_CLASSIC",
   // Date format key — translators set locale-appropriate format which may match base
   "%month%-%day%-%year%",
 ]);

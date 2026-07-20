@@ -8,18 +8,18 @@ local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName)
 -- List of expansions and their corresponding data
 -- Exposed to the addon object so other modules can access it if needed
 KeystonePolaris.Expansions = {
-    {id = "MIDNIGHT", name = "EXPANSION_MIDNIGHT", order = 3}, -- Midnight
-    {id = "TWW", name = "EXPANSION_WW", order = 4}, -- The War Within
-    {id = "DF", name = "EXPANSION_DF", order = 5}, -- Dragonflight
-    {id = "SL", name = "EXPANSION_SL", order = 6}, -- Shadowlands
-    {id = "BFA", name = "EXPANSION_BFA", order = 7}, -- Battle for Azeroth
-    {id = "LEGION", name = "EXPANSION_LEGION", order = 8}, -- Legion
-    {id = "WOD", name = "EXPANSION_WOD", order = 9},       -- Warlords of Draenor
-    -- {id = "MOP", name = "EXPANSION_MOP", order = 10},      -- Mists of Pandaria
-    {id = "CATACLYSM", name = "EXPANSION_CATA", order = 11}, -- Cataclysm
-    {id = "WOTLK", name = "EXPANSION_WOTLK", order = 12}, -- Wrath of the Lich King
-    -- {id = "TBC", name = "EXPANSION_TBC", order = 13} -- The Burning Crusade
-    -- {id = "Vanilla", name = "EXPANSION_VANILLA", order = 14} -- Vanilla WoW
+    {id = "MIDNIGHT", name = EXPANSION_NAME11, order = 3}, -- Midnight
+    {id = "TWW", name = EXPANSION_NAME10, order = 4}, -- The War Within
+    {id = "DF", name = EXPANSION_NAME9, order = 5}, -- Dragonflight
+    {id = "SL", name = EXPANSION_NAME8, order = 6}, -- Shadowlands
+    {id = "BFA", name = EXPANSION_NAME7, order = 7}, -- Battle for Azeroth
+    {id = "LEGION", name = EXPANSION_NAME6, order = 8}, -- Legion
+    {id = "WOD", name = EXPANSION_NAME5, order = 9},       -- Warlords of Draenor
+    -- {id = "MOP", name = EXPANSION_NAME4, order = 10},      -- Mists of Pandaria
+    {id = "CATACLYSM", name = EXPANSION_NAME3, order = 11}, -- Cataclysm
+    {id = "WOTLK", name = EXPANSION_NAME2, order = 12}, -- Wrath of the Lich King
+    -- {id = "TBC", name = EXPANSION_NAME1, order = 13} -- The Burning Crusade
+    -- {id = "Vanilla", name = EXPANSION_NAME0, order = 14} -- Vanilla WoW
 }
 
 local expansions = KeystonePolaris.Expansions

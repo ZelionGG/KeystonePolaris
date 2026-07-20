@@ -38,16 +38,6 @@ L["SEASON_STARTS_IN_DAYS"] = "Следующий сезон начнётся ч�
 L["SEASON_STARTS_IN_TOMORROW"] = "Следующий сезон начинается завтра."
 L["WEEKDAY_NEXT_FORMAT"] = "(следующий %s)"
 
-L["EXPANSION_MIDNIGHT"] = "Полночь"
-L["EXPANSION_WW"] = "Война Внутри"
-L["EXPANSION_DF"] = "Драконы"
-L["EXPANSION_SL"] = "Темные Земли"
-L["EXPANSION_BFA"] = "Битва за Азерот"
-L["EXPANSION_LEGION"] = "Легион"
-L["EXPANSION_WOD"] = "Дренор"
-L["EXPANSION_CATA"] = "Катаклизм"
-L["EXPANSION_WOTLK"] = "Король-лич"
-
 -- UI Strings
 L["MODULES"] = "Модули"
 L["MODULES_SUMMARY_HEADER"] = "Обзор модулей"

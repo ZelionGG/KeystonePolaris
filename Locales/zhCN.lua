@@ -38,16 +38,6 @@ L["SEASON_STARTS_IN_DAYS"] = "下个赛季将于 %d 天内开启." -- TODO: "Nex
 L["SEASON_STARTS_IN_TOMORROW"] = "下个赛季将于明天开启" -- TODO: "Next season starts tomorrow."
 -- TODO: L["WEEKDAY_NEXT_FORMAT"] = "(next %s)"
 
-L["EXPANSION_MIDNIGHT"] = "至暗之夜" -- TODO: "Midnight"
-L["EXPANSION_WW"] = "地心之战" -- TODO: "The War Within"
-L["EXPANSION_DF"] = "巨龙时代" -- TODO: "Dragonflight"
-L["EXPANSION_SL"] = "暗影国度" -- TODO: "Shadowlands"
-L["EXPANSION_BFA"] = "争霸艾泽拉斯" -- TODO: "Battle for Azeroth"
-L["EXPANSION_LEGION"] = "军团再临" -- TODO: "Legion"
-L["EXPANSION_WOD"] = "德拉诺之王" -- TODO: "Warlords of Draenor"
-L["EXPANSION_CATA"] = "大地的裂变" -- TODO: "Cataclysm"
-L["EXPANSION_WOTLK"] = "巫妖王之怒" -- TODO: "Wrath of the Lich King"
-
 -- UI Strings
 L["MODULES"] = "模组" -- TODO: "Modules"
 L["MODULES_SUMMARY_HEADER"] = "模组总览" -- TODO: "Modules Overview"

@@ -38,16 +38,6 @@ L["SEASON_STARTS_IN_DAYS"] = "La prochaine saison commence dans %d jours."
 L["SEASON_STARTS_IN_TOMORROW"] = "La prochaine saison commence demain."
 L["WEEKDAY_NEXT_FORMAT"] = "(%s prochain)"
 
-L["EXPANSION_MIDNIGHT"] = "Midnight"
-L["EXPANSION_WW"] = "The War Within"
-L["EXPANSION_DF"] = "Dragonflight"
-L["EXPANSION_SL"] = "Shadowlands"
-L["EXPANSION_BFA"] = "Battle for Azeroth"
-L["EXPANSION_LEGION"] = "Legion"
-L["EXPANSION_WOD"] = "Warlords of Draenor"
-L["EXPANSION_CATA"] = "Cataclysm"
-L["EXPANSION_WOTLK"] = "Wrath of the Lich King"
-
 -- UI Strings
 L["MODULES"] = "Modules" -- @no-translate
 L["MODULES_SUMMARY_HEADER"] = "Aperçu des modules"
