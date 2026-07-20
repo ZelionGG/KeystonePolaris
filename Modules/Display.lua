@@ -14,6 +14,22 @@ local function formatProjectedValue(base, value, hexColor, suffix)
     return string.format("%s (|cff%s%s|r)", base, hexColor, displayed)
 end
 
+local function appendSupplementaryDisplayText(baseText, extraText, cfg)
+    if not extraText or extraText == "" then
+        return baseText
+    end
+    if not baseText or baseText == "" then
+        return extraText
+    end
+    if cfg and cfg.multiLine then
+        return baseText .. "\n" .. extraText
+    end
+    local sep = (cfg and cfg.singleLineSeparator) and tostring(cfg.singleLineSeparator) or " | "
+    return baseText .. sep .. extraText
+end
+
+KeystonePolaris.AppendSupplementaryDisplayText = appendSupplementaryDisplayText
+
 function KeystonePolaris:UpdateInformButtonFrameLayer()
     local btn = self.informSecureButton
     if not btn then return end
@@ -291,7 +307,11 @@ function KeystonePolaris:PrepareInformMacro(message)
     local resolvedMessage = message
     if not resolvedMessage or resolvedMessage == "" then
         local fakePercent = "12.34%"
-        resolvedMessage = "[Keystone Polaris]: " .. L["WE_STILL_NEED"] .. " " .. fakePercent
+        if self.BuildInformMessage then
+            resolvedMessage = self:BuildInformMessage(12.34)
+        else
+            resolvedMessage = "[Keystone Polaris]: " .. L["WE_STILL_NEED"] .. " " .. fakePercent
+        end
     end
     local selected = self.db
         and self.db.profile
@@ -340,6 +360,7 @@ function KeystonePolaris:UpdateColorCache()
     local colors = self.db.profile.color
     if colors then
         self.colorCache.prefix = toHex(colors.prefix or {r=1, g=0.7960784, b=0.2})
+        self.colorCache.milestonePrefix = toHex(colors.milestonePrefix or colors.prefix or {r=1, g=0.7960784, b=0.2})
         self.colorCache.finished = toHex(colors.finished or {r=0, g=1, b=0})
         self.colorCache.inProgress = toHex(colors.inProgress or {r=1, g=1, b=1})
         self.colorCache.missing = toHex(colors.missing or {r=1, g=0, b=0})
@@ -1053,194 +1074,249 @@ function KeystonePolaris:UpdatePercentageText()
         self.currentSection = self.currentSection + 1
     end
 
-    -- Get data for current section
-    local bossID, neededPercent, shouldInfom, haveInformed = self:GetDungeonData()
-    if not bossID then return end
-
-    -- Check if criteria info is available for this boss
-    if C_ScenarioInfo.GetCriteriaInfo(bossID) then
-        -- Check if boss is killed
-        local isBossKilled = C_ScenarioInfo.GetCriteriaInfo(bossID).completed
-
-        -- Calculate remaining needed (percent and count)
-        local remainingPercent = neededPercent - currentPercentage
-        -- Ensure remainingPercent never goes below zero
-        if remainingPercent < 0 then
-            remainingPercent = 0.00
-        end
-        -- Round very small values to 0 to avoid showing 0.01%
-        if remainingPercent < 0.05 and remainingPercent > 0.00 then
-            remainingPercent = 0.00
-        end
-        local remainingCount = 0
-        if totalCount and totalCount > 0 then
-            local neededCount = math.ceil((neededPercent / 100) * totalCount)
-            remainingCount = math.max(0, neededCount - (currentCount or 0))
-        end
-
-        local cfg = self.db.profile.general.mainDisplay
-        local formatMode = cfg and cfg.formatMode or "percent"
-        local fmtData = {
-            currentCount = currentCount or 0,
-            totalCount = totalCount or 0,
-            pullCount = currentPullCount or 0,
-            remainingCount = remainingCount or 0,
-            sectionRequiredPercent = neededPercent or 0,
-            sectionRequiredCount = ((totalCount and totalCount > 0) and math.ceil((neededPercent / 100) * totalCount) or 0),
-        }
-        local displayPercent = string.format("%.2f%%", remainingPercent)
-        local displayCount = tostring(remainingCount)
-        local color = self.db.profile.color.inProgress
-
-        if remainingPercent > 0 and isBossKilled then -- Boss has been killed but percentage is missing
-            -- Inform group about missing percentage if enabled
-            if shouldInfom and not haveInformed and self.db.profile.general.informGroup then
-                self:InformGroup(remainingPercent)
-                local order = self.currentSectionOrder
-                local idx = order and order[self.currentSection]
-                if idx and self.DUNGEONS[self.currentDungeonID] and self.DUNGEONS[self.currentDungeonID][idx] then
-                    self.DUNGEONS[self.currentDungeonID][idx][4] = true
-                end
-            end
-            color = self.db.profile.color.missing
-            local base = (formatMode == "count") and displayCount or displayPercent
-            local allBosses = self:AreAllBossesKilled()
-            self.displayFrame.text:SetText(self:FormatMainDisplayText(base, currentPercentage, currentPullPercent, remainingPercent, fmtData, isBossKilled, allBosses))
-        elseif remainingPercent > 0 and not isBossKilled then -- Boss has not been killed yet and percentage is missing
-            local base = (formatMode == "count") and displayCount or displayPercent
-            local allBosses = self:AreAllBossesKilled()
-            self.displayFrame.text:SetText(self:FormatMainDisplayText(base, currentPercentage, currentPullPercent, remainingPercent, fmtData, isBossKilled, allBosses))
-        elseif remainingPercent <= 0 and not isBossKilled then -- Boss has not been killed yet but percentage is done
-            color = self.db.profile.color.finished
-            if(currentPercentage >= 100) then
-                local allBosses = self:AreAllBossesKilled()
-                self.displayFrame.text:SetText(self:FormatMainDisplayText(L["FINISHED"], currentPercentage, currentPullPercent, remainingPercent, fmtData, isBossKilled, allBosses))
-            else
-                local allBosses = self:AreAllBossesKilled()
-                self.displayFrame.text:SetText(self:FormatMainDisplayText(L["DONE"], currentPercentage, currentPullPercent, remainingPercent, fmtData, isBossKilled, allBosses))
-            end
-            if self.HideInformButton then self:HideInformButton() end
-        elseif remainingPercent <= 0 and isBossKilled then -- Boss has been killed and percentage is done
-            color = self.db.profile.color.finished
-            if(currentPercentage >= 100) then
-                local allBosses = self:AreAllBossesKilled()
-                self.displayFrame.text:SetText(self:FormatMainDisplayText(L["FINISHED"], currentPercentage, currentPullPercent, remainingPercent, fmtData, isBossKilled, allBosses))
-            else
-                local allBosses = self:AreAllBossesKilled()
-                self.displayFrame.text:SetText(self:FormatMainDisplayText(L["SECTION_DONE"], currentPercentage, currentPullPercent, remainingPercent, fmtData, isBossKilled, allBosses))
-            end
-            self.currentSection = self.currentSection + 1
-            if self.currentSectionOrder and self.currentSection <= #self.currentSectionOrder then -- Next section exists
-                C_Timer.After(2, function()
-                    local order = self.currentSectionOrder
-                    local dungeon = self.DUNGEONS[self.currentDungeonID]
-                    local sectionIndex = order and order[self.currentSection]
-                    local nextRequired = 0
-                    if dungeon and sectionIndex and dungeon[sectionIndex] then
-                        nextRequired = dungeon[sectionIndex][2] - currentPercentage
-                    end
-                        -- Ensure nextRequired never goes below zero
-                        if nextRequired < 0 then
-                            nextRequired = 0.00
-                        end
-                    if currentPercentage >= 100 then -- Percentage is already done for the dungeon
-                        color = self.db.profile.color.finished
-                        local allBosses = self:AreAllBossesKilled()
-                        self.displayFrame.text:SetText(self:FormatMainDisplayText(L["FINISHED"], currentPercentage, currentPullPercent, nil, fmtData, isBossKilled, allBosses))
-                    else -- Dungeon has not been completed
-                        if nextRequired == 0 then
-                            color = self.db.profile.color.finished
-                            local allBosses = self:AreAllBossesKilled()
-                            self.displayFrame.text:SetText(self:FormatMainDisplayText(L["DONE"], currentPercentage, currentPullPercent, nil, fmtData, isBossKilled, allBosses))
-                        else
-                            color = self.db.profile.color.inProgress
-                            local nextNeededPercent = 0
-                            if dungeon and sectionIndex and dungeon[sectionIndex] then
-                                nextNeededPercent = dungeon[sectionIndex][2]
-                            end
-                            local nextNeededCount = (totalCount and totalCount > 0) and math.ceil((nextNeededPercent / 100) * totalCount) or 0
-                            local nextRemainingCount = (totalCount and totalCount > 0) and math.max(0, nextNeededCount - (currentCount or 0)) or 0
-                            local baseNext
-                            if (cfg and cfg.formatMode == "count") and (totalCount and totalCount > 0) then
-                                baseNext = tostring(nextRemainingCount)
-                            else
-                                baseNext = string.format("%.2f%%", nextRequired)
-                            end
-                            local fmtNext = {
-                                currentCount = currentCount or 0,
-                                totalCount = totalCount or 0,
-                                pullCount = currentPullCount or 0,
-                                remainingCount = nextRemainingCount or 0,
-                                sectionRequiredPercent = nextNeededPercent or 0,
-                                sectionRequiredCount = nextNeededCount or 0,
-                            }
-                            local allBosses = self:AreAllBossesKilled()
-                            -- For next section preview, the current section boss context shouldn't mark as killed for the new section; pass false
-                            self.displayFrame.text:SetText(self:FormatMainDisplayText(baseNext, currentPercentage, currentPullPercent, nextRequired, fmtNext, false, allBosses))
-                        end
-                    end
-                    self.displayFrame.text:SetTextColor(color.r, color.g, color.b, color.a)
-                    -- Adjust frame size if multi-line is enabled
-                    self:AdjustDisplayFrameSize()
-                    -- Ensure alignment reflects new text layout immediately
-                    self:ApplyTextLayout()
-                end)
-            else
-                local allBosses = self:AreAllBossesKilled()
-                self.displayFrame.text:SetText(self:FormatMainDisplayText(L["DUNGEON_DONE"], currentPercentage, currentPullPercent, nil, fmtData, isBossKilled, allBosses)) -- Dungeon has been completed
-            end
-        end
-        -- Show the Inform button only when the boss is already dead AND percentage is still missing
-        local bossInformEnabled = (shouldInfom ~= false)
-        local shouldShowInform = (remainingPercent > 0) and isBossKilled and bossInformEnabled and self.db.profile.general.informGroup
-        local informBtn = self.informSecureButton
-        if shouldShowInform and not InCombatLockdown() and self.EnsureInformSecureButton then
-            local prefix = (self.GetChatPrefix and self:GetChatPrefix(true, true)) or "[Keystone Polaris]"
-            local message = prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. string.format("%.2f%%", remainingPercent)
-            local selected = self.db
-                and self.db.profile
-                and self.db.profile.general
-                and self.db.profile.general.informChannel
-                or "PARTY"
-            local slash
-            if selected == "PARTY" then
-                slash = "p"
-            elseif selected == "SAY" then
-                slash = "s"
-            elseif selected == "YELL" then
-                slash = "y"
-            else
-                slash = "s"
-            end
-            local macroText = string.format("/%s %s", slash, tostring(message or ""))
-            self:EnsureInformSecureButton(macroText)
-            informBtn = self.informSecureButton
-        elseif not informBtn and self.db.profile.general.informGroup and self.EnsureInformSecureButton then
-            self:EnsureInformSecureButton()
-            informBtn = self.informSecureButton
-        end
-
-        if informBtn then
-            if InCombatLockdown() then
-                if self.ApplyInformCombatVisualState then
-                    self:ApplyInformCombatVisualState(shouldShowInform)
-                end
-                self._pendingInformVisibility = shouldShowInform
-                if self.EnsureInformWatcher then
-                    self:EnsureInformWatcher()
-                end
-            else
-                self:ApplyInformVisibility(shouldShowInform)
-            end
-        end
-
-        -- Apply text color based on status
-        self.displayFrame.text:SetTextColor(color.r, color.g, color.b, color.a)
-        -- Adjust frame size if multi-line is enabled
-        self:AdjustDisplayFrameSize()
-        -- Ensure alignment reflects latest text
-        self:ApplyTextLayout()
+    local bossSection = self:GetDungeonData()
+    local cfg = self.db.profile.general.mainDisplay
+    local milestonesEnabled = cfg and cfg.showMilestones ~= false
+    local milestoneMaxThreshold = bossSection and (tonumber(bossSection.neededPercent) or nil) or nil
+    local activeMilestone = milestonesEnabled and self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage, milestoneMaxThreshold) or nil
+    local completedMilestone = milestonesEnabled and self.GetJustCompletedMilestone and self:GetJustCompletedMilestone(self.currentDungeonID, currentPercentage, milestoneMaxThreshold) or nil
+    if completedMilestone then
+        self._milestoneDoneTextUntil = GetTime() + 2
     end
+    local showMilestoneDoneText = self._milestoneDoneTextUntil and GetTime() < self._milestoneDoneTextUntil
+
+    if not bossSection then
+        local doneColor = self.db.profile.color.finished
+        local doneText = self:FormatMainDisplayText(L["DUNGEON_DONE"], currentPercentage, currentPullPercent, nil, nil)
+        if showMilestoneDoneText and self.BuildMilestoneDoneDisplayText then
+            doneText = appendSupplementaryDisplayText(doneText, self:BuildMilestoneDoneDisplayText(), cfg)
+        elseif activeMilestone then
+            doneText = appendSupplementaryDisplayText(doneText, self:BuildMilestoneDisplayText(activeMilestone), cfg)
+        end
+        self.displayFrame.text:SetText(doneText)
+        self.displayFrame.text:SetTextColor(doneColor.r, doneColor.g, doneColor.b, doneColor.a)
+        self:AdjustDisplayFrameSize()
+        self:ApplyTextLayout()
+        if self.HideInformButton then self:HideInformButton() end
+        return
+    end
+
+    local neededPercent = tonumber(bossSection.neededPercent) or 0
+
+    -- Calculate remaining needed (percent and count)
+    local remainingPercent = neededPercent - currentPercentage
+    if remainingPercent < 0 then
+        remainingPercent = 0.00
+    end
+    if remainingPercent < 0.05 and remainingPercent > 0.00 then
+        remainingPercent = 0.00
+    end
+
+    local isSectionTriggerMet = self:IsSectionTriggerMet(bossSection)
+
+    local shouldInfom = bossSection.shouldInform == true
+    local haveInformed = bossSection.haveInformed == true
+
+    local remainingCount = 0
+    if totalCount and totalCount > 0 then
+        local neededCount = math.ceil((neededPercent / 100) * totalCount)
+        remainingCount = math.max(0, neededCount - (currentCount or 0))
+    end
+
+    local formatMode = cfg and cfg.formatMode or "percent"
+    local fmtData = {
+        currentCount = currentCount or 0,
+        totalCount = totalCount or 0,
+        pullCount = currentPullCount or 0,
+        remainingCount = remainingCount or 0,
+        sectionRequiredPercent = neededPercent or 0,
+        sectionRequiredCount = ((totalCount and totalCount > 0) and math.ceil((neededPercent / 100) * totalCount) or 0),
+    }
+    local displayPercent = string.format("%.2f%%", remainingPercent)
+    local displayCount = tostring(remainingCount)
+    local color = self.db.profile.color.inProgress
+    local displayText
+
+    if remainingPercent > 0 and isSectionTriggerMet then
+        if shouldInfom and not haveInformed and self.db.profile.general.informGroup then
+            self:InformGroup(remainingPercent)
+            if self.MarkSectionInformed then
+                self:MarkSectionInformed(bossSection)
+            end
+        end
+        color = self.db.profile.color.missing
+        local base = (formatMode == "count") and displayCount or displayPercent
+        displayText = self:FormatMainDisplayText(base, currentPercentage, currentPullPercent, remainingPercent, fmtData)
+    elseif remainingPercent > 0 and not isSectionTriggerMet then
+        local base = (formatMode == "count") and displayCount or displayPercent
+        displayText = self:FormatMainDisplayText(base, currentPercentage, currentPullPercent, remainingPercent, fmtData)
+    elseif remainingPercent <= 0 and not isSectionTriggerMet then
+        color = self.db.profile.color.finished
+        if(currentPercentage >= 100) then
+            displayText = self:FormatMainDisplayText(L["FINISHED"], currentPercentage, currentPullPercent, remainingPercent, fmtData)
+        else
+            displayText = self:FormatMainDisplayText(L["DONE"], currentPercentage, currentPullPercent, remainingPercent, fmtData)
+        end
+        if self.HideInformButton then self:HideInformButton() end
+    elseif remainingPercent <= 0 and isSectionTriggerMet then
+        color = self.db.profile.color.finished
+        if(currentPercentage >= 100) then
+            displayText = self:FormatMainDisplayText(L["FINISHED"], currentPercentage, currentPullPercent, remainingPercent, fmtData)
+        else
+            displayText = self:FormatMainDisplayText(L["SECTION_DONE"], currentPercentage, currentPullPercent, remainingPercent, fmtData)
+        end
+        self.currentSection = self.currentSection + 1
+        if self.currentSectionOrder and self.currentSection <= #self.currentSectionOrder then
+            C_Timer.After(2, function()
+                local order = self.currentSectionOrder
+                local dungeon = self.DUNGEONS[self.currentDungeonID]
+                local sectionIndex = order and order[self.currentSection]
+                local nextRequired = 0
+                if dungeon and sectionIndex and dungeon[sectionIndex] then
+                    nextRequired = dungeon[sectionIndex][2] - currentPercentage
+                end
+                if nextRequired < 0 then
+                    nextRequired = 0.00
+                end
+                if currentPercentage >= 100 then
+                    color = self.db.profile.color.finished
+                    self.displayFrame.text:SetText(self:FormatMainDisplayText(L["FINISHED"], currentPercentage, currentPullPercent, nil, fmtData))
+                else
+                    if nextRequired == 0 then
+                        color = self.db.profile.color.finished
+                        self.displayFrame.text:SetText(self:FormatMainDisplayText(L["DONE"], currentPercentage, currentPullPercent, nil, fmtData))
+                    else
+                        color = self.db.profile.color.inProgress
+                        local nextNeededPercent = 0
+                        if dungeon and sectionIndex and dungeon[sectionIndex] then
+                            nextNeededPercent = dungeon[sectionIndex][2]
+                        end
+                        local nextNeededCount = (totalCount and totalCount > 0) and math.ceil((nextNeededPercent / 100) * totalCount) or 0
+                        local nextRemainingCount = (totalCount and totalCount > 0) and math.max(0, nextNeededCount - (currentCount or 0)) or 0
+                        local baseNext
+                        if (cfg and cfg.formatMode == "count") and (totalCount and totalCount > 0) then
+                            baseNext = tostring(nextRemainingCount)
+                        else
+                            baseNext = string.format("%.2f%%", nextRequired)
+                        end
+                        local fmtNext = {
+                            currentCount = currentCount or 0,
+                            totalCount = totalCount or 0,
+                            pullCount = currentPullCount or 0,
+                            remainingCount = nextRemainingCount or 0,
+                            sectionRequiredPercent = nextNeededPercent or 0,
+                            sectionRequiredCount = nextNeededCount or 0,
+                        }
+                        local nextText = self:FormatMainDisplayText(baseNext, currentPercentage, currentPullPercent, nextRequired, fmtNext)
+                        local nextMilestone = self.GetActiveMilestone and self:GetActiveMilestone(self.currentDungeonID, currentPercentage, nextNeededPercent) or nil
+                        if showMilestoneDoneText and self.BuildMilestoneDoneDisplayText then
+                            nextText = appendSupplementaryDisplayText(nextText, self:BuildMilestoneDoneDisplayText(), cfg)
+                        elseif nextMilestone then
+                            nextText = appendSupplementaryDisplayText(nextText, self:BuildMilestoneDisplayText(nextMilestone), cfg)
+                        end
+                        self.displayFrame.text:SetText(nextText)
+                    end
+                end
+                self.displayFrame.text:SetTextColor(color.r, color.g, color.b, color.a)
+                self:AdjustDisplayFrameSize()
+                self:ApplyTextLayout()
+            end)
+        else
+            self.displayFrame.text:SetText(self:FormatMainDisplayText(L["DUNGEON_DONE"], currentPercentage, currentPullPercent, nil, fmtData))
+        end
+    end
+
+    local bossShouldShowInform = (remainingPercent > 0) and isSectionTriggerMet and shouldInfom and self.db.profile.general.informGroup
+
+    if activeMilestone and not showMilestoneDoneText then
+        local milestoneRemaining = tonumber(activeMilestone.remainingPercent) or 0
+        if not bossShouldShowInform and activeMilestone.shouldInform and not activeMilestone.haveInformed and activeMilestone.triggerMet and milestoneRemaining > 0 and self.db.profile.general.informGroup then
+            if self.BuildInformMessage then
+                self:PrepareInformMacro(self:BuildInformMessage(milestoneRemaining, activeMilestone.informSuffix))
+            else
+                self:InformGroup(milestoneRemaining)
+            end
+            if self.MarkSectionInformed then
+                self:MarkSectionInformed(activeMilestone)
+            end
+            activeMilestone.haveInformed = true
+        end
+        if displayText and displayText ~= "" then
+            displayText = appendSupplementaryDisplayText(displayText, self:BuildMilestoneDisplayText(activeMilestone), cfg)
+        end
+    elseif showMilestoneDoneText and self.BuildMilestoneDoneDisplayText then
+        if displayText and displayText ~= "" then
+            displayText = appendSupplementaryDisplayText(displayText, self:BuildMilestoneDoneDisplayText(), cfg)
+        end
+    end
+
+    if displayText and displayText ~= "" then
+        self.displayFrame.text:SetText(displayText)
+    end
+
+    local milestoneShouldShowInform = false
+    if activeMilestone and not showMilestoneDoneText and not bossShouldShowInform then
+        local milestoneRemaining = tonumber(activeMilestone.remainingPercent) or 0
+        milestoneShouldShowInform = milestoneRemaining > 0 and activeMilestone.triggerMet and activeMilestone.shouldInform and self.db.profile.general.informGroup
+    end
+    local shouldShowInform = bossShouldShowInform or milestoneShouldShowInform
+    local informBtn = self.informSecureButton
+    if shouldShowInform and not InCombatLockdown() and self.EnsureInformSecureButton then
+        local prefix = (self.GetChatPrefix and self:GetChatPrefix(true, true)) or "[Keystone Polaris]"
+        local informPercent = remainingPercent
+        if milestoneShouldShowInform and activeMilestone then
+            informPercent = tonumber(activeMilestone.remainingPercent) or 0
+        end
+        local message
+        if self.BuildInformMessage then
+            local suffixOverride = nil
+            if milestoneShouldShowInform and activeMilestone then
+                suffixOverride = activeMilestone.informSuffix
+            end
+            message = self:BuildInformMessage(informPercent, suffixOverride)
+        else
+            message = prefix .. ": " .. L["WE_STILL_NEED"] .. " " .. string.format("%.2f%%", informPercent)
+        end
+        local selected = self.db
+            and self.db.profile
+            and self.db.profile.general
+            and self.db.profile.general.informChannel
+            or "PARTY"
+        local slash
+        if selected == "PARTY" then
+            slash = "p"
+        elseif selected == "SAY" then
+            slash = "s"
+        elseif selected == "YELL" then
+            slash = "y"
+        else
+            slash = "s"
+        end
+        local macroText = string.format("/%s %s", slash, tostring(message or ""))
+        self:EnsureInformSecureButton(macroText)
+        informBtn = self.informSecureButton
+    elseif not informBtn and self.db.profile.general.informGroup and self.EnsureInformSecureButton then
+        self:EnsureInformSecureButton()
+        informBtn = self.informSecureButton
+    end
+
+    if informBtn then
+        if InCombatLockdown() then
+            if self.ApplyInformCombatVisualState then
+                self:ApplyInformCombatVisualState(shouldShowInform)
+            end
+            self._pendingInformVisibility = shouldShowInform
+            if self.EnsureInformWatcher then
+                self:EnsureInformWatcher()
+            end
+        else
+            self:ApplyInformVisibility(shouldShowInform)
+        end
+    end
+
+    self.displayFrame.text:SetTextColor(color.r, color.g, color.b, color.a)
+    self:AdjustDisplayFrameSize()
+    self:ApplyTextLayout()
 end
 
 
@@ -1250,7 +1326,12 @@ function KeystonePolaris:InformGroup(percentage)
     local percentageStr = string.format("%.2f%%", percentage)
     -- Don't send message if percentage is 0
     if percentageStr == "0.00%" then return end
-    local message = "[Keystone Polaris]: " .. L["WE_STILL_NEED"] .. " " .. percentageStr
+    local message
+    if self.BuildInformMessage then
+        message = self:BuildInformMessage(percentage)
+    else
+        message = "[Keystone Polaris]: " .. L["WE_STILL_NEED"] .. " " .. percentageStr
+    end
     -- Prepare secure macro button for manual send
     self:PrepareInformMacro(message)
 end
@@ -1258,6 +1339,65 @@ end
 -- Helper for coloring prefix text
 local function colorizePrefix(text, hexColor)
     return string.format("|cff%s%s|r", hexColor or "cccccc", tostring(text or ""))
+end
+
+local function getMilestonePrefixHex(self)
+    if not self.colorCache.prefix then
+        self:UpdateColorCache()
+    end
+    local cfg = self.db and self.db.profile and self.db.profile.general and self.db.profile.general.mainDisplay
+    if cfg and cfg.customMilestonePrefixColor then
+        return self.colorCache.milestonePrefix or self.colorCache.prefix or "cccccc"
+    end
+    return self.colorCache.prefix or "cccccc"
+end
+
+function KeystonePolaris:BuildMilestoneDisplayText(milestone)
+    if type(milestone) ~= "table" then return "" end
+
+    if not self.colorCache.prefix then self:UpdateColorCache() end
+    local cfg = self.db and self.db.profile and self.db.profile.general and self.db.profile.general.mainDisplay or nil
+    local hexMilestonePrefix = getMilestonePrefixHex(self)
+    local hexMissing = self.colorCache.missing or "ff0000"
+    local hexFinished = self.colorCache.finished or "00ff00"
+
+    local label = milestone.label
+    if type(label) ~= "string" or label == "" then
+        if self.GetMilestoneTriggerDisplayText then
+            label = self.GetMilestoneTriggerDisplayText(milestone)
+        else
+            label = milestone.matchText
+        end
+    end
+    if type(label) ~= "string" or label == "" then
+        label = L["MILESTONE"]
+    end
+
+    local milestonePrefixText = (cfg and cfg.milestoneLabel) or L["MILESTONE_DISPLAY_DEFAULT"]
+    local prefix = colorizePrefix(milestonePrefixText, hexMilestonePrefix)
+    local remaining = tonumber(milestone.remainingPercent) or 0
+    local valueText
+    if remaining > 0 then
+        local percentText = string.format("%.2f%%", remaining)
+        local isMissedMilestone = milestone.triggerMet == true and milestone.triggerMatchedNow ~= true
+        if isMissedMilestone then
+            valueText = string.format("|cff%s%s|r", hexMissing, percentText)
+        else
+            valueText = percentText
+        end
+    elseif milestone.triggerMet then
+        valueText = string.format("|cff%s%s|r", hexFinished, L["DONE"])
+    else
+        valueText = "0.00%"
+    end
+
+    return string.format("%s %s - %s", prefix, label, valueText)
+end
+
+function KeystonePolaris:BuildMilestoneDoneDisplayText()
+    if not self.colorCache.finished then self:UpdateColorCache() end
+    local hexFinished = self.colorCache.finished or "00ff00"
+    return string.format("|cff%s%s|r", hexFinished, L["MILESTONE_PERCENTAGE_DONE"])
 end
 
 -- FormatMainDisplayText: builds the final display string with optional Current/Pull/Required parts and projected values.
@@ -1424,7 +1564,9 @@ function KeystonePolaris:FormatMainDisplayText(baseText, currentPercent, current
                 -- Distinction: Section done vs Dungeon percentage done vs Dungeon finished (projected)
                 local suffix
                 local isLastSection = false
-                if self.DUNGEONS and self.currentDungeonID and self.DUNGEONS[self.currentDungeonID] then
+                if self.currentSectionOrder then
+                    isLastSection = (self.currentSection == #self.currentSectionOrder)
+                elseif self.DUNGEONS and self.currentDungeonID and self.DUNGEONS[self.currentDungeonID] then
                     isLastSection = (self.currentSection == #self.DUNGEONS[self.currentDungeonID])
                 end
                 if projTotal >= 100 then
@@ -1451,7 +1593,9 @@ function KeystonePolaris:FormatMainDisplayText(baseText, currentPercent, current
                 if tt > 0 then projShare = ((cc + pullC) / tt) * 100 end
                 if projShare > 100 then projShare = 100 end
                 local isLastSection = false
-                if self.DUNGEONS and self.currentDungeonID and self.DUNGEONS[self.currentDungeonID] then
+                if self.currentSectionOrder then
+                    isLastSection = (self.currentSection == #self.currentSectionOrder)
+                elseif self.DUNGEONS and self.currentDungeonID and self.DUNGEONS[self.currentDungeonID] then
                     isLastSection = (self.currentSection == #self.DUNGEONS[self.currentDungeonID])
                 end
                 if projShare >= 100 then

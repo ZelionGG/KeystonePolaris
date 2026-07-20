@@ -40,6 +40,195 @@ local function CloneTable(tbl)
     return t
 end
 
+local function NormalizeDefaultMilestones(milestones)
+    if type(milestones) ~= "table" or #milestones == 0 then
+        return {}
+    end
+
+    local normalized = {}
+    for index, milestone in ipairs(milestones) do
+        if type(milestone) == "table" then
+            local triggerType = tostring(milestone.triggerType or "none"):lower()
+            if triggerType ~= "none" and triggerType ~= "zone" and triggerType ~= "subzone" then
+                triggerType = "none"
+            end
+            normalized[#normalized + 1] = {
+                id = tonumber(milestone.id) or index,
+                label = tostring(milestone.label or ""),
+                thresholdPercent = tonumber(milestone.thresholdPercent) or 0,
+                triggerType = triggerType,
+                matchAreaID = tonumber(milestone.matchAreaID),
+                matchMapID = tonumber(milestone.matchMapID),
+                matchText = tostring(milestone.matchText or ""),
+                informSuffix = tostring(milestone.informSuffix or ""),
+                inform = milestone.inform == true,
+                creationOrder = tonumber(milestone.creationOrder) or index,
+            }
+        end
+    end
+    return normalized
+end
+
+local function MilestoneMatchesDefaultIdentity(saved, default)
+    if type(saved) ~= "table" or type(default) ~= "table" then
+        return false
+    end
+
+    local savedId = tonumber(saved.id)
+    local defaultId = tonumber(default.id)
+    if savedId and defaultId and savedId == defaultId then
+        return true
+    end
+
+    local savedAreaID = tonumber(saved.matchAreaID)
+    local defaultAreaID = tonumber(default.matchAreaID)
+    if savedAreaID and defaultAreaID and savedAreaID == defaultAreaID then
+        return true
+    end
+
+    local savedMapID = tonumber(saved.matchMapID)
+    local defaultMapID = tonumber(default.matchMapID)
+    if savedMapID and defaultMapID and savedMapID == defaultMapID then
+        return true
+    end
+
+    return false
+end
+
+local function IsIncompleteDefaultMilestone(saved, default)
+    if not MilestoneMatchesDefaultIdentity(saved, default) then
+        return false
+    end
+
+    local threshold = tonumber(saved.thresholdPercent) or 0
+    local triggerType = tostring(saved.triggerType or "none"):lower()
+    local label = tostring(saved.label or ""):match("^%s*(.-)%s*$") or ""
+
+    return threshold == 0 and triggerType == "none" and label == ""
+end
+
+local function MergeMilestoneFields(saved, default, fillIncomplete)
+    for key, value in pairs(default) do
+        if key ~= "id" and key ~= "creationOrder" then
+            local current = saved[key]
+            local shouldFill = current == nil
+            if fillIncomplete then
+                if key == "label" and (current == nil or current == "") then
+                    shouldFill = true
+                elseif key == "thresholdPercent" and (current == nil or (tonumber(current) or 0) == 0) then
+                    shouldFill = true
+                elseif key == "triggerType" and (current == nil or tostring(current):lower() == "none") then
+                    shouldFill = true
+                elseif key == "inform" and current ~= true and value == true then
+                    shouldFill = true
+                elseif key == "informSuffix" and (current == nil or current == "") then
+                    shouldFill = true
+                elseif key == "matchText" and (current == nil or current == "") then
+                    shouldFill = true
+                end
+            end
+            if shouldFill then
+                if type(value) == "table" then
+                    saved[key] = CloneTable(value)
+                else
+                    saved[key] = value
+                end
+            end
+        end
+    end
+end
+
+local function EnsureSavedMilestonesTable(savedAdvanced)
+    if type(savedAdvanced.milestones) ~= "table" then
+        savedAdvanced.milestones = {}
+    end
+    return savedAdvanced.milestones
+end
+
+local function SeedMilestoneDefaultsIfNeeded(savedAdvanced, defaultMilestones)
+    if type(defaultMilestones) ~= "table" or #defaultMilestones == 0 then
+        return false
+    end
+
+    if savedAdvanced.milestonesUserEdited then
+        EnsureSavedMilestonesTable(savedAdvanced)
+        return false
+    end
+
+    local savedMilestones = savedAdvanced.milestones
+    if savedMilestones == nil or (type(savedMilestones) == "table" and #savedMilestones == 0) then
+        savedAdvanced.milestones = CloneTable(defaultMilestones)
+        return true
+    end
+
+    if type(savedMilestones) ~= "table" then
+        savedAdvanced.milestones = CloneTable(defaultMilestones)
+        return true
+    end
+
+    return false
+end
+
+local function MergeAdvancedMilestoneDefaults(savedAdvanced, defaultAdvanced)
+    if type(savedAdvanced) ~= "table" or type(defaultAdvanced) ~= "table" then
+        return
+    end
+
+    local defaultMilestones = defaultAdvanced.milestones
+    if type(defaultMilestones) ~= "table" or #defaultMilestones == 0 then
+        return
+    end
+
+    if SeedMilestoneDefaultsIfNeeded(savedAdvanced, defaultMilestones) then
+        return
+    end
+
+    local savedMilestones = savedAdvanced.milestones
+    if type(savedMilestones) ~= "table" or #savedMilestones == 0 then
+        return
+    end
+
+    for index, savedMilestone in ipairs(savedMilestones) do
+        if type(savedMilestone) == "table" then
+            for _, defaultMilestone in ipairs(defaultMilestones) do
+                if MilestoneMatchesDefaultIdentity(savedMilestone, defaultMilestone) then
+                    local fillIncomplete = IsIncompleteDefaultMilestone(savedMilestone, defaultMilestone)
+                    MergeMilestoneFields(savedMilestone, defaultMilestone, fillIncomplete)
+                    break
+                end
+            end
+            if savedMilestone.id == nil then
+                savedMilestone.id = index
+            end
+            if savedMilestone.creationOrder == nil then
+                savedMilestone.creationOrder = index
+            end
+        end
+    end
+end
+
+function KeystonePolaris:MergeDungeonMilestoneDefaults(dungeonKey)
+    if not dungeonKey or not self.db or not self.db.profile or not self.db.profile.advanced then
+        return
+    end
+
+    local savedAdvanced = self.db.profile.advanced[dungeonKey]
+    if type(savedAdvanced) ~= "table" then
+        return
+    end
+
+    for _, expansion in ipairs(expansions) do
+        local dungeonIds = self[expansion.id .. "_DUNGEON_IDS"]
+        if dungeonIds and dungeonIds[dungeonKey] then
+            local defaultAdvanced = self[expansion.id .. "_DEFAULTS"][dungeonKey]
+            if defaultAdvanced then
+                MergeAdvancedMilestoneDefaults(savedAdvanced, defaultAdvanced)
+            end
+            return
+        end
+    end
+end
+
 -- ---------------------------------------------------------------------------
 -- Season Date Helpers
 -- ---------------------------------------------------------------------------
@@ -189,6 +378,11 @@ function KeystonePolaris:GenerateExpansionTables(expansionId, dungeonData)
             if hasOrder then
                 defaults.bossOrder = bossOrder
             end
+            if type(dData.milestones) == "table" and #dData.milestones > 0 then
+                defaults.milestones = NormalizeDefaultMilestones(dData.milestones)
+            else
+                defaults.milestones = {}
+            end
 
             self[expansionId .. "_DEFAULTS"][shortName] = defaults
         end
@@ -227,10 +421,22 @@ function KeystonePolaris:LoadExpansionDungeons()
                 -- Initialize with defaults if needed (only if not hidden, effectively)
                 local defaults = self[expansion.id .. "_DEFAULTS"][shortName]
                 if defaults then
+                    local advancedEntry = self.db.profile.advanced[shortName]
                     for key, value in pairs(defaults) do
-                        if self.db.profile.advanced[shortName][key] == nil then
-                            self.db.profile.advanced[shortName][key] = value
+                        if advancedEntry[key] == nil then
+                            if key == "milestones" then
+                                if not SeedMilestoneDefaultsIfNeeded(advancedEntry, value) then
+                                    EnsureSavedMilestonesTable(advancedEntry)
+                                end
+                            elseif type(value) == "table" then
+                                advancedEntry[key] = CloneTable(value)
+                            else
+                                advancedEntry[key] = value
+                            end
                         end
+                    end
+                    if self.MergeDungeonMilestoneDefaults then
+                        self:MergeDungeonMilestoneDefaults(shortName)
                     end
                 end
             end
@@ -251,7 +457,11 @@ function KeystonePolaris:LoadExpansionDungeons()
         local defaults = self[expansion.id .. "_DEFAULTS"]
         if defaults then
             for k, v in pairs(defaults) do
-                KeystonePolaris.defaults.profile.advanced[k] = v
+                if type(v) == "table" then
+                    KeystonePolaris.defaults.profile.advanced[k] = CloneTable(v)
+                else
+                    KeystonePolaris.defaults.profile.advanced[k] = v
+                end
             end
         end
     end
@@ -569,63 +779,6 @@ end
 -- ---------------------------------------------------------------------------
 -- Dungeon State & Tracking
 -- ---------------------------------------------------------------------------
-
--- Track currently engaged mobs for real pull percent
-KeystonePolaris.realPull = {
-    mobs = {},    -- [guid] = { npcID = number, count = number }
-    sum = 0,      -- total count across engaged GUIDs
-    denom = 0,    -- MDT total required count for 100%
-}
-
--- Helpers to manage real pull set
-function KeystonePolaris:AddEngagedMobByGUID(guid)
-    if not guid then return end
-    -- If already tracked, just refresh lastSeen and return
-    local existing = self.realPull.mobs[guid]
-    if existing then
-        existing.lastSeen = (GetTime and GetTime()) or existing.lastSeen or 0
-        return
-    end
-    local DungeonTools = _G and (_G.MDT or _G.MethodDungeonTools)
-    if not DungeonTools or not DungeonTools.GetEnemyForces then return end
-
-    local _, _, _, _, _, npcID = strsplit("-", guid)
-    local id = tonumber(npcID)
-    if not id then return end
-
-    local count, max, maxTeeming, teemingCount = DungeonTools:GetEnemyForces(id)
-    local isTeeming = self.IsTeeming and self:IsTeeming() or false
-    local denom = (isTeeming and maxTeeming) or max
-    local c = (isTeeming and teemingCount) or count
-    c = tonumber(c) or 0
-    denom = tonumber(denom) or 0
-
-    -- Initialize denominator when first known
-    if self.realPull.denom == 0 and denom > 0 then
-        self.realPull.denom = denom
-    end
-
-    if c > 0 then
-        self.realPull.mobs[guid] = { npcID = id, count = c, lastSeen = (GetTime and GetTime()) or 0 }
-        self.realPull.sum = self.realPull.sum + c
-    end
-end
-
-function KeystonePolaris:RemoveEngagedMobByGUID(guid)
-    local data = guid and self.realPull.mobs[guid]
-    if not data then return end
-    self.realPull.sum = math.max(0, self.realPull.sum - (data.count or 0))
-    self.realPull.mobs[guid] = nil
-end
-
--- Compute current planned pull percent via MDT (if available)
-function KeystonePolaris:GetCurrentPullPercent()
-    if not C_ChallengeMode.IsChallengeModeActive() then return 0 end
-    local denom = tonumber(self.realPull.denom) or 0
-    local sum = tonumber(self.realPull.sum) or 0
-    if denom <= 0 or sum <= 0 then return 0 end
-    return (sum / denom) * 100
-end
 
 -- Determine if all non-weighted (boss) criteria are completed
 function KeystonePolaris.AreAllBossesKilled()

@@ -6,6 +6,46 @@ local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, true)
 local widgetType = "KeystonePolaris_Preview"
 local widgetVersion = 1
 
+local function BuildPreviewMilestone(label, remainingPercent, triggerMet, triggerMatchedNow)
+    return {
+        label = label,
+        remainingPercent = remainingPercent,
+        triggerMet = triggerMet,
+        triggerMatchedNow = triggerMatchedNow,
+    }
+end
+
+local function PreviewMilestoneActive()
+    return BuildPreviewMilestone(L["PREVIEW_MILESTONE_LABEL"] or "Gates", 2.0, false, false)
+end
+
+local function PreviewMilestoneMissed()
+    return BuildPreviewMilestone(L["PREVIEW_MILESTONE_LABEL"] or "Gates", 3.5, true, false)
+end
+
+local function BuildPreviewMilestoneThreshold(milestoneIndex, percent, label)
+    return {
+        percent = percent,
+        milestoneIndex = milestoneIndex,
+        label = label or (L["PREVIEW_MILESTONE_LABEL"] or "Gates"),
+        triggerType = "none",
+        matchText = "",
+    }
+end
+
+local previewMilestoneLabel = L["PREVIEW_MILESTONE_LABEL"] or "Gates"
+
+local IDLE_PREVIEW_MILESTONES = {
+    BuildPreviewMilestoneThreshold(1, 30, previewMilestoneLabel),
+    BuildPreviewMilestoneThreshold(2, 38, previewMilestoneLabel),
+    BuildPreviewMilestoneThreshold(3, 44, previewMilestoneLabel),
+}
+
+local PROJECTED_PREVIEW_MILESTONES = {
+    BuildPreviewMilestoneThreshold(1, 54, previewMilestoneLabel),
+    BuildPreviewMilestoneThreshold(2, 61, previewMilestoneLabel),
+}
+
 -- Scenario definitions (reused from RenderTestText in Display.lua)
 local TOTAL_COUNT = 220
 local SCENARIOS = {
@@ -15,6 +55,8 @@ local SCENARIOS = {
         isBossKilled = false, colorKey = "inProgress", inCombat = false,
         progressBarMode = "idle",
         barPercent = 45, bossesKilled = 1,
+        getMilestone = PreviewMilestoneActive,
+        previewMilestones = IDLE_PREVIEW_MILESTONES,
     },
     {
         name = L["PREVIEW_PULLING"] or "Mid-dungeon (pulling)",
@@ -23,6 +65,7 @@ local SCENARIOS = {
         requiresMDT = true,
         progressBarMode = "pulling",
         barPercent = 45, bossesKilled = 1,
+        getMilestone = PreviewMilestoneActive,
     },
     {
         name = L["PREVIEW_PROJECTED"] or "Projected completes section",
@@ -31,6 +74,7 @@ local SCENARIOS = {
         requiresMDT = true,
         progressBarMode = "projected",
         barPercent = 62, bossesKilled = 2,
+        previewMilestones = PROJECTED_PREVIEW_MILESTONES,
     },
     {
         name = L["PREVIEW_SECTION_DONE"] or "Section complete",
@@ -38,6 +82,7 @@ local SCENARIOS = {
         isBossKilled = false, colorKey = "finished", inCombat = false,
         progressBarMode = "sectionDone",
         barPercent = 74, bossesKilled = 3,
+        milestoneDone = true,
     },
     {
         name = L["PREVIEW_MISSING"] or "Missing (boss killed)",
@@ -45,6 +90,7 @@ local SCENARIOS = {
         isBossKilled = true, colorKey = "missing", inCombat = true,
         progressBarMode = "missing",
         barPercent = 62, bossesKilled = 3,
+        getMilestone = PreviewMilestoneMissed,
     },
     {
         name = L["PREVIEW_ALMOST_DONE"] or "Almost done (pulling)",
@@ -117,6 +163,20 @@ local function RenderPreview(widget, scenarioIndex)
         if addon.UpdateColorCache then addon:UpdateColorCache() end
         text = addon:FormatMainDisplayText(base, s.currentPercent, s.pullPercent, remainingPercent, fmtData)
 
+        if cfg and cfg.showMilestones ~= false then
+            if s.milestoneDone and addon.BuildMilestoneDoneDisplayText then
+                text = addon.AppendSupplementaryDisplayText(text, addon:BuildMilestoneDoneDisplayText(), cfg)
+            else
+                local milestone = s.milestone
+                if not milestone and s.getMilestone then
+                    milestone = s.getMilestone()
+                end
+                if milestone and addon.BuildMilestoneDisplayText then
+                    text = addon.AppendSupplementaryDisplayText(text, addon:BuildMilestoneDisplayText(milestone), cfg)
+                end
+            end
+        end
+
         addon._testMode = origTest
         addon._testCombatContext = origCtx
 
@@ -158,10 +218,11 @@ end
 local methods = {}
 
 function methods.OnAcquire(self)
-    self.scenarioIndex = 1
+    self.scenarioIndex = KeystonePolaris._previewScenario or 1
     self:SetHeight(80)
     self:SetFullWidth(true)
     KeystonePolaris._previewWidget = self
+    RenderPreview(self, self.scenarioIndex)
 end
 
 function methods.OnRelease(self)
@@ -251,4 +312,3 @@ AceGUI:RegisterWidgetType(widgetType, Constructor, widgetVersion)
 
 -- Export scenarios for the dropdown in Options.lua
 KeystonePolaris.PreviewScenarios = SCENARIOS
-KeystonePolaris.PREVIEW_TOTAL_COUNT = TOTAL_COUNT
