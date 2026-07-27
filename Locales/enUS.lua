@@ -229,6 +229,9 @@ L["COPY_INSTRUCTIONS"] = "Select All, then Ctrl+C to copy. Optional: DeepL https
 L["SELECT_ALL"] = "Select All"
 L["TRANSLATE"] = "Translate"
 L["TRANSLATE_DESC"] = "Copy this changelog in a popup to paste into your translator."
+L["UPDATE_ANNOUNCE"] = "got updated to %s,"
+L["OPEN_CHANGELOG"] = "Open Changelog"
+L["CHANGELOG_AFTER_COMBAT"] = "Changelog will open after combat ends"
 
 -- About
 L["ABOUT"] = "About"

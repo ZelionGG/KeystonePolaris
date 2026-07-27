@@ -314,3 +314,97 @@ function KeystonePolaris:GenerateChangelog()
         end
     end
 end
+
+-- ---------------------------------------------------------------------------
+-- Update announcement (chat link)
+-- ---------------------------------------------------------------------------
+
+local function AddChatMessage(message)
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage(message)
+    else
+        print(message)
+    end
+end
+
+function KeystonePolaris:OpenChangelogCategory()
+    local optionsAddonName = (self.GetGradientAddonNameFromSecondLetter and self:GetGradientAddonNameFromSecondLetter()) or "Keystone Polaris"
+    if Settings and Settings.OpenToCategory then
+        Settings.OpenToCategory(self.changelogCategoryId or self.optionsCategoryId or optionsAddonName)
+    end
+end
+
+function KeystonePolaris:ScheduleOpenChangelogAfterCombat()
+    if self._changelogOpenAfterCombat then return end
+    self._changelogOpenAfterCombat = true
+
+    local frame = self._changelogCombatFrame
+    if not frame then
+        frame = CreateFrame("Frame")
+        self._changelogCombatFrame = frame
+    end
+
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    frame:SetScript("OnEvent", function(eventFrame, event)
+        if event ~= "PLAYER_REGEN_ENABLED" then return end
+        eventFrame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        eventFrame:SetScript("OnEvent", nil)
+        self._changelogOpenAfterCombat = nil
+        if self.OpenChangelogCategory then
+            self:OpenChangelogCategory()
+        end
+    end)
+end
+
+function KeystonePolaris:HandleChangelogChatLink()
+    local currentVersion = C_AddOns.GetAddOnMetadata("KeystonePolaris", "Version") or ""
+    if self.db and self.db.profile and self.db.profile.general then
+        self.db.profile.general.lastChangelogAnnounce = currentVersion
+    end
+
+    if InCombatLockdown() then
+        local prefix = (self.GetChatPrefix and self:GetChatPrefix()) or "Keystone Polaris"
+        AddChatMessage(prefix .. ": " .. (L["CHANGELOG_AFTER_COMBAT"] or "Changelog will open after combat ends"))
+        self:ScheduleOpenChangelogAfterCombat()
+        return
+    end
+
+    self:OpenChangelogCategory()
+end
+
+function KeystonePolaris:MaybeAnnounceAddonUpdate()
+    if not (self.db and self.db.profile and self.db.profile.general) then return end
+
+    local currentVersion = C_AddOns.GetAddOnMetadata("KeystonePolaris", "Version") or ""
+    local lastAnnounce = self.db.profile.general.lastChangelogAnnounce or ""
+
+    if lastAnnounce == "" then
+        -- Brand-new install: seed silently. Existing profiles: fall through and announce.
+        if not self._hadPriorVersionCheck then
+            self.db.profile.general.lastChangelogAnnounce = currentVersion
+            return
+        end
+    elseif lastAnnounce == currentVersion then
+        return
+    end
+
+    local prefix = (self.GetChatPrefix and self:GetChatPrefix()) or "Keystone Polaris"
+    local versionText = "|cffffd100" .. currentVersion .. "|r"
+    local linkText = "|cffdb6233[" .. (L["OPEN_CHANGELOG"] or "Open Changelog") .. "]|r"
+    local link = "|Hkplchangelog:1|h" .. linkText .. "|h"
+    local body = (L["UPDATE_ANNOUNCE"] or "got updated to %s,"):format(versionText)
+    AddChatMessage(prefix .. " " .. body .. " " .. link)
+end
+
+if not KeystonePolaris._KPL_ChangelogChatLinkHooked then
+    KeystonePolaris._KPL_ChangelogChatLinkHooked = true
+    hooksecurefunc("SetItemRef", function(link)
+        if type(link) ~= "string" then return end
+        local linkType = strsplit(":", link, 2)
+        if linkType ~= "kplchangelog" then return end
+
+        if KeystonePolaris and KeystonePolaris.HandleChangelogChatLink then
+            KeystonePolaris:HandleChangelogChatLink()
+        end
+    end)
+end

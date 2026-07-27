@@ -228,6 +228,9 @@ L["COPY_INSTRUCTIONS"] = "전체 선택 후 Ctrl+C로 복사하세요. 선택 �
 L["SELECT_ALL"] = "전체 선택" -- TODO: "Select All"
 L["TRANSLATE"] = "번역" -- TODO: "Translate"
 L["TRANSLATE_DESC"] = "이 변경 사항을 팝업으로 복사하여 번역기에 붙여넣으세요." -- TODO: "Copy this changelog in a popup to paste into your translator."
+L["UPDATE_ANNOUNCE"] = "%s(으)로 업데이트되었습니다," -- TODO: "got updated to %s,"
+L["OPEN_CHANGELOG"] = "변경 사항 열기" -- TODO: "Open Changelog"
+L["CHANGELOG_AFTER_COMBAT"] = "전투가 끝나면 변경 사항이 열립니다" -- TODO: "Changelog will open after combat ends"
 
 -- About
 -- TODO: L["ABOUT"] = "About"

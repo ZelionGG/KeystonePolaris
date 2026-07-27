@@ -228,6 +228,9 @@ L["COPY_INSTRUCTIONS"] = "全选后用Ctrl+C复制，可选翻译：DeepL https:
 L["SELECT_ALL"] = "全选" -- TODO: "Select All"
 L["TRANSLATE"] = "翻译" -- TODO: "Translate"
 L["TRANSLATE_DESC"] = "将此项更新日志在弹窗中显示，以便复制到翻译器中" -- TODO: "Copy this changelog in a popup to paste into your translator."
+L["UPDATE_ANNOUNCE"] = "已更新至 %s，" -- TODO: "got updated to %s,"
+L["OPEN_CHANGELOG"] = "打开更新日志" -- TODO: "Open Changelog"
+L["CHANGELOG_AFTER_COMBAT"] = "战斗结束后将打开更新日志" -- TODO: "Changelog will open after combat ends"
 
 -- About
 L["ABOUT"] = "关于" -- TODO: "About"

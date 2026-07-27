@@ -228,6 +228,9 @@ L["CHANGED_ROUTES_DUNGEONS_LIST"] = "Folgende Dungeons haben aktualisierte Route
 -- TODO: L["SELECT_ALL"] = "Select All"
 -- TODO: L["TRANSLATE"] = "Translate"
 -- TODO: L["TRANSLATE_DESC"] = "Copy this changelog in a popup to paste into your translator."
+-- TODO: L["UPDATE_ANNOUNCE"] = "got updated to %s,"
+-- TODO: L["OPEN_CHANGELOG"] = "Open Changelog"
+-- TODO: L["CHANGELOG_AFTER_COMBAT"] = "Changelog will open after combat ends"
 
 -- About
 -- TODO: L["ABOUT"] = "About"

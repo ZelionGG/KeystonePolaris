@@ -21,6 +21,7 @@ KeystonePolaris.defaults = {
             advancedOptionsEnabled = false,
             lastSeasonCheck = "",
             lastVersionCheck = "",
+            lastChangelogAnnounce = "",
             rolesEnabled = {
                 LEADER = true,
                 TANK = true,

@@ -228,6 +228,9 @@ L["COPY_INSTRUCTIONS"] = "Выделите всё, затем нажмите Ctr
 L["SELECT_ALL"] = "Выбрать всё"
 L["TRANSLATE"] = "Перевод"
 L["TRANSLATE_DESC"] = "Скопируйте этот список изменений во всплывающее окно и вставьте его в свой переводчик."
+L["UPDATE_ANNOUNCE"] = "обновлён до %s," -- TODO: enUS@64e78b0ba41e
+L["OPEN_CHANGELOG"] = "Открыть список изменений" -- TODO: enUS@fe4a61ece192
+L["CHANGELOG_AFTER_COMBAT"] = "Список изменений откроется после боя" -- TODO: enUS@4eace8021ebd
 
 -- About
 L["ABOUT"] = "Об аддоне"
