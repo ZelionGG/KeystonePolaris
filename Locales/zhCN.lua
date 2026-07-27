@@ -213,6 +213,7 @@ L["CHANGED_ROUTES_DUNGEONS_LIST"] = "以下地下城有更新的路线：" -- TO
 L["BOSS_ORDER"] = "Boss顺序" -- TODO: "Boss Order"
 L["SHOW_COMPARTMENT_ICON"] = "间隔层图标" -- TODO: "Compartment Icon"
 L["SHOW_MINIMAP_ICON"] = "小地图图标" -- TODO: "Minimap Icon"
+-- TODO: L["DISABLE_LOGIN_MESSAGE"] = "Disable login message"
 L["NEW_ROUTES_ALL_SEASON_PROMPT"] = "当前赛季所有地下城路线已更新，是否将所有进度重置为默认值？" -- TODO: "All dungeon routes for the current season have been updated. Do you want to reset all values to the new defaults?"
 
 -- Commands / Help
@@ -222,6 +223,7 @@ L["COMMANDS_HELP_OPEN"] = "/kpl 或 /polaris - 打开设置" -- TODO: "/kpl or /
 L["COMMANDS_HELP_CHANGELOG"] = "/kpl changelog 或 /polaris changelog - 打开更新日志" -- TODO: "/kpl changelog or /polaris changelog - Open changelog"
 L["COMMANDS_HELP_REMINDER"] = "/kpl reminder 或 /polaris reminder - 显示上一个团队的提醒" -- TODO: "/kpl reminder or /polaris reminder - Show last group reminder"
 L["COMMANDS_HELP_HELP"] = "/kpl help 或 /polaris help - 显示帮助" -- TODO: "/kpl help or /polaris help - Show this help"
+-- TODO: L["ADDON_LOADED_MSG"] = "loaded, type /kpl to open settings, or /kpl help to show the list of available commands."
 
 -- Changelog
 L["COPY_INSTRUCTIONS"] = "全选后用Ctrl+C复制，可选翻译：DeepL https://www.deepl.com/translator" -- TODO: "Select All, then Ctrl+C to copy. Optional: DeepL https://www.deepl.com/translator"

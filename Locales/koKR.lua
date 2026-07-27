@@ -213,6 +213,7 @@ L["BOSS"] = "보스" -- TODO: "Boss"
 -- TODO: L["BOSS_ORDER"] = "Boss Order"
 -- TODO: L["SHOW_COMPARTMENT_ICON"] = "Compartment Icon"
 L["SHOW_MINIMAP_ICON"] = "미니맵 아이콘" -- TODO: "Minimap Icon"
+-- TODO: L["DISABLE_LOGIN_MESSAGE"] = "Disable login message"
 -- TODO: L["NEW_ROUTES_ALL_SEASON_PROMPT"] = "All dungeon routes for the current season have been updated. Do you want to reset all values to the new defaults?"
 
 -- Commands / Help
@@ -222,6 +223,7 @@ L["COMMANDS_HELP_OPEN"] = "/kpl 또는 /polaris - 설정 열기" -- TODO: "/kpl 
 L["COMMANDS_HELP_CHANGELOG"] = "/kpl changelog 또는 /polaris changelog - 변경 사항 열기" -- TODO: "/kpl changelog or /polaris changelog - Open changelog"
 L["COMMANDS_HELP_REMINDER"] = "/kpl reminder 또는 /polaris reminder - 마지막 파티 알람창 열기" -- TODO: "/kpl reminder or /polaris reminder - Show last group reminder"
 L["COMMANDS_HELP_HELP"] = "/kpl help 또는 /polaris help - 도움말 보기" -- TODO: "/kpl help or /polaris help - Show this help"
+-- TODO: L["ADDON_LOADED_MSG"] = "loaded, type /kpl to open settings, or /kpl help to show the list of available commands."
 
 -- Changelog
 L["COPY_INSTRUCTIONS"] = "전체 선택 후 Ctrl+C로 복사하세요. 선택 사항: DeepL https://www.deepl.com/translator" -- TODO: "Select All, then Ctrl+C to copy. Optional: DeepL https://www.deepl.com/translator"

@@ -193,6 +193,23 @@ function KeystonePolaris.ColorizeCommands(_, text)
     return table.concat(out)
 end
 
+function KeystonePolaris:PrintLoadMessage()
+    if not (self.db and self.db.profile and self.db.profile.general) then return end
+    if self.db.profile.general.disableLoginMessage then return end
+
+    local prefix = (self.GetChatPrefix and self:GetChatPrefix()) or "Keystone Polaris"
+    local body = self:ColorizeCommands(
+        L["ADDON_LOADED_MSG"]
+            or "loaded, type /kpl to open settings, or /kpl help to show the list of commands available."
+    )
+    local message = prefix .. " " .. body
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage(message)
+    else
+        print(message)
+    end
+end
+
 local function EnsureMinimapSettings(self)
     if not (self.db and self.db.profile and self.db.profile.general) then return end
     local general = self.db.profile.general
@@ -470,14 +487,18 @@ function KeystonePolaris:OnInitialize()
     self.profilesCategoryId = select(2, AceConfigDialog:AddToBlizOptions(AddOnName .. "_Profiles", profileOptions.name, optionsAddonName))
 
     -- Defer so the chat frame is ready (OnInitialize is too early for reliable chat).
-    if self.MaybeAnnounceAddonUpdate and C_Timer and C_Timer.After then
-        C_Timer.After(2, function()
-            if self.MaybeAnnounceAddonUpdate then
-                self:MaybeAnnounceAddonUpdate()
-            end
-        end)
-    elseif self.MaybeAnnounceAddonUpdate then
-        self:MaybeAnnounceAddonUpdate()
+    local function printStartupChatMessages()
+        if self.PrintLoadMessage then
+            self:PrintLoadMessage()
+        end
+        if self.MaybeAnnounceAddonUpdate then
+            self:MaybeAnnounceAddonUpdate()
+        end
+    end
+    if C_Timer and C_Timer.After then
+        C_Timer.After(2, printStartupChatMessages)
+    else
+        printStartupChatMessages()
     end
 
     -- Register chat command and events

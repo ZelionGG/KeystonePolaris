@@ -31,6 +31,18 @@ function KeystonePolaris:GetInterfaceOptions()
                     self:UpdateMinimapIconVisibility()
                 end,
             }),
+            disableLoginMessage = {
+                order = 2,
+                type = "toggle",
+                name = L["DISABLE_LOGIN_MESSAGE"] or "Disable login message",
+                width = "full",
+                get = function()
+                    return self.db.profile.general.disableLoginMessage
+                end,
+                set = function(_, value)
+                    self.db.profile.general.disableLoginMessage = not not value
+                end,
+            },
             commandsHeader = {
                 order = 3,
                 type = "header",

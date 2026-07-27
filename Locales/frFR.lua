@@ -213,6 +213,7 @@ L["BOSS"] = "Boss" -- @no-translate
 L["BOSS_ORDER"] = "Ordre des boss"
 L["SHOW_COMPARTMENT_ICON"] = "Icône de compartiment"
 L["SHOW_MINIMAP_ICON"] = "Icône de la mini-carte"
+L["DISABLE_LOGIN_MESSAGE"] = "Désactiver le message de connexion"
 L["NEW_ROUTES_ALL_SEASON_PROMPT"] = "Toutes les routes des donjons de la saison en cours ont été mises à jour. Voulez-vous réinitialiser toutes les valeurs aux nouvelles valeurs par défaut ?"
 
 -- Commands / Help
@@ -222,6 +223,7 @@ L["COMMANDS_HELP_OPEN"] = "/kpl or /polaris - Ouvrir les options"
 L["COMMANDS_HELP_CHANGELOG"] = "/kpl changelog or /polaris changelog - Afficher les notes de mise à jour"
 L["COMMANDS_HELP_REMINDER"] = "/kpl reminder or /polaris reminder - Afficher le dernier rappel de groupe"
 L["COMMANDS_HELP_HELP"] = "/kpl help or /polaris help - Afficher cette aide"
+L["ADDON_LOADED_MSG"] = "chargé, tapez /kpl pour ouvrir les options, ou /kpl help pour afficher la liste des commandes disponibles."
 
 -- Changelog
 L["COPY_INSTRUCTIONS"] = "Sélectionner tout, puis Ctrl+C pour copier. Optionnel : DeepL https://www.deepl.com/translator"

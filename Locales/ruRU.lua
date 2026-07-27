@@ -213,6 +213,7 @@ L["BOSS"] = "Босс"
 L["BOSS_ORDER"] = "Порядок босса"
 L["SHOW_COMPARTMENT_ICON"] = "Значок отделения"
 L["SHOW_MINIMAP_ICON"] = "Значок на миникарте"
+-- TODO: L["DISABLE_LOGIN_MESSAGE"] = "Disable login message"
 L["NEW_ROUTES_ALL_SEASON_PROMPT"] = "Все маршруты подземелий текущего сезона обновлены. Хотите сбросить всё до новых значений по умолчанию?"
 
 -- Commands / Help
@@ -222,6 +223,7 @@ L["COMMANDS_HELP_OPEN"] = "/kpl или /polaris - Открыть настрой�
 L["COMMANDS_HELP_CHANGELOG"] = "/kpl changelog или /polaris changelog - Открытый список изменений"
 L["COMMANDS_HELP_REMINDER"] = "/kpl reminder или /polaris reminder - Показать последнее напоминание группы"
 L["COMMANDS_HELP_HELP"] = "/kpl help или /polaris help - Показать эту справку"
+-- TODO: L["ADDON_LOADED_MSG"] = "loaded, type /kpl to open settings, or /kpl help to show the list of available commands."
 
 -- Changelog
 L["COPY_INSTRUCTIONS"] = "Выделите всё, затем нажмите Ctrl+C, чтобы скопировать. Дополнительно: DeepL - https://www.deepl.com/translator"

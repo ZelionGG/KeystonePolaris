@@ -213,6 +213,7 @@ if not L then return end
 -- TODO: L["BOSS_ORDER"] = "Boss Order"
 -- TODO: L["SHOW_COMPARTMENT_ICON"] = "Compartment Icon"
 -- TODO: L["SHOW_MINIMAP_ICON"] = "Minimap Icon"
+-- TODO: L["DISABLE_LOGIN_MESSAGE"] = "Disable login message"
 -- TODO: L["NEW_ROUTES_ALL_SEASON_PROMPT"] = "All dungeon routes for the current season have been updated. Do you want to reset all values to the new defaults?"
 
 -- Commands / Help
@@ -222,6 +223,7 @@ if not L then return end
 -- TODO: L["COMMANDS_HELP_CHANGELOG"] = "/kpl changelog or /polaris changelog - Open changelog"
 -- TODO: L["COMMANDS_HELP_REMINDER"] = "/kpl reminder or /polaris reminder - Show last group reminder"
 -- TODO: L["COMMANDS_HELP_HELP"] = "/kpl help or /polaris help - Show this help"
+-- TODO: L["ADDON_LOADED_MSG"] = "loaded, type /kpl to open settings, or /kpl help to show the list of available commands."
 
 -- Changelog
 -- TODO: L["COPY_INSTRUCTIONS"] = "Select All, then Ctrl+C to copy. Optional: DeepL https://www.deepl.com/translator"

@@ -16,6 +16,7 @@ KeystonePolaris.defaults = {
             informChannel = "PARTY",
             showCompartmentIcon = true,
             showMinimapIcon = true,
+            disableLoginMessage = false,
             minimapAngle = 225,
             mobPercentagesMigrationVersion = "",
             advancedOptionsEnabled = false,

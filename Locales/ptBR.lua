@@ -213,6 +213,7 @@ L["BOSS"] = "Chefe" -- TODO: "Boss"
 L["BOSS_ORDER"] = "Ordem do chefe" -- TODO: "Boss Order"
 L["SHOW_COMPARTMENT_ICON"] = "Ícone de compartimento" -- TODO: "Compartment Icon"
 L["SHOW_MINIMAP_ICON"] = "Ícone da minimapa" -- TODO: "Minimap Icon"
+-- TODO: L["DISABLE_LOGIN_MESSAGE"] = "Disable login message"
 -- TODO: L["NEW_ROUTES_ALL_SEASON_PROMPT"] = "All dungeon routes for the current season have been updated. Do you want to reset all values to the new defaults?"
 
 -- Commands / Help
@@ -222,6 +223,7 @@ L["COMMANDS_HELP_OPEN"] = "/kpl ou /polaris - Abrir opções" -- TODO: "/kpl or 
 L["COMMANDS_HELP_CHANGELOG"] = "/kpl changelog ou /polaris changelog - Abrir changelog" -- TODO: "/kpl changelog or /polaris changelog - Open changelog"
 L["COMMANDS_HELP_REMINDER"] = "/kpl reminder ou /polaris reminder - Mostrar último lembrete de grupo" -- TODO: "/kpl reminder or /polaris reminder - Show last group reminder"
 L["COMMANDS_HELP_HELP"] = "/kpl help ou /polaris help - Mostrar esta ajuda" -- TODO: "/kpl help or /polaris help - Show this help"
+-- TODO: L["ADDON_LOADED_MSG"] = "loaded, type /kpl to open settings, or /kpl help to show the list of available commands."
 
 -- Changelog
 L["COPY_INSTRUCTIONS"] = "Selecionar tudo, então Ctrl+C para copiar. Opcional: DeepL https://www.deepl.com/translator" -- TODO: "Select All, then Ctrl+C to copy. Optional: DeepL https://www.deepl.com/translator"
