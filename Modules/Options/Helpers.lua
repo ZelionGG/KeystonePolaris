@@ -198,9 +198,11 @@ local function CloneTable(tbl)
     return t
 end
 
--- Helper to format date string "YYYY-MM-DD" to localized format or default
+-- Helper to format date string "YYYY-MM-DD" to localized format or default.
+-- "TBD" is shown as a localized placeholder when the season date is unknown.
 local function FormatSeasonDate(dateStr)
     if not dateStr then return "" end
+    if dateStr == "TBD" then return L["SEASON_DATE_TBD"] end
     local year, month, day = strsplit("-", dateStr)
     if year and month and day then
          if L["%month%-%day%-%year%"] then

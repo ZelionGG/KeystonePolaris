@@ -234,7 +234,10 @@ end
 -- ---------------------------------------------------------------------------
 -- start_date/end_date can be:
 --   - a string "YYYY-MM-DD"
+--   - the literal "TBD" (unknown date; never current, next only as fallback)
 --   - a table keyed by portal (US/EU) with optional "default"
+-- end_date "TBD" is treated like a missing end_date for scheduling, but the
+-- UI can still display it as an announced-but-unknown end.
 local function ResolveSeasonDate(dateValue)
     if not dateValue then return nil end
     if type(dateValue) ~= "table" then return dateValue end
@@ -244,7 +247,7 @@ local function ResolveSeasonDate(dateValue)
 end
 
 local function ResolveSeasonTimestamp(dateStr, defaultHour, defaultMin, useNowIfToday)
-    if not dateStr or dateStr == "" then return nil end
+    if not dateStr or dateStr == "" or dateStr == "TBD" then return nil end
     local y, m, d, h, min = dateStr:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)%s+(%d%d):(%d%d)$")
     local hasTime = y ~= nil
     if not hasTime then
@@ -269,12 +272,15 @@ local function ResolveSeasonTimestamp(dateStr, defaultHour, defaultMin, useNowIf
 end
 
 -- Returns current/next season ids and their resolved start/end dates.
--- Current season: start_date <= today and (no end_date or today <= end_date).
--- If end_date is missing, the season is considered active until the next
+-- Current season: start_date <= today and (no end_date / TBD end or today <= end_date).
+-- If end_date is missing or "TBD", the season is considered active until the next
 -- start_date is reached.
+-- start_date "TBD" seasons are never current; they are used as next season only
+-- when no dated next season exists.
 function KeystonePolaris:GetSeasonByDate(dateStr)
     local currentId, currentStart, currentEnd
     local nextId, nextStart
+    local nextTbdId, nextTbdStart
     local compareDate = dateStr or date("%Y-%m-%d")
     local compareTs = ResolveSeasonTimestamp(compareDate, 12, 0, true)
 
@@ -283,23 +289,37 @@ function KeystonePolaris:GetSeasonByDate(dateStr)
             not tbl.is_remix then
             local startDate = ResolveSeasonDate(tbl.start_date)
             local endDate = ResolveSeasonDate(tbl.end_date)
-            local startTs = ResolveSeasonTimestamp(startDate, 0, 0, false)
-            local endTs = ResolveSeasonTimestamp(endDate, 23, 59, false)
+            local seasonId = key:gsub("_DUNGEONS$", "")
 
-            if startTs and compareTs and startTs <= compareTs and
-                (not endTs or compareTs <= endTs) then
-                if not currentStart or startTs > ResolveSeasonTimestamp(currentStart, 0, 0, false) then
-                    currentId = key:gsub("_DUNGEONS$", "")
-                    currentStart = startDate
-                    currentEnd = endDate
+            if startDate == "TBD" then
+                if not nextTbdId then
+                    nextTbdId = seasonId
+                    nextTbdStart = startDate
                 end
-            elseif startTs and compareTs and startTs > compareTs then
-                if not nextStart or startTs < ResolveSeasonTimestamp(nextStart, 0, 0, false) then
-                    nextId = key:gsub("_DUNGEONS$", "")
-                    nextStart = startDate
+            else
+                local startTs = ResolveSeasonTimestamp(startDate, 0, 0, false)
+                local endTs = ResolveSeasonTimestamp(endDate, 23, 59, false)
+
+                if startTs and compareTs and startTs <= compareTs and
+                    (not endTs or compareTs <= endTs) then
+                    if not currentStart or startTs > ResolveSeasonTimestamp(currentStart, 0, 0, false) then
+                        currentId = seasonId
+                        currentStart = startDate
+                        currentEnd = endDate
+                    end
+                elseif startTs and compareTs and startTs > compareTs then
+                    if not nextStart or startTs < ResolveSeasonTimestamp(nextStart, 0, 0, false) then
+                        nextId = seasonId
+                        nextStart = startDate
+                    end
                 end
             end
         end
+    end
+
+    if not nextId and nextTbdId then
+        nextId = nextTbdId
+        nextStart = nextTbdStart
     end
 
     return currentId, currentStart, currentEnd, nextId, nextStart

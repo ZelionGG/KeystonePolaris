@@ -28,14 +28,17 @@ L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000Algumas funcionalidades est
 -- Dungeons Group
 L["CURRENT_SEASON"] = "Temporada Atual" -- TODO: "Current Season"
 L["NEXT_SEASON"] = "Próxima Temporada" -- TODO: "Next Season"
+-- TODO: L["SEASON_DATE_TBD"] = "TBD"
 L["SEASON_ENDS_IN_ONE_MONTH"] = "A temporada atual termina em menos de um mês." -- TODO: "Current season ends in less than one month."
 L["SEASON_ENDS_IN_WEEKS"] = "A temporada atual termina em menos de %d semanas." -- TODO: "Current season ends in less than %d weeks."
 L["SEASON_ENDS_IN_DAYS"] = "A temporada atual termina em %d dias." -- TODO: "Current season ends in %d days."
 L["SEASON_ENDS_IN_TOMORROW"] = "A temporada atual termina amanhã." -- TODO: "Current season ends tomorrow."
+-- TODO: L["SEASON_ENDS_SOON_TBD"] = "Current season ends soon (date to be announced)."
 L["SEASON_STARTS_IN_ONE_MONTH"] = "A próxima temporada começa em menos de um mês." -- TODO: "Next season starts in less than one month."
 L["SEASON_STARTS_IN_WEEKS"] = "A próxima temporada começa em menos de %d semanas." -- TODO: "Next season starts in less than %d weeks."
 L["SEASON_STARTS_IN_DAYS"] = "A próxima temporada começa em %d dias." -- TODO: "Next season starts in %d days."
 L["SEASON_STARTS_IN_TOMORROW"] = "A próxima temporada começa amanhã." -- TODO: "Next season starts tomorrow."
+-- TODO: L["SEASON_STARTS_SOON_TBD"] = "Next season starts soon (date to be announced)."
 -- TODO: L["WEEKDAY_NEXT_FORMAT"] = "(next %s)"
 
 -- UI Strings

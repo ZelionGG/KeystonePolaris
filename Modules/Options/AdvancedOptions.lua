@@ -215,10 +215,15 @@ function KeystonePolaris:GetAdvancedOptions()
     end
 
     local function GetSeasonCountdownText(daysUntil, prefixKey, withIcon, targetDate)
-        if not daysUntil or daysUntil < 0 then return nil end
         local iconPrefix = withIcon and
                                "|TInterface\\OptionsFrame\\UI-OptionsFrame-NewFeatureIcon:16:16:0:0|t " or
                                ""
+        if targetDate == "TBD" then
+            -- Call sites pass SEASON_STARTS_IN / SEASON_ENDS_IN; TBD keys omit "_IN".
+            local tbdKey = prefixKey:gsub("_IN$", "") .. "_SOON_TBD"
+            return iconPrefix .. L[tbdKey]
+        end
+        if not daysUntil or daysUntil < 0 then return nil end
         if daysUntil <= 7 then
             local weekdaySuffix = ""
             if targetDate then

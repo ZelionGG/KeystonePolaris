@@ -28,14 +28,17 @@ if not L then return end
 -- Dungeons Group
 -- TODO: L["CURRENT_SEASON"] = "Current Season"
 -- TODO: L["NEXT_SEASON"] = "Next Season"
+-- TODO: L["SEASON_DATE_TBD"] = "TBD"
 -- TODO: L["SEASON_ENDS_IN_ONE_MONTH"] = "Current season ends in less than one month."
 -- TODO: L["SEASON_ENDS_IN_WEEKS"] = "Current season ends in less than %d weeks."
 -- TODO: L["SEASON_ENDS_IN_DAYS"] = "Current season ends in %d days."
 -- TODO: L["SEASON_ENDS_IN_TOMORROW"] = "Current season ends tomorrow."
+-- TODO: L["SEASON_ENDS_SOON_TBD"] = "Current season ends soon (date to be announced)."
 -- TODO: L["SEASON_STARTS_IN_ONE_MONTH"] = "Next season starts in less than one month."
 -- TODO: L["SEASON_STARTS_IN_WEEKS"] = "Next season starts in less than %d weeks."
 -- TODO: L["SEASON_STARTS_IN_DAYS"] = "Next season starts in %d days."
 -- TODO: L["SEASON_STARTS_IN_TOMORROW"] = "Next season starts tomorrow."
+-- TODO: L["SEASON_STARTS_SOON_TBD"] = "Next season starts soon (date to be announced)."
 -- TODO: L["WEEKDAY_NEXT_FORMAT"] = "(next %s)"
 
 -- UI Strings

@@ -29,14 +29,17 @@ L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000Some features are disabled 
 -- Dungeons Group
 L["CURRENT_SEASON"] = "Current Season"
 L["NEXT_SEASON"] = "Next Season"
+L["SEASON_DATE_TBD"] = "TBD"
 L["SEASON_ENDS_IN_ONE_MONTH"] = "Current season ends in less than one month."
 L["SEASON_ENDS_IN_WEEKS"] = "Current season ends in less than %d weeks."
 L["SEASON_ENDS_IN_DAYS"] = "Current season ends in %d days."
 L["SEASON_ENDS_IN_TOMORROW"] = "Current season ends tomorrow."
+L["SEASON_ENDS_SOON_TBD"] = "Current season ends soon (date to be announced)."
 L["SEASON_STARTS_IN_ONE_MONTH"] = "Next season starts in less than one month."
 L["SEASON_STARTS_IN_WEEKS"] = "Next season starts in less than %d weeks."
 L["SEASON_STARTS_IN_DAYS"] = "Next season starts in %d days."
 L["SEASON_STARTS_IN_TOMORROW"] = "Next season starts tomorrow."
+L["SEASON_STARTS_SOON_TBD"] = "Next season starts soon (date to be announced)."
 L["WEEKDAY_NEXT_FORMAT"] = "(next %s)"
 
 -- UI Strings
