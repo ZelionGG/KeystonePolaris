@@ -28,7 +28,7 @@ L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000Certains fonctionnalités s
 -- Dungeons Group
 L["CURRENT_SEASON"] = "Saison actuelle"
 L["NEXT_SEASON"] = "Prochaine saison"
-L["SEASON_DATE_TBD"] = "À confirmer"
+L["SEASON_DATE_TBD"] = "Date à confirmer"
 L["SEASON_ENDS_IN_ONE_MONTH"] = "La saison se termine dans moins d’un mois."
 L["SEASON_ENDS_IN_WEEKS"] = "La saison se termine dans moins de %d semaines."
 L["SEASON_ENDS_IN_DAYS"] = "La saison se termine dans %d jours."
