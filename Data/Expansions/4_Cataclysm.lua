@@ -3,7 +3,7 @@ local AddOnName, KeystonePolaris = ...
 -- Define a single source of truth for dungeon data
 KeystonePolaris.CATACLYSM_DUNGEON_DATA = {
     -- Format: [shortName] = {id = dungeonID, bosses = {{bossID, percent, shouldInform, bossOrder, journalEncounterID}, ...}}
-    GB = {
+    GB = { -- Grim Batol
         id = 507,
         mapID = 670,
         teleportID = 445424,

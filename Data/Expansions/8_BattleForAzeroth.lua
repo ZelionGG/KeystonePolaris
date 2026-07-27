@@ -3,7 +3,7 @@ local AddOnName, KeystonePolaris = ...
 -- Define a single source of truth for dungeon data
 KeystonePolaris.BFA_DUNGEON_DATA = {
     -- Format: [shortName] = {id = dungeonID, bosses = {{bossID, percent, shouldInform, bossOrder, journalEncounterID}, ...}}
-    OMGW = {
+    OMGW = { -- Operation: Mechagon - Workshop
         id = 370,
         mapID = 2773,
         teleportID = 373274,
@@ -25,7 +25,7 @@ KeystonePolaris.BFA_DUNGEON_DATA = {
             {4, 100, true, 4, 2140}
         }
     },
-    TML = {
+    TML = { -- The MOTHERLODE!!
         id = 247,
         mapID = 1594,
         teleportID = {467555, 467553},

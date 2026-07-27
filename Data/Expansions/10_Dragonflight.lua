@@ -14,7 +14,7 @@ KeystonePolaris.DF_DUNGEON_DATA = {
             {4, 100,   true,  4, 2514, "Echo of Doragosa", 190609} -- Echo of Doragosa
         }
     },
-    RLP = {
+    RLP = { -- Ruby Life Pools
         id = 399,
         mapID = 2521,
         teleportID = 393256,
