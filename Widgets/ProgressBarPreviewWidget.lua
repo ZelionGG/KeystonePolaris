@@ -8,26 +8,14 @@ local widgetVersion = 1
 local CreateFrame = CreateFrame
 local CreateColor = CreateColor
 local ipairs = ipairs
+local math_ceil = math.ceil
 local math_max = math.max
 local math_min = math.min
 local pairs = pairs
 local string_format = string.format
 
-local function Lerp(startValue, endValue, amount)
-    return startValue + (endValue - startValue) * amount
-end
-
 local function CreateColorFromTable(color)
     return CreateColor(color.r, color.g, color.b, color.a or 1)
-end
-
-local function InterpolateColor(startColor, endColor, amount)
-    return CreateColor(
-        Lerp(startColor.r, endColor.r, amount),
-        Lerp(startColor.g, endColor.g, amount),
-        Lerp(startColor.b, endColor.b, amount),
-        Lerp(startColor.a or 1, endColor.a or 1, amount)
-    )
 end
 
 local function GetSectionBoundaries(thresholds)
@@ -125,113 +113,6 @@ local function ApplyCalloutStyle(callout, pb)
     callout.bg:SetColorTexture(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a or 0.8)
 end
 
-local function GetPreviewScenarioSectionIndex(sectionCount, mode)
-    if sectionCount <= 1 then return 1 end
-    if mode == "almostDone" then return sectionCount end
-    if sectionCount >= 3 then return 2 end
-    return 1
-end
-
-local function BuildPreviewScenarioState(thresholds, scenario)
-    local fallbackPct = (scenario and scenario.barPercent) or 0
-    local fallbackBossesKilled = (scenario and scenario.bossesKilled) or 0
-    local bossKillStates = {}
-
-    if not scenario then
-        return fallbackPct, bossKillStates
-    end
-
-    if not thresholds or #thresholds == 0 or not scenario.progressBarMode then
-        for idx = 1, fallbackBossesKilled do
-            bossKillStates[idx] = true
-        end
-        return fallbackPct, bossKillStates
-    end
-
-    local boundaries = GetSectionBoundaries(thresholds)
-    local sectionCount = #boundaries - 1
-    local sectionIdx = GetPreviewScenarioSectionIndex(sectionCount, scenario.progressBarMode)
-    local segStart = boundaries[sectionIdx]
-    local segEnd = boundaries[sectionIdx + 1]
-    local segMid = segStart + ((segEnd - segStart) * 0.5)
-    local segNearEnd = segStart + ((segEnd - segStart) * 0.9)
-
-    if scenario.progressBarMode == "dungeonDone" then
-        for idx = 1, #thresholds do
-            bossKillStates[idx] = true
-        end
-        return 100, bossKillStates
-    end
-
-    local bossesKilled = sectionIdx - 1
-    local currentPct = segMid
-
-    if scenario.progressBarMode == "sectionDone" then
-        bossesKilled = math_max(0, sectionIdx - 1)
-        currentPct = segEnd
-    elseif scenario.progressBarMode == "missing" then
-        bossesKilled = sectionIdx
-        currentPct = segMid
-    elseif scenario.progressBarMode == "almostDone" then
-        bossesKilled = math_max(0, sectionIdx - 1)
-        currentPct = segNearEnd
-    end
-
-    for idx = 1, bossesKilled do
-        bossKillStates[idx] = true
-    end
-
-    return currentPct, bossKillStates
-end
-
-local function GetProgressBarColors(addon)
-    local pb = addon.db.profile.progressBar
-    if pb.overrideColors then
-        return pb.completedColor, pb.inProgressColor, pb.missingColor
-    end
-    local textColors = addon.db.profile.color
-    return textColors.finished, textColors.inProgress, textColors.missing
-end
-
-local function GetProgressBarGradientColor(addon, positionPct)
-    local pb = addon.db.profile.progressBar
-    local amount = math_max(0, math_min(positionPct / 100, 1))
-    return InterpolateColor(pb.gradientStartColor, pb.gradientEndColor, amount)
-end
-
-local function ResolvePreviewDungeonKey(addon)
-    if addon._progressBarDungeonKey and addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[addon._progressBarDungeonKey] then
-        return addon._progressBarDungeonKey
-    end
-
-    local currentDate
-    if C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime then
-        local t = C_DateAndTime.GetCurrentCalendarTime()
-        currentDate = string_format("%04d-%02d-%02d", t.year, t.month, t.monthDay)
-    else
-        currentDate = "2026-01-01"
-    end
-
-    local seasonId = addon.GetSeasonByDate and addon:GetSeasonByDate(currentDate)
-    if seasonId then
-        local seasonTable = addon[seasonId .. "_DUNGEONS"]
-        if seasonTable then
-            for dungeonId in pairs(seasonTable) do
-                if type(dungeonId) == "number" and addon.GetDungeonKeyById then
-                    local dungeonKey = addon:GetDungeonKeyById(dungeonId)
-                    if dungeonKey then
-                        return dungeonKey
-                    end
-                end
-            end
-        end
-    end
-
-    if addon.GlobalDungeonLookup then
-        return next(addon.GlobalDungeonLookup)
-    end
-end
-
 local function BuildPreviewThresholds(addon, dungeonKey)
     local dungeonData = addon.GlobalDungeonLookup and addon.GlobalDungeonLookup[dungeonKey]
     if not dungeonData or not dungeonData.bosses then return {}, nil end
@@ -249,78 +130,6 @@ local function BuildPreviewThresholds(addon, dungeonKey)
     end
 
     return thresholds, dungeonData
-end
-
-local function GetBossProgressTargets(addon, dungeonKey)
-    return addon:GetOrderedBossTargets(dungeonKey)
-end
-
-local function GetNextAliveBossTarget(targets, bossKillStates)
-    if not targets or #targets == 0 then return nil end
-
-    for _, target in ipairs(targets) do
-        local bossKilled = bossKillStates and bossKillStates[target.bossIndex] or false
-        if not bossKilled then
-            return target
-        end
-    end
-
-    return targets[#targets]
-end
-
-local function GetCalloutRemainingPercent(target, currentPct)
-    if not target or not target.percent then return 0 end
-
-    local remaining = target.percent - currentPct
-    if remaining < 0 then
-        remaining = 0
-    end
-    if remaining < 0.05 and remaining > 0 then
-        remaining = 0
-    end
-    return remaining
-end
-
-local function GetCurrentBossTarget(addon, dungeonKey, _currentPct, bossKillStates)
-    return GetNextAliveBossTarget(GetBossProgressTargets(addon, dungeonKey), bossKillStates)
-end
-
-local function BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentPct, bossKillStates)
-    if not thresholds or #thresholds == 0 then return {} end
-
-    local states = {}
-    local boundaries = { 0 }
-    local bossIndices = {}
-    for i, t in ipairs(thresholds) do
-        boundaries[#boundaries + 1] = t.percent
-        bossIndices[i] = t.bossIndex
-    end
-    boundaries[#boundaries + 1] = 100
-
-    if not bossIndices[#boundaries - 1] then
-        local targets = addon:GetOrderedBossTargets(dungeonKey)
-        bossIndices[#boundaries - 1] = targets[#targets] and targets[#targets].bossIndex or nil
-    end
-
-    for i = 1, #boundaries - 1 do
-        local segEnd = boundaries[i + 1]
-        local bossIdx = bossIndices[i]
-        local isBossKilled = bossKillStates and bossIdx and bossKillStates[bossIdx] or false
-
-        if currentPct >= segEnd and isBossKilled then
-            states[i] = "completedBoss"
-        elseif currentPct >= segEnd then
-            states[i] = "completed"
-        elseif isBossKilled then
-            states[i] = "missing"
-        elseif currentPct > boundaries[i] then
-            states[i] = "inProgress"
-        else
-            states[i] = "upcoming"
-        end
-    end
-
-    return states
 end
 
 local function UpdateBorder(widget, addon)
@@ -351,7 +160,7 @@ local function UpdateBorder(widget, addon)
     widget.borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
 end
 
-local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates)
+local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, scenario)
     local addon = KeystonePolaris
     local pb = addon.db.profile.progressBar
     if not addon:GetProgressBarValue("showCallout") or not thresholds or #thresholds == 0 then
@@ -379,30 +188,28 @@ local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dunge
         return
     end
 
-    local segStart = boundaries[activeIdx]
-    local segEnd = boundaries[activeIdx + 1]
-    local segCenter = (segStart + segEnd) / 2
-
-    local bossTarget = GetCurrentBossTarget(addon, dungeonKey, currentPct, bossKillStates)
-    local bossIdx = bossTarget and bossTarget.bossIndex
-    if bossTarget and bossTarget.percent then
-        segCenter = bossTarget.percent
-        segEnd = GetCalloutRemainingPercent(bossTarget, currentPct)
-    elseif activeIdx > #thresholds then
-        bossIdx = thresholds[#thresholds] and thresholds[#thresholds].bossIndex
+    local milestoneThresholds
+    if addon:GetProgressBarValue("showMilestoneTicks") and addon.GetProgressBarMilestoneThresholds then
+        milestoneThresholds = addon:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
     end
 
-    local bossName = ""
-    if bossIdx and addon.GetBossName then
-        bossName = addon:GetBossName(dungeonKey, bossIdx) or ("Boss " .. bossIdx)
+    local anchorPct, remaining, label = addon:ResolveProgressBarCallout(
+        dungeonKey,
+        currentPct,
+        bossKillStates,
+        milestoneThresholds
+    )
+    if not anchorPct then
+        widget.callout:Hide()
+        return
     end
 
     ApplyCalloutStyle(widget.callout, pb)
-    widget.callout.text:SetText(string_format(L["PROGRESS_BAR_CALLOUT_FORMAT"], segEnd, bossName))
+    widget.callout.text:SetText(string_format(L["PROGRESS_BAR_CALLOUT_FORMAT"], remaining, label))
     widget.callout:SetSize(widget.callout.text:GetStringWidth() + 12, widget.callout.text:GetStringHeight() + 8)
     widget.callout.bg:SetAllPoints(widget.callout)
 
-    local xPos = displayWidth * (segCenter / 100)
+    local xPos = displayWidth * (anchorPct / 100)
     if pb.direction == "RIGHT_TO_LEFT" then
         xPos = displayWidth - xPos
     end
@@ -424,10 +231,10 @@ local function RenderPreview(widget, scenarioIndex)
     local scenario = addon.PreviewScenarios[scenarioIndex]
     if not scenario then return end
 
-    local dungeonKey = ResolvePreviewDungeonKey(addon)
+    local dungeonKey = addon.ResolveProgressBarPreviewDungeonKey(addon)
     local thresholds = BuildPreviewThresholds(addon, dungeonKey)
-    local currentPct, bossKillStates = BuildPreviewScenarioState(thresholds, scenario)
-    local sectionStates = BuildPreviewSectionStates(addon, dungeonKey, thresholds, currentPct, bossKillStates)
+    local currentPct, bossKillStates = addon.BuildProgressBarPreviewScenarioState(thresholds, scenario)
+    local sectionStates = addon:GetProgressBarSectionStates(dungeonKey, currentPct, bossKillStates, thresholds) or {}
 
     local frameWidth = widget.frame:GetWidth()
     if not frameWidth or frameWidth <= 20 then
@@ -462,8 +269,11 @@ local function RenderPreview(widget, scenarioIndex)
     for _, tick in pairs(widget.ticks) do
         tick:Hide()
     end
+    for _, tick in pairs(widget.milestoneTicks or {}) do
+        tick:Hide()
+    end
 
-    local completedColor, inProgressColor, missingColor = GetProgressBarColors(addon)
+    local completedColor, inProgressColor, missingColor = addon:GetProgressBarColors()
     local barTexture = addon.LSM:Fetch("statusbar", pb.barTexture)
     local isRTL = pb.direction == "RIGHT_TO_LEFT"
     local doneTickColor = GetCompletedVisualColor(pb, completedColor)
@@ -496,7 +306,7 @@ local function RenderPreview(widget, scenarioIndex)
             inProgressColor,
             missingColor,
             function(positionPct)
-                return GetProgressBarGradientColor(addon, positionPct)
+                return addon:GetProgressBarGradientColor(positionPct)
             end
         )
         seg:Show()
@@ -543,16 +353,50 @@ local function RenderPreview(widget, scenarioIndex)
         tick:Show()
     end
 
-    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates)
+    if addon:GetProgressBarValue("showMilestoneTicks") and addon.GetProgressBarMilestoneThresholds then
+        local milestoneThresholds = addon:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
+        local milestoneTickWidth = pb.milestoneTickWidth or 1
+        local milestoneOverflow = math_max(0, math_ceil((pb.tickOverflow or 0) / 2))
+        local upcomingTickColor = pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 }
+        widget.milestoneTicks = widget.milestoneTicks or {}
+
+        for idx, threshold in ipairs(milestoneThresholds) do
+            local tick = widget.milestoneTicks[idx]
+            if not tick then
+                tick = (widget.milestoneOverlay or widget.barFrame):CreateTexture(nil, "OVERLAY", nil, 1)
+                widget.milestoneTicks[idx] = tick
+            end
+
+            local passed = currentPct >= threshold.percent
+            if passed then
+                tick:Hide()
+            else
+                tick:SetColorTexture(upcomingTickColor.r, upcomingTickColor.g, upcomingTickColor.b, upcomingTickColor.a)
+                tick:SetSize(milestoneTickWidth, pb.height + milestoneOverflow * 2)
+
+                local milestoneXPos = displayWidth * (threshold.percent / 100)
+                if isRTL then
+                    milestoneXPos = displayWidth - milestoneXPos
+                end
+
+                tick:ClearAllPoints()
+                tick:SetPoint("CENTER", widget.barFrame, "LEFT", milestoneXPos, 0)
+                tick:Show()
+            end
+        end
+    end
+
+    UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, scenario)
 end
 
 local methods = {}
 
 function methods.OnAcquire(self)
-    self.scenarioIndex = 1
+    self.scenarioIndex = KeystonePolaris._previewScenario or 1
     self:SetHeight(90)
     self:SetFullWidth(true)
     KeystonePolaris._progressBarPreviewWidget = self
+    RenderPreview(self, self.scenarioIndex)
 end
 
 function methods.OnRelease(self)
@@ -611,8 +455,13 @@ local function Constructor()
     borderFrame:SetAllPoints(barFrame)
     borderFrame:SetFrameLevel(barFrame:GetFrameLevel() + 10)
 
+    local milestoneOverlay = CreateFrame("Frame", nil, barFrame)
+    milestoneOverlay:SetAllPoints(barFrame)
+    milestoneOverlay:SetFrameLevel(borderFrame:GetFrameLevel() + 1)
+    milestoneOverlay:EnableMouse(false)
+
     local callout = CreateFrame("Frame", nil, frame)
-    callout:SetFrameStrata("HIGH")
+    callout:SetFrameLevel(milestoneOverlay:GetFrameLevel() + 1)
     local calloutText = callout:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     calloutText:SetPoint("CENTER", callout, "CENTER", 0, 0)
     callout.text = calloutText
@@ -627,9 +476,11 @@ local function Constructor()
         barFrame = barFrame,
         background = background,
         borderFrame = borderFrame,
+        milestoneOverlay = milestoneOverlay,
         callout = callout,
         segments = {},
         ticks = {},
+        milestoneTicks = {},
     }
     frame.obj = widget
 

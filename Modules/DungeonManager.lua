@@ -8,18 +8,18 @@ local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName)
 -- List of expansions and their corresponding data
 -- Exposed to the addon object so other modules can access it if needed
 KeystonePolaris.Expansions = {
-    {id = "MIDNIGHT", name = "EXPANSION_MIDNIGHT", order = 3}, -- Midnight
-    {id = "TWW", name = "EXPANSION_WW", order = 4}, -- The War Within
-    {id = "DF", name = "EXPANSION_DF", order = 5}, -- Dragonflight
-    {id = "SL", name = "EXPANSION_SL", order = 6}, -- Shadowlands
-    {id = "BFA", name = "EXPANSION_BFA", order = 7}, -- Battle for Azeroth
-    {id = "LEGION", name = "EXPANSION_LEGION", order = 8}, -- Legion
-    {id = "WOD", name = "EXPANSION_WOD", order = 9},       -- Warlords of Draenor
-    -- {id = "MOP", name = "EXPANSION_MOP", order = 10},      -- Mists of Pandaria
-    {id = "CATACLYSM", name = "EXPANSION_CATA", order = 11}, -- Cataclysm
-    {id = "WOTLK", name = "EXPANSION_WOTLK", order = 12}, -- Wrath of the Lich King
-    -- {id = "TBC", name = "EXPANSION_TBC", order = 13} -- The Burning Crusade
-    -- {id = "Vanilla", name = "EXPANSION_VANILLA", order = 14} -- Vanilla WoW
+    {id = "MIDNIGHT", name = EXPANSION_NAME11, order = 3}, -- Midnight
+    {id = "TWW", name = EXPANSION_NAME10, order = 4}, -- The War Within
+    {id = "DF", name = EXPANSION_NAME9, order = 5}, -- Dragonflight
+    {id = "SL", name = EXPANSION_NAME8, order = 6}, -- Shadowlands
+    {id = "BFA", name = EXPANSION_NAME7, order = 7}, -- Battle for Azeroth
+    {id = "LEGION", name = EXPANSION_NAME6, order = 8}, -- Legion
+    {id = "WOD", name = EXPANSION_NAME5, order = 9},       -- Warlords of Draenor
+    -- {id = "MOP", name = EXPANSION_NAME4, order = 10},      -- Mists of Pandaria
+    {id = "CATACLYSM", name = EXPANSION_NAME3, order = 11}, -- Cataclysm
+    {id = "WOTLK", name = EXPANSION_NAME2, order = 12}, -- Wrath of the Lich King
+    -- {id = "TBC", name = EXPANSION_NAME1, order = 13} -- The Burning Crusade
+    -- {id = "Vanilla", name = EXPANSION_NAME0, order = 14} -- Vanilla WoW
 }
 
 local expansions = KeystonePolaris.Expansions
@@ -40,12 +40,204 @@ local function CloneTable(tbl)
     return t
 end
 
+local function NormalizeDefaultMilestones(milestones)
+    if type(milestones) ~= "table" or #milestones == 0 then
+        return {}
+    end
+
+    local normalized = {}
+    for index, milestone in ipairs(milestones) do
+        if type(milestone) == "table" then
+            local triggerType = tostring(milestone.triggerType or "none"):lower()
+            if triggerType ~= "none" and triggerType ~= "zone" and triggerType ~= "subzone" then
+                triggerType = "none"
+            end
+            normalized[#normalized + 1] = {
+                id = tonumber(milestone.id) or index,
+                label = tostring(milestone.label or ""),
+                thresholdPercent = tonumber(milestone.thresholdPercent) or 0,
+                triggerType = triggerType,
+                matchAreaID = tonumber(milestone.matchAreaID),
+                matchMapID = tonumber(milestone.matchMapID),
+                matchText = tostring(milestone.matchText or ""),
+                informSuffix = tostring(milestone.informSuffix or ""),
+                inform = milestone.inform == true,
+                creationOrder = tonumber(milestone.creationOrder) or index,
+            }
+        end
+    end
+    return normalized
+end
+
+local function MilestoneMatchesDefaultIdentity(saved, default)
+    if type(saved) ~= "table" or type(default) ~= "table" then
+        return false
+    end
+
+    local savedId = tonumber(saved.id)
+    local defaultId = tonumber(default.id)
+    if savedId and defaultId and savedId == defaultId then
+        return true
+    end
+
+    local savedAreaID = tonumber(saved.matchAreaID)
+    local defaultAreaID = tonumber(default.matchAreaID)
+    if savedAreaID and defaultAreaID and savedAreaID == defaultAreaID then
+        return true
+    end
+
+    local savedMapID = tonumber(saved.matchMapID)
+    local defaultMapID = tonumber(default.matchMapID)
+    if savedMapID and defaultMapID and savedMapID == defaultMapID then
+        return true
+    end
+
+    return false
+end
+
+local function IsIncompleteDefaultMilestone(saved, default)
+    if not MilestoneMatchesDefaultIdentity(saved, default) then
+        return false
+    end
+
+    local threshold = tonumber(saved.thresholdPercent) or 0
+    local triggerType = tostring(saved.triggerType or "none"):lower()
+    local label = tostring(saved.label or ""):match("^%s*(.-)%s*$") or ""
+
+    return threshold == 0 and triggerType == "none" and label == ""
+end
+
+local function MergeMilestoneFields(saved, default, fillIncomplete)
+    for key, value in pairs(default) do
+        if key ~= "id" and key ~= "creationOrder" then
+            local current = saved[key]
+            local shouldFill = current == nil
+            if fillIncomplete then
+                if key == "label" and (current == nil or current == "") then
+                    shouldFill = true
+                elseif key == "thresholdPercent" and (current == nil or (tonumber(current) or 0) == 0) then
+                    shouldFill = true
+                elseif key == "triggerType" and (current == nil or tostring(current):lower() == "none") then
+                    shouldFill = true
+                elseif key == "inform" and current ~= true and value == true then
+                    shouldFill = true
+                elseif key == "informSuffix" and (current == nil or current == "") then
+                    shouldFill = true
+                elseif key == "matchText" and (current == nil or current == "") then
+                    shouldFill = true
+                end
+            end
+            if shouldFill then
+                if type(value) == "table" then
+                    saved[key] = CloneTable(value)
+                else
+                    saved[key] = value
+                end
+            end
+        end
+    end
+end
+
+local function EnsureSavedMilestonesTable(savedAdvanced)
+    if type(savedAdvanced.milestones) ~= "table" then
+        savedAdvanced.milestones = {}
+    end
+    return savedAdvanced.milestones
+end
+
+local function SeedMilestoneDefaultsIfNeeded(savedAdvanced, defaultMilestones)
+    if type(defaultMilestones) ~= "table" or #defaultMilestones == 0 then
+        return false
+    end
+
+    if savedAdvanced.milestonesUserEdited then
+        EnsureSavedMilestonesTable(savedAdvanced)
+        return false
+    end
+
+    local savedMilestones = savedAdvanced.milestones
+    if savedMilestones == nil or (type(savedMilestones) == "table" and #savedMilestones == 0) then
+        savedAdvanced.milestones = CloneTable(defaultMilestones)
+        return true
+    end
+
+    if type(savedMilestones) ~= "table" then
+        savedAdvanced.milestones = CloneTable(defaultMilestones)
+        return true
+    end
+
+    return false
+end
+
+local function MergeAdvancedMilestoneDefaults(savedAdvanced, defaultAdvanced)
+    if type(savedAdvanced) ~= "table" or type(defaultAdvanced) ~= "table" then
+        return
+    end
+
+    local defaultMilestones = defaultAdvanced.milestones
+    if type(defaultMilestones) ~= "table" or #defaultMilestones == 0 then
+        return
+    end
+
+    if SeedMilestoneDefaultsIfNeeded(savedAdvanced, defaultMilestones) then
+        return
+    end
+
+    local savedMilestones = savedAdvanced.milestones
+    if type(savedMilestones) ~= "table" or #savedMilestones == 0 then
+        return
+    end
+
+    for index, savedMilestone in ipairs(savedMilestones) do
+        if type(savedMilestone) == "table" then
+            for _, defaultMilestone in ipairs(defaultMilestones) do
+                if MilestoneMatchesDefaultIdentity(savedMilestone, defaultMilestone) then
+                    local fillIncomplete = IsIncompleteDefaultMilestone(savedMilestone, defaultMilestone)
+                    MergeMilestoneFields(savedMilestone, defaultMilestone, fillIncomplete)
+                    break
+                end
+            end
+            if savedMilestone.id == nil then
+                savedMilestone.id = index
+            end
+            if savedMilestone.creationOrder == nil then
+                savedMilestone.creationOrder = index
+            end
+        end
+    end
+end
+
+function KeystonePolaris:MergeDungeonMilestoneDefaults(dungeonKey)
+    if not dungeonKey or not self.db or not self.db.profile or not self.db.profile.advanced then
+        return
+    end
+
+    local savedAdvanced = self.db.profile.advanced[dungeonKey]
+    if type(savedAdvanced) ~= "table" then
+        return
+    end
+
+    for _, expansion in ipairs(expansions) do
+        local dungeonIds = self[expansion.id .. "_DUNGEON_IDS"]
+        if dungeonIds and dungeonIds[dungeonKey] then
+            local defaultAdvanced = self[expansion.id .. "_DEFAULTS"][dungeonKey]
+            if defaultAdvanced then
+                MergeAdvancedMilestoneDefaults(savedAdvanced, defaultAdvanced)
+            end
+            return
+        end
+    end
+end
+
 -- ---------------------------------------------------------------------------
 -- Season Date Helpers
 -- ---------------------------------------------------------------------------
 -- start_date/end_date can be:
 --   - a string "YYYY-MM-DD"
+--   - the literal "TBD" (unknown date; never current, next only as fallback)
 --   - a table keyed by portal (US/EU) with optional "default"
+-- end_date "TBD" is treated like a missing end_date for scheduling, but the
+-- UI can still display it as an announced-but-unknown end.
 local function ResolveSeasonDate(dateValue)
     if not dateValue then return nil end
     if type(dateValue) ~= "table" then return dateValue end
@@ -55,7 +247,7 @@ local function ResolveSeasonDate(dateValue)
 end
 
 local function ResolveSeasonTimestamp(dateStr, defaultHour, defaultMin, useNowIfToday)
-    if not dateStr or dateStr == "" then return nil end
+    if not dateStr or dateStr == "" or dateStr == "TBD" then return nil end
     local y, m, d, h, min = dateStr:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)%s+(%d%d):(%d%d)$")
     local hasTime = y ~= nil
     if not hasTime then
@@ -80,12 +272,15 @@ local function ResolveSeasonTimestamp(dateStr, defaultHour, defaultMin, useNowIf
 end
 
 -- Returns current/next season ids and their resolved start/end dates.
--- Current season: start_date <= today and (no end_date or today <= end_date).
--- If end_date is missing, the season is considered active until the next
+-- Current season: start_date <= today and (no end_date / TBD end or today <= end_date).
+-- If end_date is missing or "TBD", the season is considered active until the next
 -- start_date is reached.
+-- start_date "TBD" seasons are never current; they are used as next season only
+-- when no dated next season exists.
 function KeystonePolaris:GetSeasonByDate(dateStr)
     local currentId, currentStart, currentEnd
     local nextId, nextStart
+    local nextTbdId, nextTbdStart
     local compareDate = dateStr or date("%Y-%m-%d")
     local compareTs = ResolveSeasonTimestamp(compareDate, 12, 0, true)
 
@@ -94,23 +289,37 @@ function KeystonePolaris:GetSeasonByDate(dateStr)
             not tbl.is_remix then
             local startDate = ResolveSeasonDate(tbl.start_date)
             local endDate = ResolveSeasonDate(tbl.end_date)
-            local startTs = ResolveSeasonTimestamp(startDate, 0, 0, false)
-            local endTs = ResolveSeasonTimestamp(endDate, 23, 59, false)
+            local seasonId = key:gsub("_DUNGEONS$", "")
 
-            if startTs and compareTs and startTs <= compareTs and
-                (not endTs or compareTs <= endTs) then
-                if not currentStart or startTs > ResolveSeasonTimestamp(currentStart, 0, 0, false) then
-                    currentId = key:gsub("_DUNGEONS$", "")
-                    currentStart = startDate
-                    currentEnd = endDate
+            if startDate == "TBD" then
+                if not nextTbdId then
+                    nextTbdId = seasonId
+                    nextTbdStart = startDate
                 end
-            elseif startTs and compareTs and startTs > compareTs then
-                if not nextStart or startTs < ResolveSeasonTimestamp(nextStart, 0, 0, false) then
-                    nextId = key:gsub("_DUNGEONS$", "")
-                    nextStart = startDate
+            else
+                local startTs = ResolveSeasonTimestamp(startDate, 0, 0, false)
+                local endTs = ResolveSeasonTimestamp(endDate, 23, 59, false)
+
+                if startTs and compareTs and startTs <= compareTs and
+                    (not endTs or compareTs <= endTs) then
+                    if not currentStart or startTs > ResolveSeasonTimestamp(currentStart, 0, 0, false) then
+                        currentId = seasonId
+                        currentStart = startDate
+                        currentEnd = endDate
+                    end
+                elseif startTs and compareTs and startTs > compareTs then
+                    if not nextStart or startTs < ResolveSeasonTimestamp(nextStart, 0, 0, false) then
+                        nextId = seasonId
+                        nextStart = startDate
+                    end
                 end
             end
         end
+    end
+
+    if not nextId and nextTbdId then
+        nextId = nextTbdId
+        nextStart = nextTbdStart
     end
 
     return currentId, currentStart, currentEnd, nextId, nextStart
@@ -189,6 +398,11 @@ function KeystonePolaris:GenerateExpansionTables(expansionId, dungeonData)
             if hasOrder then
                 defaults.bossOrder = bossOrder
             end
+            if type(dData.milestones) == "table" and #dData.milestones > 0 then
+                defaults.milestones = NormalizeDefaultMilestones(dData.milestones)
+            else
+                defaults.milestones = {}
+            end
 
             self[expansionId .. "_DEFAULTS"][shortName] = defaults
         end
@@ -227,10 +441,22 @@ function KeystonePolaris:LoadExpansionDungeons()
                 -- Initialize with defaults if needed (only if not hidden, effectively)
                 local defaults = self[expansion.id .. "_DEFAULTS"][shortName]
                 if defaults then
+                    local advancedEntry = self.db.profile.advanced[shortName]
                     for key, value in pairs(defaults) do
-                        if self.db.profile.advanced[shortName][key] == nil then
-                            self.db.profile.advanced[shortName][key] = value
+                        if advancedEntry[key] == nil then
+                            if key == "milestones" then
+                                if not SeedMilestoneDefaultsIfNeeded(advancedEntry, value) then
+                                    EnsureSavedMilestonesTable(advancedEntry)
+                                end
+                            elseif type(value) == "table" then
+                                advancedEntry[key] = CloneTable(value)
+                            else
+                                advancedEntry[key] = value
+                            end
                         end
+                    end
+                    if self.MergeDungeonMilestoneDefaults then
+                        self:MergeDungeonMilestoneDefaults(shortName)
                     end
                 end
             end
@@ -251,7 +477,11 @@ function KeystonePolaris:LoadExpansionDungeons()
         local defaults = self[expansion.id .. "_DEFAULTS"]
         if defaults then
             for k, v in pairs(defaults) do
-                KeystonePolaris.defaults.profile.advanced[k] = v
+                if type(v) == "table" then
+                    KeystonePolaris.defaults.profile.advanced[k] = CloneTable(v)
+                else
+                    KeystonePolaris.defaults.profile.advanced[k] = v
+                end
             end
         end
     end
@@ -307,6 +537,47 @@ end
 
 function KeystonePolaris:GetDungeonKeyById(dungeonId)
     return self.GlobalDungeonIDLookup and self.GlobalDungeonIDLookup[dungeonId] or nil
+end
+
+local DUNGEON_ICON_PLACEHOLDER = "Interface\\Icons\\INV_Misc_QuestionMark"
+
+function KeystonePolaris:GetDungeonIcon(dungeonKey)
+    if not dungeonKey then return DUNGEON_ICON_PLACEHOLDER end
+
+    local dungeonData = self.GlobalDungeonLookup and self.GlobalDungeonLookup[dungeonKey]
+    local mapId = dungeonData and dungeonData.id
+
+    if mapId then
+        local texture = select(4, C_ChallengeMode.GetMapUIInfo(mapId))
+        if texture then return texture end
+    end
+
+    local teleportID = dungeonData and dungeonData.teleportID
+    if teleportID and type(teleportID) == "number" then
+        local icon
+        if C_Spell and C_Spell.GetSpellTexture then
+            icon = C_Spell.GetSpellTexture(teleportID)
+        elseif GetSpellInfo then
+            icon = select(3, GetSpellInfo(teleportID))
+        end
+        if icon then return icon end
+    end
+
+    local lfgID = dungeonData and dungeonData.lfgID
+    if lfgID and type(lfgID) == "number" then
+        if C_LFGInfo and C_LFGInfo.GetDungeonInfo then
+            local info = C_LFGInfo.GetDungeonInfo(lfgID)
+            if info and info.iconID then return info.iconID end
+        end
+        if GetLFGDungeonInfo then
+            local textureFilename = select(11, GetLFGDungeonInfo(lfgID))
+            if textureFilename and textureFilename ~= "" then
+                return "Interface\\LFGFrame\\LFGIcon-" .. textureFilename .. ".blp"
+            end
+        end
+    end
+
+    return DUNGEON_ICON_PLACEHOLDER
 end
 
 function KeystonePolaris:GetDungeonDisplayName(dungeonKey)
@@ -528,77 +799,6 @@ end
 -- ---------------------------------------------------------------------------
 -- Dungeon State & Tracking
 -- ---------------------------------------------------------------------------
-
--- Track currently engaged mobs for real pull percent
-KeystonePolaris.realPull = {
-    mobs = {},    -- [guid] = { npcID = number, count = number }
-    sum = 0,      -- total count across engaged GUIDs
-    denom = 0,    -- MDT total required count for 100%
-}
-
--- Helpers to manage real pull set
-function KeystonePolaris:AddEngagedMobByGUID(guid)
-    if not guid then return end
-    -- If already tracked, just refresh lastSeen and return
-    local existing = self.realPull.mobs[guid]
-    if existing then
-        existing.lastSeen = (GetTime and GetTime()) or existing.lastSeen or 0
-        return
-    end
-    local DungeonTools = _G and (_G.MDT or _G.MethodDungeonTools)
-    if not DungeonTools or not DungeonTools.GetEnemyForces then return end
-
-    local _, _, _, _, _, npcID = strsplit("-", guid)
-    local id = tonumber(npcID)
-    if not id then return end
-
-    local count, max, maxTeeming, teemingCount = DungeonTools:GetEnemyForces(id)
-    local isTeeming = self.IsTeeming and self:IsTeeming() or false
-    local denom = (isTeeming and maxTeeming) or max
-    local c = (isTeeming and teemingCount) or count
-    c = tonumber(c) or 0
-    denom = tonumber(denom) or 0
-
-    -- Initialize denominator when first known
-    if self.realPull.denom == 0 and denom > 0 then
-        self.realPull.denom = denom
-    end
-
-    if c > 0 then
-        self.realPull.mobs[guid] = { npcID = id, count = c, lastSeen = (GetTime and GetTime()) or 0 }
-        self.realPull.sum = self.realPull.sum + c
-    end
-end
-
-function KeystonePolaris:RemoveEngagedMobByGUID(guid)
-    local data = guid and self.realPull.mobs[guid]
-    if not data then return end
-    self.realPull.sum = math.max(0, self.realPull.sum - (data.count or 0))
-    self.realPull.mobs[guid] = nil
-end
-
--- Compute current planned pull percent via MDT (if available)
-function KeystonePolaris:GetCurrentPullPercent()
-    if not C_ChallengeMode.IsChallengeModeActive() then return 0 end
-    local denom = tonumber(self.realPull.denom) or 0
-    local sum = tonumber(self.realPull.sum) or 0
-    if denom <= 0 or sum <= 0 then return 0 end
-    return (sum / denom) * 100
-end
-
--- Determine if all non-weighted (boss) criteria are completed
-function KeystonePolaris.AreAllBossesKilled()
-    local stepInfo = C_ScenarioInfo and C_ScenarioInfo.GetStepInfo and C_ScenarioInfo.GetStepInfo()
-    local numCriteria = stepInfo and stepInfo.numCriteria or 0
-    if numCriteria == 0 then return false end
-    for i = 1, numCriteria do
-        local info = C_ScenarioInfo.GetCriteriaInfo(i)
-        if info and not info.isWeightedProgress then
-            if not info.completed then return false end
-        end
-    end
-    return true
-end
 
 function KeystonePolaris:HaveAllSeasonDungeonsChanged()
     -- Get the current date

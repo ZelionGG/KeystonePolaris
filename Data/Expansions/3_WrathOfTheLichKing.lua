@@ -12,6 +12,17 @@ KeystonePolaris.WOTLK_DUNGEON_DATA = {
             {1, 58.63, false, 1, 608, "Forgemaster Garfrost", 252635}, -- Forgemaster Garfrost
             {2, 79.94, false, 2, 609, "Ick and Krick", {252621, 252625, 255037}}, -- Ick and Krick
             {4, 100,   true,  3, 610, "Scourgelord Tyrannus", {252648, 252653}} -- Scourgelord Tyrannus
-        }
+        },
+        milestones = {
+            {
+                id = 1,
+                label = "Quarry",
+                thresholdPercent = 32.32,
+                triggerType = "subzone",
+                -- The Dark Approach (AreaTable ID; parent 4813, continent/uiMap 658)
+                matchAreaID = 4904,
+                inform = false,
+            },
+        },
     }
 }

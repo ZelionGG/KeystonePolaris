@@ -1,59 +1,50 @@
+import { createHash } from "crypto";
 import { readFileSync, writeFileSync, readdirSync } from "fs";
-import { join, basename, normalize, relative } from "path";
+import { join, basename, normalize, relative, resolve } from "path";
+import { fileURLToPath } from "url";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface BaseEntry {
+export interface BaseEntry {
   kind: "assignment";
   key: string;
   value: string;
   rawLines: string[];
 }
 
-interface BaseComment {
+export interface BaseComment {
   kind: "comment";
   rawLine: string;
 }
 
-interface BaseBlank {
+export interface BaseBlank {
   kind: "blank";
 }
 
-type BaseElement = BaseEntry | BaseComment | BaseBlank;
+export type BaseElement = BaseEntry | BaseComment | BaseBlank;
 
-type LocaleEntryStatus =
+export type LocaleEntryStatus =
   | "translated"
   | "untranslated-marked"
   | "todo-commented"
   | "stale-flagged";
 
 const SAME_VALUE_ALLOWLIST: ReadonlySet<string> = new Set([
-  // Expansion names are intentionally kept in English by most translators
-  "EXPANSION_MIDNIGHT",
-  "EXPANSION_WW",
-  "EXPANSION_DF",
-  "EXPANSION_SL",
-  "EXPANSION_BFA",
-  "EXPANSION_LEGION",
-  "EXPANSION_WOD",
-  "EXPANSION_CATA",
-  "EXPANSION_WOTLK",
-  "EXPANSION_MOP",
-  "EXPANSION_CLASSIC",
   // Date format key — translators set locale-appropriate format which may match base
   "%month%-%day%-%year%",
 ]);
 
-interface LocaleEntry {
+export interface LocaleEntry {
   key: string;
   value: string;
   status: LocaleEntryStatus;
   rawLines: string[];
+  /** Stale marker payload: enUS@hash12 digits, or legacy full base value string. */
   todoValue?: string;
   noTranslate: boolean;
 }
 
-interface LocaleReport {
+export interface LocaleReport {
   locale: string;
   newKeys: string[];
   removedKeys: string[];
@@ -61,19 +52,23 @@ interface LocaleReport {
   updatedTodoValues: string[];
   totalKeys: number;
   translatedKeys: number;
+  parseWarnings: number;
 }
 
 // ── Patterns ───────────────────────────────────────────────────────────────────
 
 const L_KEY_RE = /^L\["([^"]+)"\]\s*=/;
 const TODO_L_KEY_RE = /^\s*--\s*TODO:\s*L\["([^"]+)"\]\s*=/;
-const DIFF_L_KEY_RE = /^\+\s*(?:--\s*TODO:\s*)?L\["([^"]+)"\]\s*=/;
+const DIFF_LINE_L_KEY_RE = /^\s*(?:--\s*TODO:\s*)?L\["([^"]+)"\]\s*=/;
 const TO_TRANSLATE_RE = /--\s*(?:TODO:\s*)?To Translate\s*$/;
 const NO_TRANSLATE_RE = /--\s*@no-translate\b/;
+const STALE_HASH_RE = /--\s*TODO:\s*enUS@([a-f0-9]+)\s*$/;
+const STALE_LEGACY_RE = /--\s*TODO:\s*"([^"]*)"$/;
+const LOOKS_LIKE_LOCALE_LINE_RE = /(?:^|\s)--\s*TODO:\s*L\[|L\[/;
 
 // ── Parsing helpers ────────────────────────────────────────────────────────────
 
-function extractValueString(rawLines: string[]): string {
+export function extractValueString(rawLines: string[]): string {
   const full = rawLines.join("\n");
   const eqIdx = full.indexOf("=");
   if (eqIdx === -1) return "";
@@ -85,6 +80,24 @@ function extractValueString(rawLines: string[]): string {
     segments.push(match[1]);
   }
   return segments.join("");
+}
+
+export function hashBaseValue(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 12);
+}
+
+export function isStaleMarkerCurrent(marker: string | undefined, baseValue: string): boolean {
+  if (marker === undefined) {
+    return false;
+  }
+
+  const expectedHash = hashBaseValue(baseValue);
+  if (/^[a-f0-9]+$/.test(marker)) {
+    return marker === expectedHash;
+  }
+
+  // Legacy full-value marker from older sync-locales runs
+  return marker === baseValue;
 }
 
 function isLineContinuation(line: string): boolean {
@@ -140,7 +153,10 @@ function getDiffLookupPaths(filePath: string): string[] {
   return [absolutePath, relativePath, basename(filePath)];
 }
 
-function getChangedKeysForFile(changedKeysByFile: Map<string, Set<string>>, filePath: string): Set<string> {
+export function getChangedKeysForFile(
+  changedKeysByFile: Map<string, Set<string>>,
+  filePath: string
+): Set<string> {
   for (const candidate of getDiffLookupPaths(filePath)) {
     const changedKeys = changedKeysByFile.get(candidate);
     if (changedKeys) {
@@ -151,37 +167,104 @@ function getChangedKeysForFile(changedKeysByFile: Map<string, Set<string>>, file
   return new Set<string>();
 }
 
-function parseDiffByFile(diffPath: string): Map<string, Set<string>> {
-  // Parse a unified diff and collect changed locale keys per file from added lines.
-  // A changed assignment appears as a removed old line and an added new line.
+function extractDiffLineKey(line: string): string | null {
+  if (line.startsWith("+++") || line.startsWith("---")) {
+    return null;
+  }
+
+  // Unified diffs often put the assignment on the hunk header:
+  // @@ -17,7 +17,7 @@ L["KEY"] = "..."
+  if (line.startsWith("@@")) {
+    const hunkMatch = line.match(/@@.*?@@\s*(?:--\s*TODO:\s*)?L\["([^"]+)"\]/);
+    return hunkMatch ? hunkMatch[1] : null;
+  }
+
+  if (!(line.startsWith("+") || line.startsWith("-") || line.startsWith(" "))) {
+    return null;
+  }
+
+  const content = line.slice(1);
+  const match = content.match(DIFF_LINE_L_KEY_RE);
+  return match ? match[1] : null;
+}
+
+function isDiffContinuationAddedLine(line: string): boolean {
+  if (!line.startsWith("+") || line.startsWith("+++")) {
+    return false;
+  }
+
+  const content = line.slice(1);
+  if (DIFF_LINE_L_KEY_RE.test(content)) {
+    return false;
+  }
+
+  return /"/.test(content) || /\.\.\s*$/.test(content.trimEnd());
+}
+
+/**
+ * Parse a unified diff and collect changed locale keys per file.
+ * Tracks the current L["key"] across context/add/remove lines so edits that
+ * only touch multi-line string continuations still mark the parent key.
+ */
+export function parseDiffContent(content: string): Map<string, Set<string>> {
   const changedKeysByFile = new Map<string, Set<string>>();
-  const content = readFileSync(diffPath, "utf-8");
   const lines = splitNormalizedLines(content);
   let currentFilePath: string | null = null;
+  let currentKey: string | null = null;
+
+  const ensureSet = (path: string): Set<string> => {
+    let changedKeys = changedKeysByFile.get(path);
+    if (!changedKeys) {
+      changedKeys = new Set<string>();
+      changedKeysByFile.set(path, changedKeys);
+    }
+    return changedKeys;
+  };
 
   for (const line of lines) {
     if (line.startsWith("+++ ")) {
       const rawPath = line.slice(4).trim();
       currentFilePath = rawPath === "/dev/null" ? null : normalizeDiffFilePath(rawPath);
+      currentKey = null;
       continue;
     }
 
-    if (!line.startsWith("+") || line.startsWith("+++")) continue;
-    const match = line.match(DIFF_L_KEY_RE);
-    if (!match || !currentFilePath) {
+    if (!currentFilePath) {
       continue;
     }
 
-    let changedKeys = changedKeysByFile.get(currentFilePath);
-    if (!changedKeys) {
-      changedKeys = new Set<string>();
-      changedKeysByFile.set(currentFilePath, changedKeys);
+    if (
+      line.startsWith("@@") ||
+      line.startsWith("+") ||
+      line.startsWith("-") ||
+      line.startsWith(" ")
+    ) {
+      const keyFromLine = extractDiffLineKey(line);
+      if (keyFromLine) {
+        currentKey = keyFromLine;
+      }
     }
 
-    changedKeys.add(match[1]);
+    if (!line.startsWith("+") || line.startsWith("+++")) {
+      continue;
+    }
+
+    const addedKey = extractDiffLineKey(line);
+    if (addedKey) {
+      ensureSet(currentFilePath).add(addedKey);
+      continue;
+    }
+
+    if (currentKey && isDiffContinuationAddedLine(line)) {
+      ensureSet(currentFilePath).add(currentKey);
+    }
   }
 
   return changedKeysByFile;
+}
+
+export function parseDiffByFile(diffPath: string): Map<string, Set<string>> {
+  return parseDiffContent(readFileSync(diffPath, "utf-8"));
 }
 
 // ── Base locale parser ────────────────────────────────────────────────────────
@@ -197,7 +280,7 @@ function findTranslationsStart(lines: string[]): number {
   throw new Error(`Missing "${TRANSLATIONS_START_MARKER}" marker in enUS.lua`);
 }
 
-function parseBaseLocale(filePath: string): { header: string[]; elements: BaseElement[] } {
+export function parseBaseLocale(filePath: string): { header: string[]; elements: BaseElement[] } {
   const lines = readLines(filePath);
   const contentStart = findTranslationsStart(lines);
   const header = lines.slice(0, contentStart);
@@ -242,7 +325,7 @@ function findLocaleHeaderEnd(lines: string[]): number {
   throw new Error("Missing 'if not L then return end' in locale file");
 }
 
-function findFirstContentElement(baseElements: BaseElement[]): BaseComment | BaseEntry | null {
+export function findFirstContentElement(baseElements: BaseElement[]): BaseComment | BaseEntry | null {
   for (const element of baseElements) {
     if (element.kind !== "blank") {
       return element;
@@ -277,7 +360,7 @@ function isLineMatchingBaseElementStart(
   return assignMatch?.[1] === firstContentElement.key;
 }
 
-function parseLocale(
+export function parseLocale(
   filePath: string,
   baseEntries: Map<string, BaseEntry>,
   firstContentElement: BaseComment | BaseEntry | null
@@ -285,12 +368,14 @@ function parseLocale(
   header: string[];
   introLines: string[];
   entries: Map<string, LocaleEntry>;
+  parseWarnings: number;
 } {
   const lines = readLines(filePath);
   const headerEnd = findLocaleHeaderEnd(lines);
   const header = lines.slice(0, headerEnd);
   const introLines: string[] = [];
   const entries = new Map<string, LocaleEntry>();
+  let parseWarnings = 0;
   let i = headerEnd;
 
   while (i < lines.length && !isLineMatchingBaseElementStart(lines[i], firstContentElement)) {
@@ -332,15 +417,30 @@ function parseLocale(
       const lastLine = rawLines[rawLines.length - 1];
       const noTranslate = NO_TRANSLATE_RE.test(lastLine);
 
-      const staleMatch = lastLine.match(/--\s*TODO:\s*"([^"]*)"$/);
-      if (staleMatch) {
+      const staleHashMatch = lastLine.match(STALE_HASH_RE);
+      if (staleHashMatch) {
         const value = extractValueString(rawLines);
         entries.set(key, {
           key,
           value,
           status: "stale-flagged",
           rawLines,
-          todoValue: staleMatch[1],
+          todoValue: staleHashMatch[1],
+          noTranslate,
+        });
+        i = endIndex + 1;
+        continue;
+      }
+
+      const staleLegacyMatch = lastLine.match(STALE_LEGACY_RE);
+      if (staleLegacyMatch) {
+        const value = extractValueString(rawLines);
+        entries.set(key, {
+          key,
+          value,
+          status: "stale-flagged",
+          rawLines,
+          todoValue: staleLegacyMatch[1],
           noTranslate,
         });
         i = endIndex + 1;
@@ -371,10 +471,15 @@ function parseLocale(
       continue;
     }
 
+    if (LOOKS_LIKE_LOCALE_LINE_RE.test(line)) {
+      process.stderr.write(`Warning: ${filePath}:${i + 1}: unrecognized locale line: ${line}\n`);
+      parseWarnings++;
+    }
+
     i++;
   }
 
-  return { header, introLines: trimmedIntroLines, entries };
+  return { header, introLines: trimmedIntroLines, entries, parseWarnings };
 }
 
 // ── Output generation ──────────────────────────────────────────────────────────
@@ -383,17 +488,17 @@ function formatTodoEntry(baseEntry: BaseEntry): string[] {
   return baseEntry.rawLines.map((line) => `-- TODO: ${line}`);
 }
 
-function stripStaleTodoSuffix(rawLines: string[]): string[] {
+export function stripStaleTodoSuffix(rawLines: string[]): string[] {
   const lines = [...rawLines];
   const lastIdx = lines.length - 1;
   lines[lastIdx] = lines[lastIdx].replace(/\s*--\s*TODO:.*$/, "");
   return lines;
 }
 
-function formatStaleEntry(localeEntry: LocaleEntry, newBaseValue: string): string[] {
+export function formatStaleEntry(localeEntry: LocaleEntry, newBaseValue: string): string[] {
   const lines = stripStaleTodoSuffix(localeEntry.rawLines);
   const lastIdx = lines.length - 1;
-  lines[lastIdx] = `${lines[lastIdx]} -- TODO: "${newBaseValue}"`;
+  lines[lastIdx] = `${lines[lastIdx]} -- TODO: enUS@${hashBaseValue(newBaseValue)}`;
   return lines;
 }
 
@@ -401,7 +506,7 @@ function stripToTranslateFromComment(comment: string): string {
   return comment.replace(/\s*\(To Translate\)\s*$/, "");
 }
 
-function generateLocaleFile(
+export function generateLocaleFile(
   localeCode: string,
   localeHeader: string[],
   introLines: string[],
@@ -409,7 +514,8 @@ function generateLocaleFile(
   baseEntries: Map<string, BaseEntry>,
   localeEntries: Map<string, LocaleEntry>,
   changedBaseKeys: Set<string>,
-  changedLocaleKeys: Set<string>
+  changedLocaleKeys: Set<string>,
+  parseWarnings = 0
 ): { content: string; report: LocaleReport } {
   const outputLines: string[] = [];
   const report: LocaleReport = {
@@ -420,6 +526,7 @@ function generateLocaleFile(
     updatedTodoValues: [],
     totalKeys: 0,
     translatedKeys: 0,
+    parseWarnings,
   };
 
   const seenBaseKeys = new Set<string>();
@@ -495,8 +602,8 @@ function generateLocaleFile(
       case "stale-flagged": {
         if (localeEntry.noTranslate) {
           outputLines.push(...stripStaleTodoSuffix(localeEntry.rawLines));
-        } else if (localeEntry.todoValue !== baseValue) {
-          // Update the TODO marker to the current base value
+        } else if (!isStaleMarkerCurrent(localeEntry.todoValue, baseValue)) {
+          // Update the TODO marker to the current base value hash
           outputLines.push(...formatStaleEntry(localeEntry, baseValue));
           report.staleKeys.push(key);
         } else {
@@ -520,7 +627,7 @@ function generateLocaleFile(
 
 // ── CLI ────────────────────────────────────────────────────────────────────────
 
-function main(): void {
+export function main(): void {
   const args = process.argv.slice(2);
 
   const dryRun = args.includes("--dry-run");
@@ -570,7 +677,11 @@ function main(): void {
 
   for (const filePath of localeFiles) {
     const localeCode = basename(filePath, ".lua");
-    const { header, introLines, entries } = parseLocale(filePath, baseEntries, firstContentElement);
+    const { header, introLines, entries, parseWarnings } = parseLocale(
+      filePath,
+      baseEntries,
+      firstContentElement
+    );
     const changedLocaleKeys = getChangedKeysForFile(changedKeysByFile, filePath);
 
     const { content, report } = generateLocaleFile(
@@ -581,7 +692,8 @@ function main(): void {
       baseEntries,
       entries,
       changedBaseKeys,
-      changedLocaleKeys
+      changedLocaleKeys,
+      parseWarnings
     );
 
     reports.push(report);
@@ -602,6 +714,7 @@ function main(): void {
     if (r.staleKeys.length > 0) changes.push(`${r.staleKeys.length} stale flagged`);
     if (r.updatedTodoValues.length > 0) changes.push(`${r.updatedTodoValues.length} TODO values updated`);
     if (r.removedKeys.length > 0) changes.push(`${r.removedKeys.length} removed`);
+    if (r.parseWarnings > 0) changes.push(`${r.parseWarnings} parse warnings`);
     const changesStr = changes.length > 0 ? changes.join(", ") : "no changes";
     process.stderr.write(
       `${r.locale}.lua:  ${r.translatedKeys}/${totalBaseKeys} translated (${pct}%)  |  ${changesStr}\n`
@@ -615,4 +728,19 @@ function main(): void {
   process.stderr.write("\n");
 }
 
-main();
+function isExecutedAsCli(): boolean {
+  const entry = process.argv[1];
+  if (!entry) {
+    return false;
+  }
+
+  try {
+    return resolve(entry) === resolve(fileURLToPath(import.meta.url));
+  } catch {
+    return basename(entry) === "sync-locales.ts" || basename(entry) === "sync-locales.js";
+  }
+}
+
+if (isExecutedAsCli()) {
+  main();
+}

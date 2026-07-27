@@ -6,4 +6,5 @@
   <Script file="TWW/TWW_LEGION_REMIX_1.lua"/>
   <!-- Midnight -->
    <Script file="Midnight/Midnight_1.lua"/>
+   <Script file="Midnight/Midnight_2.lua"/>
 </Ui>

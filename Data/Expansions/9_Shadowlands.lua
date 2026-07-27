@@ -3,7 +3,7 @@ local AddOnName, KeystonePolaris = ...
 -- Define a single source of truth for dungeon data
 KeystonePolaris.SL_DUNGEON_DATA = {
     -- Format: [shortName] = {id = dungeonID, bosses = {{bossID, percent, shouldInform, bossOrder, journalEncounterID}, ...}}
-    MoTS = {
+    MoTS = { -- Mists of Tirna Scithe
         id = 375,
         mapID = 2290,
         teleportID = 354464,
@@ -13,7 +13,7 @@ KeystonePolaris.SL_DUNGEON_DATA = {
             {3, 100, true, 3, 2405}
         }
     },
-    NW = {
+    NW = { -- Necrotic Wake
         id = 376,
         mapID = 2286,
         teleportID = 354462,
@@ -24,7 +24,7 @@ KeystonePolaris.SL_DUNGEON_DATA = {
             {4, 100, true, 4, 2396}
         }
     },
-    ToP = {
+    ToP = { -- Theater of Pain
         id = 382,
         mapID = 2293,
         teleportID = 354467,
@@ -36,7 +36,7 @@ KeystonePolaris.SL_DUNGEON_DATA = {
             {5, 100, true, 5, 2417}
         }
     },
-    TSoW = {
+    TSoW = { -- Tazavesh, the Veiled Market: Streets of Wonder
         id = 391,
         mapID = 2441,
         teleportID = 367416,
@@ -48,7 +48,7 @@ KeystonePolaris.SL_DUNGEON_DATA = {
             {5, 100, true, 5, 2451}
         }
     },
-    TSLG = {
+    TSLG = { -- Tazavesh, the Veiled Market: So'leah's Gambit
         id = 392,
         mapID = 2441,
         teleportID = 367416,
@@ -58,7 +58,7 @@ KeystonePolaris.SL_DUNGEON_DATA = {
             {3, 100, true, 3, 2455}
         }
     },
-    HoA = {
+    HoA = { -- Halls of Atonement
         id = 378,
         mapID = 2287,
         teleportID = 354465,
