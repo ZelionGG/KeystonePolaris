@@ -8,4 +8,5 @@
 >
 > Version 3.11.1 sets the official Midnight Mythic+ season 1 end and season 2 start dates announced by Blizzard, replacing the previous TBD placeholders.
 
+- 🛠️ _**IMPROVEMENT** -_ Russian translation updated, thank you **Hollicsh**.
 - 🛠️ _**IMPROVEMENT** -_ Set official Midnight Mythic+ season 1 end dates (US 2026-08-11 / EU 2026-08-12) and season 2 start dates (US 2026-08-18 / EU 2026-08-19) after Blizzard's announcement.
