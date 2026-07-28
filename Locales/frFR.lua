@@ -231,8 +231,8 @@ L["SELECT_ALL"] = "Sélectionner tout"
 L["TRANSLATE"] = "Traduire"
 L["TRANSLATE_DESC"] = "Copier les notes de version qui vont apparaître dans une fenêtre popup pour les coller dans votre traducteur."
 L["UPDATE_ANNOUNCE"] = "a été mis à jour vers %s,"
-L["OPEN_CHANGELOG"] = "Ouvrir le changelog"
-L["CHANGELOG_AFTER_COMBAT"] = "Le changelog s'ouvrira après le combat"
+L["OPEN_CHANGELOG"] = "Ouvrir les notes de mise à jour"
+L["CHANGELOG_AFTER_COMBAT"] = "Les notes de mise à jour s'ouvriront après le combat"
 
 -- About
 L["ABOUT"] = "À propos"
