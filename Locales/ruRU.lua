@@ -163,7 +163,7 @@ L["FONT_SIZE_DESC"] = "Настроить размер текста"
 L["FONT_FLAGS"] = "Параметры шрифта"
 L["FONT_FLAGS_DESC"] = "Параметры рендеринга, применяемые ко всему тексту, использующему основной шрифт."
 L["FONT_FLAG_NONE"] = "Нет"
-L["FONT_FLAG_SLUG"] = "Slug"
+L["FONT_FLAG_SLUG"] = "Slug" -- @no-translate
 L["FONT_FLAG_OUTLINE_SLUG"] = "Контур + Slug"
 L["FONT_FLAG_MONOCHROME"] = "Монохромный"
 L["FONT_FLAG_OUTLINE"] = "Контур"
@@ -246,7 +246,7 @@ L["DONATE"] = "Пожертвование"
 L["DONATE_DESC"] = "Хотите поддержать разработку Keystone Polaris? Используйте одну из кнопок ниже, чтобы скопировать ссылку для пожертвования."
 L["GITHUB_SPONSORS"] = "Поддержка через GitHub"
 L["GITHUB_SPONSORS_DESC"] = "Скопировать ссылку GitHub Sponsors."
-L["PAYPAL"] = "PayPal"
+L["PAYPAL"] = "PayPal" -- @no-translate
 L["PAYPAL_DESC"] = "Скопировать ссылку для пожертвования через PayPal."
 
 -- Test Mode
