@@ -9,12 +9,11 @@ KeystonePolaris.MIDNIGHT_1_DUNGEONS = {
         EU = "2026-03-25",
         default = "2026-03-25"
     },
-    --[[ end_date = {
+    end_date = {
         US = "2026-08-11",
         EU = "2026-08-12",
         default = "2026-08-12"
-    }, ]]
-    end_date = "TBD",
+    },
     -- Midnight dungeons
     [557] = true, -- Windrunner Spire
     [558] = true, -- Magisters' Terrace
