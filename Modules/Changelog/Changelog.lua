@@ -376,6 +376,12 @@ function KeystonePolaris:MaybeAnnounceAddonUpdate()
     if not (self.db and self.db.profile and self.db.profile.general) then return end
 
     local currentVersion = C_AddOns.GetAddOnMetadata("KeystonePolaris", "Version") or ""
+    -- Hotfix tags (e.g. 3.11-fix1): seed silently, no [Open Changelog] announce.
+    if currentVersion:lower():find("fix", 1, true) then
+        self.db.profile.general.lastChangelogAnnounce = currentVersion
+        return
+    end
+
     local lastAnnounce = self.db.profile.general.lastChangelogAnnounce or ""
 
     if lastAnnounce == "" then
