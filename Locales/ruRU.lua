@@ -28,17 +28,17 @@ L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000В настоящее вр�
 -- Dungeons Group
 L["CURRENT_SEASON"] = "Текущий сезон"
 L["NEXT_SEASON"] = "Следующий сезон"
--- TODO: L["SEASON_DATE_TBD"] = "TBD"
+L["SEASON_DATE_TBD"] = "Будет объявлено позже"
 L["SEASON_ENDS_IN_ONE_MONTH"] = "До конца текущего сезона осталось меньше месяца."
 L["SEASON_ENDS_IN_WEEKS"] = "Текущий сезон заканчивается менее чем через %d недель."
 L["SEASON_ENDS_IN_DAYS"] = "Текущий сезон заканчивается через %d дней."
 L["SEASON_ENDS_IN_TOMORROW"] = "Текущий сезон заканчивается завтра."
--- TODO: L["SEASON_ENDS_SOON_TBD"] = "Current season ends soon (date to be announced)."
+L["SEASON_ENDS_SOON_TBD"] = "Текущий сезон скоро завершится (дата будет объявлена ​​позже)."
 L["SEASON_STARTS_IN_ONE_MONTH"] = "Следующий сезон начнётся менее чем через месяц."
 L["SEASON_STARTS_IN_WEEKS"] = "Следующий сезон начнётся менее чем через %d недель."
 L["SEASON_STARTS_IN_DAYS"] = "Следующий сезон начнётся через %d дней."
 L["SEASON_STARTS_IN_TOMORROW"] = "Следующий сезон начинается завтра."
--- TODO: L["SEASON_STARTS_SOON_TBD"] = "Next season starts soon (date to be announced)."
+L["SEASON_STARTS_SOON_TBD"] = "Следующий сезон начнётся в ближайшее время (дата будет объявлена ​​позже)."
 L["WEEKDAY_NEXT_FORMAT"] = "(следующий %s)"
 
 -- UI Strings
@@ -109,7 +109,7 @@ L["PROGRESS_BAR_CALLOUT_FONT"] = "Шрифт выноски"
 L["PROGRESS_BAR_CALLOUT_FONT_SIZE"] = "Размер шрифта выноски"
 L["PROGRESS_BAR_CALLOUT_TEXT_COLOR"] = "Цвет текста выноски"
 L["PROGRESS_BAR_CALLOUT_BG_COLOR"] = "Фон выноски"
--- TODO: L["PROGRESS_BAR_CALLOUT_FORMAT"] = "%.2f%% • %s"
+L["PROGRESS_BAR_CALLOUT_FORMAT"] = "%.2f%% • %s"
 L["PROGRESS_BAR_THRESHOLD"] = "Порог: %.2f%%"
 L["PROGRESS_BAR_COUNT"] = "Количество: %d"
 L["Changelog"] = "Список изменений"
@@ -163,7 +163,7 @@ L["FONT_SIZE_DESC"] = "Настроить размер текста"
 L["FONT_FLAGS"] = "Параметры шрифта"
 L["FONT_FLAGS_DESC"] = "Параметры рендеринга, применяемые ко всему тексту, использующему основной шрифт."
 L["FONT_FLAG_NONE"] = "Нет"
--- TODO: L["FONT_FLAG_SLUG"] = "Slug"
+L["FONT_FLAG_SLUG"] = "Slug"
 L["FONT_FLAG_OUTLINE_SLUG"] = "Контур + Slug"
 L["FONT_FLAG_MONOCHROME"] = "Монохромный"
 L["FONT_FLAG_OUTLINE"] = "Контур"
@@ -213,7 +213,7 @@ L["BOSS"] = "Босс"
 L["BOSS_ORDER"] = "Порядок босса"
 L["SHOW_COMPARTMENT_ICON"] = "Значок отделения"
 L["SHOW_MINIMAP_ICON"] = "Значок на миникарте"
--- TODO: L["DISABLE_LOGIN_MESSAGE"] = "Disable login message"
+L["DISABLE_LOGIN_MESSAGE"] = "Отключить сообщение о входе в систему"
 L["NEW_ROUTES_ALL_SEASON_PROMPT"] = "Все маршруты подземелий текущего сезона обновлены. Хотите сбросить всё до новых значений по умолчанию?"
 
 -- Commands / Help
@@ -223,16 +223,16 @@ L["COMMANDS_HELP_OPEN"] = "/kpl или /polaris - Открыть настрой�
 L["COMMANDS_HELP_CHANGELOG"] = "/kpl changelog или /polaris changelog - Открытый список изменений"
 L["COMMANDS_HELP_REMINDER"] = "/kpl reminder или /polaris reminder - Показать последнее напоминание группы"
 L["COMMANDS_HELP_HELP"] = "/kpl help или /polaris help - Показать эту справку"
--- TODO: L["ADDON_LOADED_MSG"] = "loaded, type /kpl to open settings, or /kpl help to show the list of available commands."
+L["ADDON_LOADED_MSG"] = "загружен, введите /kpl для открытия настроек или /kpl help для списка доступных команд."
 
 -- Changelog
 L["COPY_INSTRUCTIONS"] = "Выделите всё, затем нажмите Ctrl+C, чтобы скопировать. Дополнительно: DeepL - https://www.deepl.com/translator"
 L["SELECT_ALL"] = "Выбрать всё"
 L["TRANSLATE"] = "Перевод"
 L["TRANSLATE_DESC"] = "Скопируйте этот список изменений во всплывающее окно и вставьте его в свой переводчик."
-L["UPDATE_ANNOUNCE"] = "обновлён до %s," -- TODO: enUS@64e78b0ba41e
-L["OPEN_CHANGELOG"] = "Открыть список изменений" -- TODO: enUS@fe4a61ece192
-L["CHANGELOG_AFTER_COMBAT"] = "Список изменений откроется после боя" -- TODO: enUS@4eace8021ebd
+L["UPDATE_ANNOUNCE"] = "обновлён до %s,"
+L["OPEN_CHANGELOG"] = "Открыть список изменений"
+L["CHANGELOG_AFTER_COMBAT"] = "Список изменений откроется после окончания боя"
 
 -- About
 L["ABOUT"] = "Об аддоне"
@@ -246,7 +246,7 @@ L["DONATE"] = "Пожертвование"
 L["DONATE_DESC"] = "Хотите поддержать разработку Keystone Polaris? Используйте одну из кнопок ниже, чтобы скопировать ссылку для пожертвования."
 L["GITHUB_SPONSORS"] = "Поддержка через GitHub"
 L["GITHUB_SPONSORS_DESC"] = "Скопировать ссылку GitHub Sponsors."
--- TODO: L["PAYPAL"] = "PayPal"
+L["PAYPAL"] = "PayPal"
 L["PAYPAL_DESC"] = "Скопировать ссылку для пожертвования через PayPal."
 
 -- Test Mode
