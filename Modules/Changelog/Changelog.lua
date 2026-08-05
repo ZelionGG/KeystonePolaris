@@ -400,6 +400,7 @@ function KeystonePolaris:MaybeAnnounceAddonUpdate()
     local link = "|Hkplchangelog:1|h" .. linkText .. "|h"
     local body = (L["UPDATE_ANNOUNCE"] or "got updated to %s,"):format(versionText)
     AddChatMessage(prefix .. " " .. body .. " " .. link)
+    self.db.profile.general.lastChangelogAnnounce = currentVersion
 end
 
 if not KeystonePolaris._KPL_ChangelogChatLinkHooked then
