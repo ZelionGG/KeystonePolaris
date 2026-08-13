@@ -1,12 +1,12 @@
 # Keystone Polaris
 
-## [3.11.1](https://github.com/ZelionGG/KeystonePolaris/releases/tag/3.11.1) (2026-07-29)
+## [3.11.2](https://github.com/ZelionGG/KeystonePolaris/releases/tag/3.11.2) (2026-08-13)
 
-[Full Changelog](https://github.com/ZelionGG/KeystonePolaris/compare/3.11...3.11.1) [Previous Releases](https://github.com/ZelionGG/KeystonePolaris/releases)
+[Full Changelog](https://github.com/ZelionGG/KeystonePolaris/compare/3.11.1...3.11.2) [Previous Releases](https://github.com/ZelionGG/KeystonePolaris/releases)
 
-> **Version 3.11.1 - Official Midnight season 2 dates**
+> **Version 3.11.2 - LDB launcher and Midnight 12.1.0**
 >
-> Version 3.11.1 sets the official Midnight Mythic+ season 1 end and season 2 start dates announced by Blizzard, replacing the previous TBD placeholders.
+> Version 3.11.2 registers the broker icon as a launcher and updates the TOC for Midnight patch 12.1.0.
 
-- 🛠️ _**IMPROVEMENT** -_ Russian translation updated, thank you **Hollicsh**.
-- 🛠️ _**IMPROVEMENT** -_ Set official Midnight Mythic+ season 1 end dates (US 2026-08-11 / EU 2026-08-12) and season 2 start dates (US 2026-08-18 / EU 2026-08-19) after Blizzard's announcement.
+- 🛠️ _**IMPROVEMENT** -_ TOC bump for patch **12.1.0**.
+- 🐞 _**BUGFIX** -_ Registered the **LibDataBroker** object as a launcher instead of a data source, so broker bars no longer treat Keystone Polaris as live text. The broker label now uses the addon gradient name.

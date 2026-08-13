@@ -284,8 +284,8 @@ function KeystonePolaris:InitializeMinimapIcon()
 
     if not self._ldbObject then
         self._ldbObject = LDB:NewDataObject(AddOnName, {
-            type = "data source",
-            text = "Keystone Polaris",
+            type = "launcher",
+            text = (self.GetGradientAddonName and self:GetGradientAddonName()),
             icon = "Interface\\AddOns\\KeystonePolaris\\icon.png",
             OnClick = function()
                 if self.ToggleConfig then
