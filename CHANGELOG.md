@@ -1,12 +1,13 @@
 # Keystone Polaris
 
-## [3.11.2](https://github.com/ZelionGG/KeystonePolaris/releases/tag/3.11.2) (2026-08-13)
+## [3.11.3](https://github.com/ZelionGG/KeystonePolaris/releases/tag/3.11.3) (2026-08-16)
 
-[Full Changelog](https://github.com/ZelionGG/KeystonePolaris/compare/3.11.1...3.11.2) [Previous Releases](https://github.com/ZelionGG/KeystonePolaris/releases)
+[Full Changelog](https://github.com/ZelionGG/KeystonePolaris/compare/3.11.2...3.11.3) [Previous Releases](https://github.com/ZelionGG/KeystonePolaris/releases)
 
-> **Version 3.11.2 - LDB launcher and Midnight 12.1.0**
+> **Version 3.11.3 - Less chat on login**
 >
-> Version 3.11.2 registers the broker icon as a launcher and updates the TOC for Midnight patch 12.1.0.
+> Version 3.11.3 turns off the login chat tip by default and stops the update announcement from repeating on reload. Sorry for the chat spam, that was not the intended experience. This update also refreshes the Korean translation, thank you **BlueSea-jun**.
 
-- 🛠️ _**IMPROVEMENT** -_ TOC bump for patch **12.1.0**.
-- 🐞 _**BUGFIX** -_ Registered the **LibDataBroker** object as a launcher instead of a data source, so broker bars no longer treat Keystone Polaris as live text. The broker label now uses the addon gradient name.
+- 🛠️ _**IMPROVEMENT** -_ Korean translation updated, thank you **BlueSea-jun**.
+- 🛠️ _**IMPROVEMENT** -_ Disabled the login chat tip by default. It can still be turned back on under **Interface**.
+- 🐞 _**BUGFIX** -_ The **Open Changelog** update announcement is now saved immediately, so it no longer repeats on every reload.

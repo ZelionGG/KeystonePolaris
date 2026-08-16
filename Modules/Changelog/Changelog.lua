@@ -357,11 +357,6 @@ function KeystonePolaris:ScheduleOpenChangelogAfterCombat()
 end
 
 function KeystonePolaris:HandleChangelogChatLink()
-    local currentVersion = C_AddOns.GetAddOnMetadata("KeystonePolaris", "Version") or ""
-    if self.db and self.db.profile and self.db.profile.general then
-        self.db.profile.general.lastChangelogAnnounce = currentVersion
-    end
-
     if InCombatLockdown() then
         local prefix = (self.GetChatPrefix and self:GetChatPrefix()) or "Keystone Polaris"
         AddChatMessage(prefix .. ": " .. (L["CHANGELOG_AFTER_COMBAT"] or "Changelog will open after combat ends"))
@@ -400,6 +395,7 @@ function KeystonePolaris:MaybeAnnounceAddonUpdate()
     local link = "|Hkplchangelog:1|h" .. linkText .. "|h"
     local body = (L["UPDATE_ANNOUNCE"] or "got updated to %s,"):format(versionText)
     AddChatMessage(prefix .. " " .. body .. " " .. link)
+    self.db.profile.general.lastChangelogAnnounce = currentVersion
 end
 
 if not KeystonePolaris._KPL_ChangelogChatLinkHooked then

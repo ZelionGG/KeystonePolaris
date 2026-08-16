@@ -362,16 +362,6 @@ function KeystonePolaris:OnInitialize()
     -- Capture before CheckForNewRoutes overwrites lastVersionCheck on first install.
     self._hadPriorVersionCheck = (general.lastVersionCheck or "") ~= ""
 
-    -- One-shot: undo silent seed from the first announce implementation so existing
-    -- players still get a chat message for the current TOC version until they click.
-    if general.changelogAnnounceMigration ~= "1" then
-        general.changelogAnnounceMigration = "1"
-        local currentVersion = C_AddOns.GetAddOnMetadata("KeystonePolaris", "Version") or ""
-        if (general.lastChangelogAnnounce or "") == currentVersion and currentVersion ~= "" then
-            general.lastChangelogAnnounce = ""
-        end
-    end
-
     -- Force-enable the returning feature once per profile, then keep user choice afterwards.
     if general.mobPercentagesMigrationVersion ~= MOB_PERCENTAGES_REENABLE_MIGRATION then
         self.db.profile.mobPercentages = self.db.profile.mobPercentages or {}
