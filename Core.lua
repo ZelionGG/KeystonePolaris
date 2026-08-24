@@ -287,6 +287,7 @@ function KeystonePolaris:InitializeMinimapIcon()
             type = "launcher",
             text = (self.GetGradientAddonName and self:GetGradientAddonName()),
             icon = "Interface\\AddOns\\KeystonePolaris\\icon.png",
+            parent = "KeystonePolaris",
             OnClick = function()
                 if self.ToggleConfig then
                     self:ToggleConfig()

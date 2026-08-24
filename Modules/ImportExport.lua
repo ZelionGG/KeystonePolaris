@@ -1,6 +1,8 @@
 local AddOnName, KeystonePolaris = ...
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName)
 local EXPORT_PREFIX = "!KeystonePolaris:"
+-- MDT 6.2+ paste strings: CBOR + Deflate + Base64 (not AceSerializer / LibDeflate).
+local MDT2_PREFIX = "!~MDT2~"
 
 -- ---------------------------------------------------------------------------
 -- Import / Export Logic
@@ -244,6 +246,9 @@ local function FindRouteLikeTable(root)
     return nil
 end
 
+-- MDT paste strings store currentDungeonIdx as MDT's internal dungeon index,
+-- which can collide with a WoW challenge-mode map ID (e.g. 161 = Den of Nalorakk in
+-- MDT, Skyreach in Keystone Polaris). Never treat that index as a CM/map ID.
 local function ResolveMDTDungeonIndex(routeData, mdt)
     if type(routeData) ~= "table" then return nil end
     local candidates = {
@@ -258,7 +263,15 @@ local function ResolveMDTDungeonIndex(routeData, mdt)
         local n = ParsePositiveInt(c)
         if n then return n end
     end
-    -- Some MDT exports may encode the challenge mode id directly.
+
+    if mdt and type(mdt.currentDungeonIdx) == "number" then
+        return mdt.currentDungeonIdx
+    end
+    return nil
+end
+
+local function ResolveRouteMapOrChallengeId(routeData)
+    if type(routeData) ~= "table" then return nil end
     local directMap = {
         routeData.currentDungeonID,
         routeData.dungeonID,
@@ -271,14 +284,7 @@ local function ResolveMDTDungeonIndex(routeData, mdt)
     }
     for _, c in ipairs(directMap) do
         local n = ParsePositiveInt(c)
-        if n then
-            -- If this is already a challenge mode id, caller will map it.
-            return n
-        end
-    end
-
-    if mdt and type(mdt.currentDungeonIdx) == "number" then
-        return mdt.currentDungeonIdx
+        if n then return n end
     end
     return nil
 end
@@ -294,34 +300,35 @@ local function GetDungeonKeyByMapID(addon, mapID)
     return nil
 end
 
-local function TryResolveDungeonKeyByCandidate(addon, mdt, candidate)
+local function TryResolveDungeonKeyFromMapOrCmId(addon, candidate)
     local n = ParsePositiveInt(candidate)
     if not n then return nil end
 
-    -- Candidate might already be a challenge mode map id.
     local byCMId = addon:GetDungeonKeyById(n)
     if byCMId then return byCMId end
 
-    -- Candidate might be a UI map id.
-    local byMapId = GetDungeonKeyByMapID(addon, n)
-    if byMapId then return byMapId end
+    return GetDungeonKeyByMapID(addon, n)
+end
 
-    -- Candidate might be an MDT dungeon index.
-    if mdt and type(mdt.mapInfo) == "table" and type(mdt.mapInfo[n]) == "table" then
+local function TryResolveDungeonKeyFromMDTIndex(addon, mdt, dungeonIdx)
+    local n = ParsePositiveInt(dungeonIdx)
+    if not n or not mdt then return nil end
+
+    if type(mdt.mapInfo) == "table" and type(mdt.mapInfo[n]) == "table" then
         local info = mdt.mapInfo[n]
         local infoCandidates = {
-            info.mapID,
             info.challengeModeID,
             info.challengeModeMapID,
-            info.cmID
+            info.cmID,
+            info.mapID
         }
         for _, v in ipairs(infoCandidates) do
-            local key = TryResolveDungeonKeyByCandidate(addon, nil, v)
+            local key = TryResolveDungeonKeyFromMapOrCmId(addon, v)
             if key then return key end
         end
     end
 
-    if mdt and type(mdt.dungeonList) == "table" and type(mdt.dungeonList[n]) == "string" then
+    if type(mdt.dungeonList) == "table" and type(mdt.dungeonList[n]) == "string" then
         local normalized = NormalizeTextForMatch(mdt.dungeonList[n])
         if normalized then
             for dungeonKey, data in pairs(addon.GlobalDungeonLookup or {}) do
@@ -340,7 +347,7 @@ local function TryResolveDungeonKeyByCandidate(addon, mdt, candidate)
         end
     end
 
-    if mdt and type(mdt.dungeonList) == "table" and type(mdt.dungeonList[n]) == "table" then
+    if type(mdt.dungeonList) == "table" and type(mdt.dungeonList[n]) == "table" then
         local entry = mdt.dungeonList[n]
         local mapCandidates = {
             entry.id,
@@ -350,13 +357,13 @@ local function TryResolveDungeonKeyByCandidate(addon, mdt, candidate)
             entry.mapID
         }
         for _, v in ipairs(mapCandidates) do
-            local key = TryResolveDungeonKeyByCandidate(addon, nil, v)
+            local key = TryResolveDungeonKeyFromMapOrCmId(addon, v)
             if key then return key end
         end
     end
 
     -- Some MDT builds/plugins don't key dungeonList by index, but store index-like fields in entries.
-    if mdt and type(mdt.dungeonList) == "table" then
+    if type(mdt.dungeonList) == "table" then
         for _, entry in pairs(mdt.dungeonList) do
             if type(entry) == "table" then
                 local idxLike = ParsePositiveInt(entry.index or entry.dungeonIdx or entry.currentDungeonIdx or entry.value)
@@ -369,7 +376,7 @@ local function TryResolveDungeonKeyByCandidate(addon, mdt, candidate)
                         entry.mapID
                     }
                     for _, v in ipairs(mapCandidates) do
-                        local key = TryResolveDungeonKeyByCandidate(addon, nil, v)
+                        local key = TryResolveDungeonKeyFromMapOrCmId(addon, v)
                         if key then return key end
                     end
                 end
@@ -461,38 +468,36 @@ local function InferDungeonKeyFromBossData(addon, pulls, mdt, preferredIdx)
 end
 
 local function ResolveDungeonKeyFromMDT(addon, routeData, pulls, mdt)
-    local idxOrMapId = ResolveMDTDungeonIndex(routeData, mdt)
-    local inferredInfo = nil
-    local inferredIdx = nil
-    if not idxOrMapId then
-        inferredIdx, inferredInfo = InferMDTDungeonIndexFromPulls(pulls, mdt)
-    end
-    idxOrMapId = idxOrMapId or inferredIdx
-    if idxOrMapId then
-        local fromPrimary = TryResolveDungeonKeyByCandidate(addon, mdt, idxOrMapId)
-        if fromPrimary then return fromPrimary, idxOrMapId, inferredInfo end
+    local mdtIdx = ResolveMDTDungeonIndex(routeData, mdt)
+    local mapOrCmId = ResolveRouteMapOrChallengeId(routeData)
+
+    if mdtIdx then
+        local fromIndex = TryResolveDungeonKeyFromMDTIndex(addon, mdt, mdtIdx)
+        if fromIndex then return fromIndex, mdtIdx end
     end
 
-    -- If a route index exists but couldn't be resolved, still try enemy-based inference.
-    if not inferredIdx then
-        inferredIdx, inferredInfo = InferMDTDungeonIndexFromPulls(pulls, mdt)
+    if mapOrCmId then
+        local fromMapId = TryResolveDungeonKeyFromMapOrCmId(addon, mapOrCmId)
+        if fromMapId then return fromMapId, mdtIdx end
     end
+
+    local inferredIdx, inferredInfo = InferMDTDungeonIndexFromPulls(pulls, mdt)
     if inferredIdx then
-        local fromInference = TryResolveDungeonKeyByCandidate(addon, mdt, inferredIdx)
+        local fromInference = TryResolveDungeonKeyFromMDTIndex(addon, mdt, inferredIdx)
         if fromInference then return fromInference, inferredIdx, inferredInfo end
     end
 
     -- Final fallback: infer dungeon via selected boss encounterIDs/names from MDT enemy data.
-    local fromBossData = InferDungeonKeyFromBossData(addon, pulls, mdt, idxOrMapId or inferredIdx)
+    local fromBossData = InferDungeonKeyFromBossData(addon, pulls, mdt, mdtIdx or inferredIdx)
     if fromBossData then
-        return fromBossData, (idxOrMapId or inferredIdx), inferredInfo
+        return fromBossData, (mdtIdx or inferredIdx), inferredInfo
     end
 
     local importName = routeData and (routeData.name or routeData.dungeonName or routeData.title
         or (routeData.value and routeData.value.name)
         or (routeData.value and routeData.value.dungeonName))
     local normalizedImportName = NormalizeTextForMatch(importName)
-    if not normalizedImportName then return nil, idxOrMapId, inferredInfo end
+    if not normalizedImportName then return nil, mdtIdx, inferredInfo end
 
     for dungeonKey, data in pairs(addon.GlobalDungeonLookup or {}) do
         local displayName = addon:GetDungeonDisplayName(dungeonKey)
@@ -503,11 +508,11 @@ local function ResolveDungeonKeyFromMDT(addon, routeData, pulls, mdt)
         }
         for _, candidate in ipairs(candidates) do
             if NormalizeTextForMatch(candidate) == normalizedImportName then
-                return dungeonKey, idxOrMapId, inferredInfo
+                return dungeonKey, mdtIdx, inferredInfo
             end
         end
     end
-    return nil, idxOrMapId, inferredInfo
+    return nil, mdtIdx, inferredInfo
 end
 
 local function GetEnemyForcesCount(enemy)
@@ -674,10 +679,32 @@ local function CopyImportedDungeonData(addon, dungeonKey, dungeonData)
     return true
 end
 
+local function DecodeMDT2Payload(payload)
+    if type(payload) ~= "string" then return nil end
+    if payload:sub(1, #MDT2_PREFIX) ~= MDT2_PREFIX then return nil end
+    if not C_EncodingUtil then return nil end
+
+    local encoded = payload:sub(#MDT2_PREFIX + 1)
+    local okDecode, decoded = pcall(C_EncodingUtil.DecodeBase64, encoded)
+    if not okDecode or type(decoded) ~= "string" then return nil end
+
+    local compression = Enum and Enum.CompressionMethod and Enum.CompressionMethod.Deflate
+    local okInflate, decompressed = pcall(C_EncodingUtil.DecompressString, decoded, compression)
+    if not okInflate or type(decompressed) ~= "string" then return nil end
+
+    local okCbor, data = pcall(C_EncodingUtil.DeserializeCBOR, decompressed)
+    if okCbor and type(data) == "table" then return data end
+    return nil
+end
+
 local function DecodeSerializedPayload(payload)
+    if type(payload) ~= "string" then return nil end
+
+    local mdt2 = DecodeMDT2Payload(payload)
+    if mdt2 then return mdt2 end
+
     local libDeflate = LibStub("LibDeflate")
     local serializer = LibStub("AceSerializer-3.0")
-    if type(payload) ~= "string" then return nil end
 
     local candidatePayloads = {payload}
     if payload:sub(1, 1) == "!" then
@@ -700,9 +727,22 @@ local function DecodeSerializedPayload(payload)
     return nil
 end
 
+local function DecodeMDTRoutePayload(payload, mdt)
+    local data = DecodeSerializedPayload(payload)
+    if type(data) == "table" then return data end
+
+    if mdt and type(mdt.StringToTable) == "function" then
+        local imported = mdt:StringToTable(payload, true)
+        if type(imported) == "table" then return imported end
+    end
+    return nil
+end
+
 function KeystonePolaris:TryImportMDTRoute(importPayload)
     local prefix = (self.GetChatPrefix and self:GetChatPrefix()) or "Keystone Polaris"
-    local routeRoot = DecodeSerializedPayload(importPayload)
+    self:EnsureMDTUILoaded()
+    local mdt = self:GetMDT()
+    local routeRoot = DecodeMDTRoutePayload(importPayload, mdt)
     if not routeRoot then
         print(prefix .. ": " .. L["IMPORT_ERROR"])
         return false
@@ -715,7 +755,6 @@ function KeystonePolaris:TryImportMDTRoute(importPayload)
         return false
     end
 
-    local mdt = _G and (_G.MDT or _G.MethodDungeonTools) or nil
     if not mdt or type(mdt.dungeonEnemies) ~= "table" then
         print(prefix .. ": " .. L["IMPORT_MDT_MISSING_ADDON"])
         return false
