@@ -274,10 +274,10 @@ end
 function KeystonePolaris:GetDisplayOptions()
     local function IsMDTAvailable()
         if not MDT_FEATURES_ENABLED then return false end
-        if C_AddOns and C_AddOns.IsAddOnLoaded then
-            return C_AddOns.IsAddOnLoaded("MythicDungeonTools") or (_G.MDT ~= nil) or (_G.MethodDungeonTools ~= nil)
-        end
-        return (_G and (_G.MDT or _G.MethodDungeonTools))
+        return C_AddOns.IsAddOnLoaded("MythicDungeonTools")
+            or (_G.MythicDungeonToolsAPI ~= nil)
+            or (_G.MDT ~= nil)
+            or (_G.MethodDungeonTools ~= nil)
     end
     return {
         name = L["DISPLAY"],

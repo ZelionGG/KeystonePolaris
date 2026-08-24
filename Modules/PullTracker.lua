@@ -38,7 +38,10 @@ function KeystonePolaris:AddEngagedMobByGUID(guid)
         existing.lastSeen = (GetTime and GetTime()) or existing.lastSeen or 0
         return
     end
-    local DungeonTools = _G and (_G.MDT or _G.MethodDungeonTools)
+    local DungeonTools = _G.MythicDungeonToolsAPI
+    if type(DungeonTools) ~= "table" or type(DungeonTools.GetEnemyForces) ~= "function" then
+        DungeonTools = _G.MDT or _G.MethodDungeonTools
+    end
     if not DungeonTools or not DungeonTools.GetEnemyForces then return end
 
     local _, _, _, _, _, npcID = strsplit("-", guid)
