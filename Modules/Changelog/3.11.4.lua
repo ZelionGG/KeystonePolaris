@@ -71,10 +71,10 @@ KeystonePolaris.Changelog["3.11.4"] = {
         ["zhCN"] = {},
         ["zhTW"] = {},
         ["enUS"] = {
-            "Set the [LibDataBroker] launcher parent to Keystone Polaris so brokers group it under the addon.",
+            "Set the [LibDataBroker] launcher parent to [Keystone Polaris] so brokers group it under the addon.",
         },
         ["frFR"] = {
-            "Le lanceur [LibDataBroker] a maintenant Keystone Polaris comme parent, pour que les brokers le regroupent sous l'addon.",
+            "Le lanceur [LibDataBroker] a maintenant [Keystone Polaris] comme parent, pour que les brokers le regroupent sous l'addon.",
         },
         ["koKR"] = {},
         ["ruRU"] = {},
