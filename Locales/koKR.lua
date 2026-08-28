@@ -14,14 +14,14 @@ if not L then return end
 -- Temporary locales for Midnight Compatibility Warning
 L["COMPATIBILITY_WARNING"] = "한밤 호환성 경고" -- TODO: "Midnight Compatibility Warning"
 L["COMPATIBILITY_WARNING_MESSAGE"] = "|cffff0000API 제한으로 인해 일부 기능이 현재 한밤에서 비활성화되어 있습니다:|r\n\n" ..
-                                "|cff8888ff• 이름표에서 몹 퍼센트(MDT 통합)|r\n" ..
-                                "|cff8888ff• 현재 풀링 트래킹|r\n" ..
-                                "|cff8888ff• 예상 값|r\n\n" ..
+                                "|cff8888ff* 이름표에서 몹 퍼센트(MDT 통합)|r\n" ..
+                                "|cff8888ff* 현재 풀링 트래킹|r\n" ..
+                                "|cff8888ff* 예상 값|r\n\n" ..
                                 "|cff8888ff이러한 기능은 블리자드가 새로운 Mythic+ API를 출시하면 다시 활성화됩니다. 현재 이에 대한 ETA는 없습니다.|r\n\n" ..
                                 "다른 모든 기능은 계속 사용 가능합니다. 불편을 드려 죄송합니다." -- TODO: "|cffff0000Some features are disabled on Midnight for now due to API restrictions:|r\n\n|cff8888ff• Mob percentages on nameplates (MDT Integration)|r\n|cff8888ff• Current pull tracking|r\n|cff8888ff• Projected values|r\n\n|cff8888ffThese features will be re-enabled once Blizzard releases the new Mythic+ API. There is currently no ETA for this.|r\n\nAll other features should remain available, sorry for the inconvenience.\n"
 L["COMPATIBILITY_WARNING_MESSAGE_CORE"] = "|cffff0000API 제한으로 인해 일부 기능이 현재 한밤에서 비활성화되어 있습니다:|r\n\n" ..
-                                "|cff8888ff• 현재 풀링 트래킹|r\n" ..
-                                "|cff8888ff• 예상 값|r\n\n" ..
+                                "|cff8888ff* 현재 풀링 트래킹|r\n" ..
+                                "|cff8888ff* 예상 값|r\n\n" ..
                                 "|cff8888ff이러한 기능은 블리자드가 새로운 Mythic+ API를 출시하면 다시 활성화됩니다. 현재 이에 대한 ETA는 없습니다.|r\n\n" ..
                                 "다른 모든 기능은 계속 사용 가능합니다. 불편을 드려 죄송합니다." -- TODO: "|cffff0000Some features are disabled on Midnight for now due to API restrictions:|r\n\n|cff8888ff• Current pull tracking|r\n|cff8888ff• Projected values|r\n\n|cff8888ffThese features will be re-enabled once Blizzard releases the new Mythic+ API. There is currently no ETA for this.|r\n\nAll other features should remain available, sorry for the inconvenience.\n"
 
@@ -218,7 +218,7 @@ L["NEW_ROUTES_ALL_SEASON_PROMPT"] = "현재 시즌의 모든 던전 경로가 �
 
 -- Commands / Help
 L["COMMANDS_HEADER"] = "명령어" -- TODO: "Commands"
-L["COMMANDS_HELP_DESC"] = "사용 가능한 명령어:\n• /kpl 또는 /polaris - 설정 열기\n• /kpl reminder 또는 /polaris reminder - 마지막 파티 알람창 열기\n• /kpl help or /polaris help - 도움말 보기" -- TODO: "Available slash commands:\n• /kpl or /polaris - Open options\n• /kpl reminder or /polaris reminder - Show last group reminder\n• /kpl help or /polaris help - Show this help"
+L["COMMANDS_HELP_DESC"] = "사용 가능한 명령어:\n* /kpl 또는 /polaris - 설정 열기\n* /kpl reminder 또는 /polaris reminder - 마지막 파티 알람창 열기\n* /kpl help or /polaris help - 도움말 보기" -- TODO: "Available slash commands:\n• /kpl or /polaris - Open options\n• /kpl reminder or /polaris reminder - Show last group reminder\n• /kpl help or /polaris help - Show this help"
 L["COMMANDS_HELP_OPEN"] = "/kpl 또는 /polaris - 설정 열기" -- TODO: "/kpl or /polaris - Open options"
 L["COMMANDS_HELP_CHANGELOG"] = "/kpl changelog 또는 /polaris changelog - 변경 사항 열기" -- TODO: "/kpl changelog or /polaris changelog - Open changelog"
 L["COMMANDS_HELP_REMINDER"] = "/kpl reminder 또는 /polaris reminder - 마지막 파티 알람창 열기" -- TODO: "/kpl reminder or /polaris reminder - Show last group reminder"
