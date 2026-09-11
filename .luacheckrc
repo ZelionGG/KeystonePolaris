@@ -15,7 +15,16 @@ globals = {
 
 read_globals = {
     'BackdropTemplateMixin',
+    'Ambiguate',
     'C_AddOns',
+    'C_ChatInfo',
+    'DifficultyUtil',
+    'GetInstanceInfo',
+    'GetDifficultyInfo',
+    'GetUnitName',
+    'IsInInstance',
+    'SetItemRef',
+    'UnitName',
     'C_ChallengeMode',
     'C_CVar',
     'C_DateAndTime',

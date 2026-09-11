@@ -355,9 +355,10 @@ function KeystonePolaris:GetOrderedBossTargets(dungeonKey)
 
     local dungeonId = self.GetDungeonIdByKey and self:GetDungeonIdByKey(dungeonKey) or nil
     local order = self.GetDungeonSectionOrder and self:GetDungeonSectionOrder(dungeonId, dungeonKey)
-    local adv = self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey]
-    local useAdvancedRoutes = self.db and self.db.profile and self.db.profile.general
-        and self.db.profile.general.advancedOptionsEnabled
+    local livePayload = self.GetLiveRoutePayload and self:GetLiveRoutePayload(dungeonKey) or nil
+    local adv = livePayload or (self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey])
+    local useAdvancedRoutes = livePayload ~= nil or (self.db and self.db.profile and self.db.profile.general
+        and self.db.profile.general.advancedOptionsEnabled)
     local targets = {}
 
     if not order then

@@ -99,6 +99,16 @@ KeystonePolaris.defaults = {
     }
 }
 
+KeystonePolaris.defaults.profile.liveRoute = {
+    enabled = true,
+    alwaysAsk = false,
+}
+
+KeystonePolaris.defaults.char = {
+    liveRoute = false,
+    pendingLiveRoute = false,
+}
+
 KeystonePolaris.defaults.profile.groupReminder = {
     enabled = true,
     showPopup = true,

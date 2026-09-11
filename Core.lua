@@ -8,7 +8,7 @@ local C_ScenarioInfo = _G.C_ScenarioInfo
 
 -- Initialize Ace3 libraries
 local AceAddon = LibStub("AceAddon-3.0")
-KeystonePolaris = AceAddon:NewAddon(KeystonePolaris, AddOnName, "AceConsole-3.0", "AceEvent-3.0");
+KeystonePolaris = AceAddon:NewAddon(KeystonePolaris, AddOnName, "AceConsole-3.0", "AceEvent-3.0", "AceComm-3.0");
 
 -- Initialize changelog
 KeystonePolaris.Changelog = {}
@@ -125,6 +125,8 @@ local function BuildModulesOverviewDescription()
     local mobPercentagesDesc = L["MODULES_SUMMARY_MOB_PERCENTAGES_DESC"]
     local groupReminderTitle = L["KPL_GR_HEADER"]
     local groupReminderDesc = L["MODULES_SUMMARY_GROUP_REMINDER_DESC"]
+    local liveRouteTitle = L["KPL_LR_HEADER"]
+    local liveRouteDesc = L["MODULES_SUMMARY_LIVE_ROUTE_DESC"]
 
     return table.concat({
         intro,
@@ -134,6 +136,9 @@ local function BuildModulesOverviewDescription()
         "",
         featureIcon .. " |cffffd100" .. groupReminderTitle .. "|r",
         "   |cff9d9d9d" .. groupReminderDesc .. "|r",
+        "",
+        featureIcon .. " |cffffd100" .. liveRouteTitle .. "|r",
+        "   |cff9d9d9d" .. liveRouteDesc .. "|r",
     }, "\n")
 end
 
@@ -171,6 +176,8 @@ function KeystonePolaris.ColorizeCommands(_, text)
         help = true,
         reminder = true,
         changelog = true,
+        share = true,
+        unfollow = true,
     }
     local out = {}
     local index = 1
@@ -459,6 +466,7 @@ function KeystonePolaris:OnInitialize()
                     },
                     mobPercentages = self:GetMobPercentagesOptions(),
                     groupReminder = self:GetGroupReminderOptions(),
+                    liveRoute = self:GetLiveRouteOptions(),
                 }
             },
             interface = self:GetInterfaceOptions(),
@@ -505,6 +513,10 @@ function KeystonePolaris:OnInitialize()
     if self.db.profile.groupReminder and self.db.profile.groupReminder.enabled then
         self:InitializeGroupReminder()
     end
+
+    if self.InitializeLiveRoute then
+        self:InitializeLiveRoute()
+    end
 end
 
 -- Open configuration panel when command is used
@@ -528,6 +540,14 @@ function KeystonePolaris:ToggleConfig(input)
         self:ShowLastGroupReminder()
         return
     end
+    if command == "share" then
+        if self.ShareLiveRoute then self:ShareLiveRoute() end
+        return
+    end
+    if command == "unfollow" then
+        if self.UnfollowLiveRoute then self:UnfollowLiveRoute("slash") end
+        return
+    end
 
     Settings.OpenToCategory(self.optionsCategoryId or optionsAddonName)
 end
@@ -539,6 +559,8 @@ function KeystonePolaris:ShowHelp()
         L["COMMANDS_HELP_OPEN"] or "/kpl or /polaris - Open options",
         L["COMMANDS_HELP_CHANGELOG"] or "/kpl changelog or /polaris changelog - Open changelog",
         L["COMMANDS_HELP_REMINDER"] or "/kpl reminder - Show last group reminder",
+        L["COMMANDS_HELP_SHARE"] or "/kpl share - Share your route with the group",
+        L["COMMANDS_HELP_UNFOLLOW"] or "/kpl unfollow - Stop following a shared route",
         L["COMMANDS_HELP_HELP"] or "/kpl help - Show this help",
     }
     local function addMessage(message)
@@ -577,11 +599,15 @@ function KeystonePolaris:GetDungeonSectionOrder(dungeonId, dungeonKey)
 
     local order = {}
     dungeonKey = dungeonKey or (self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId)) or nil
+    local livePayload = dungeonKey and self.GetLiveRoutePayload and self:GetLiveRoutePayload(dungeonKey) or nil
     local useAdvancedRoutes = self.db and self.db.profile and self.db.profile.general
         and self.db.profile.general.advancedOptionsEnabled
-    if useAdvancedRoutes and dungeonKey and self.db and self.db.profile
-        and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] then
-        local adv = self.db.profile.advanced[dungeonKey]
+    local adv = livePayload
+    if not adv and useAdvancedRoutes and dungeonKey and self.db and self.db.profile
+        and self.db.profile.advanced then
+        adv = self.db.profile.advanced[dungeonKey]
+    end
+    if type(adv) == "table" then
         local advOrder = adv.bossOrder
         if type(advOrder) == "table" then
             local valid = true
@@ -1135,7 +1161,8 @@ end
 
 function KeystonePolaris:GetSortedMilestones(dungeonId)
     local dungeonKey = self.GetDungeonKeyById and self:GetDungeonKeyById(dungeonId) or nil
-    local advancedData = dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] or nil
+    local livePayload = dungeonKey and self.GetLiveRoutePayload and self:GetLiveRoutePayload(dungeonKey) or nil
+    local advancedData = livePayload or (dungeonKey and self.db and self.db.profile and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] or nil)
     if type(advancedData) ~= "table" or type(advancedData.milestones) ~= "table" then
         return {}
     end
@@ -1408,6 +1435,7 @@ function KeystonePolaris:CHALLENGE_MODE_START()
     end
     if self.UpdatePercentageText then self:UpdatePercentageText() end
     if self.UpdateProgressBar then self:UpdateProgressBar() end
+    if self.UpdateLiveRouteSession then self:UpdateLiveRouteSession() end
 end
 
 function KeystonePolaris:CHALLENGE_MODE_COMPLETED()
@@ -1432,6 +1460,7 @@ function KeystonePolaris:PLAYER_ENTERING_WORLD()
             end
         end)
     end
+    if self.UpdateLiveRouteSession then self:UpdateLiveRouteSession() end
 end
 
 function KeystonePolaris:ZONE_CHANGED()
@@ -1444,27 +1473,31 @@ end
 
 function KeystonePolaris:ZONE_CHANGED_NEW_AREA()
     if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.UpdateLiveRouteSession then self:UpdateLiveRouteSession() end
 end
 
 function KeystonePolaris:PLAYER_MAP_CHANGED()
     if self.UpdatePercentageText then self:UpdatePercentageText() end
 end
 
--- Update dungeon data with advanced options if enabled
+-- Update dungeon data with live overlay or advanced options
 function KeystonePolaris:UpdateDungeonData()
-    if self.db.profile.general.advancedOptionsEnabled then
-        for dungeonId, dungeonData in pairs(self.DUNGEONS) do
-            local dungeonKey = self:GetDungeonKeyById(dungeonId)
-            if dungeonKey then
-                local advancedData = self.db.profile.advanced[dungeonKey]
+    local useAdvanced = self.db.profile.general.advancedOptionsEnabled
+    for dungeonId, dungeonData in pairs(self.DUNGEONS) do
+        local dungeonKey = self:GetDungeonKeyById(dungeonId)
+        if dungeonKey then
+            local livePayload = self.GetLiveRoutePayload and self:GetLiveRoutePayload(dungeonKey) or nil
+            local advancedData = useAdvanced and self.db.profile.advanced[dungeonKey] or nil
+            local source = livePayload or advancedData
+            if source then
                 local defaultBosses = self.GlobalDungeonLookup
                     and self.GlobalDungeonLookup[dungeonKey]
                     and self.GlobalDungeonLookup[dungeonKey].bosses
                 for i, bossData in ipairs(dungeonData) do
                     local bossNumStr = self:GetBossNumberString(i)
 
-                    local pct = advancedData and advancedData["Boss" .. bossNumStr] or nil
-                    local inform = advancedData and advancedData["Boss" .. bossNumStr .. "Inform"] or nil
+                    local pct = source["Boss" .. bossNumStr]
+                    local inform = source["Boss" .. bossNumStr .. "Inform"]
 
                     if pct == nil and defaultBosses and defaultBosses[i] then
                         pct = defaultBosses[i][2]
@@ -1482,6 +1515,38 @@ function KeystonePolaris:UpdateDungeonData()
                     bossData[4] = false -- Reset informed status
                 end
             end
+        end
+    end
+end
+
+function KeystonePolaris:RestoreDungeonDataFromProfile(dungeonKey)
+    if not dungeonKey then return end
+    local dungeonId = self.GetDungeonIdByKey and self:GetDungeonIdByKey(dungeonKey) or nil
+    local dungeonData = dungeonId and self.DUNGEONS and self.DUNGEONS[dungeonId]
+    if not dungeonData then return end
+
+    local useAdvanced = self.db and self.db.profile and self.db.profile.general
+        and self.db.profile.general.advancedOptionsEnabled
+    local source = useAdvanced and self.db.profile.advanced and self.db.profile.advanced[dungeonKey] or nil
+    local defaultBosses = self.GlobalDungeonLookup
+        and self.GlobalDungeonLookup[dungeonKey]
+        and self.GlobalDungeonLookup[dungeonKey].bosses
+
+    for i, bossData in ipairs(dungeonData) do
+        local bossNumStr = self:GetBossNumberString(i)
+        local pct = source and source["Boss" .. bossNumStr] or nil
+        local inform = source and source["Boss" .. bossNumStr .. "Inform"] or nil
+        if pct == nil and defaultBosses and defaultBosses[i] then
+            pct = defaultBosses[i][2]
+        end
+        if inform == nil and defaultBosses and defaultBosses[i] then
+            inform = defaultBosses[i][3]
+        end
+        if pct ~= nil then
+            bossData[2] = pct
+        end
+        if inform ~= nil then
+            bossData[3] = inform
         end
     end
 end
