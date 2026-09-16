@@ -16,8 +16,22 @@ local function GetRoleMarkerDB(self)
     return self.db and self.db.profile and self.db.profile.roleMarker
 end
 
-local function CanUseRoleMarker()
-    return IsInGroup() and not IsInRaid()
+local function CanUseRoleMarker(self)
+    if not (IsInGroup() and not IsInRaid()) then return false end
+    local inInstance, instanceType = IsInInstance()
+    if not inInstance then
+        local db = GetRoleMarkerDB(self)
+        return db and db.showOutsideInstance and true or false
+    end
+    if instanceType ~= "party" then return false end
+    if C_DelvesUI and C_DelvesUI.HasActiveDelve then
+        local mapID = select(4, UnitPosition("player"))
+        if C_DelvesUI.HasActiveDelve(mapID) then return false end
+    end
+    local difficultyID = select(3, GetInstanceInfo())
+    if not difficultyID or difficultyID == 0 then return false end
+    local _, _, _, isChallengeMode, _, displayMythic = GetDifficultyInfo(difficultyID)
+    return isChallengeMode or displayMythic
 end
 
 -- 0 / missing-out-of-range means "do not mark this role". Nil db uses fallback.
@@ -353,7 +367,7 @@ function KeystonePolaris:UpdateRoleMarkerState()
 
     btn = self:EnsureRoleMarkerButton()
     local positioning = self._positioningMode and true or false
-    local macroText = (not positioning) and CanUseRoleMarker() and self:BuildRoleMarkerMacro() or nil
+    local macroText = (not positioning) and CanUseRoleMarker(self) and self:BuildRoleMarkerMacro() or nil
     local shouldShow = (macroText ~= nil) or positioning
 
     if InCombatLockdown() then
@@ -405,6 +419,10 @@ function KeystonePolaris:InitializeRoleMarker()
     f:RegisterEvent("RAID_TARGET_UPDATE")
     f:RegisterEvent("ROLE_CHANGED_INFORM")
     f:RegisterEvent("PLAYER_ENTERING_WORLD")
+    f:RegisterEvent("PLAYER_DIFFICULTY_CHANGED")
+    f:RegisterEvent("CHALLENGE_MODE_START")
+    f:RegisterEvent("CHALLENGE_MODE_COMPLETED")
+    f:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 
     self:EnsureRoleMarkerWatcher()
     self:UpdateRoleMarkerState()
@@ -470,6 +488,24 @@ function KeystonePolaris:GetRoleMarkerOptions()
                         self:DisableRoleMarker()
                     end
                 end,
+            },
+            showOutsideInstance = {
+                name = L["KPL_RM_SHOW_OUTSIDE"],
+                desc = L["KPL_RM_SHOW_OUTSIDE_DESC"],
+                type = "toggle",
+                width = "full",
+                order = 1.5,
+                get = function()
+                    local db = GetRoleMarkerDB(self)
+                    return db and db.showOutsideInstance
+                end,
+                set = function(_, value)
+                    local db = GetRoleMarkerDB(self)
+                    if not db then return end
+                    db.showOutsideInstance = value and true or false
+                    self:UpdateRoleMarkerState()
+                end,
+                disabled = IsRoleMarkerDisabled,
             },
             clickRequired = {
                 order = 2,

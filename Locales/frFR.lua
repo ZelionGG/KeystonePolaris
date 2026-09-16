@@ -418,8 +418,10 @@ L["KPL_GR_SHOW_PLAYSTYLE"] = "Afficher le style de jeu du groupe"
 
 -- Role Marker
 L["KPL_RM_HEADER"] = "Marqueur de rôles"
-L["KPL_RM_DESC_LONG"] = "Affiche un bouton pour marquer le tank et le healer dans votre groupe de 5. Cliquez pour poser les marques ; les addons ne peuvent plus les poser tout seuls depuis Midnight."
+L["KPL_RM_DESC_LONG"] = "Affiche un bouton pour marquer le tank et le healer en donjon Mythique 0 et Mythique+. Cliquez pour poser les marques ; les addons ne peuvent plus les poser tout seuls depuis Midnight."
 L["KPL_RM_CLICK_REQUIRED"] = "Un clic est obligatoire : Blizzard protège les marqueurs, donc ce bouton exécute une macro /tm sécurisée."
+L["KPL_RM_SHOW_OUTSIDE"] = "Afficher hors instance"
+L["KPL_RM_SHOW_OUTSIDE_DESC"] = "Affiche aussi le bouton en extérieur pour marquer le tank et le healer avant d'entrer en donjon. Caché en Delve, raid, JcJ et dans les autres instances qui ne sont pas des donjons Mythique."
 L["KPL_RM_MARKERS"] = "Marqueurs"
 L["KPL_RM_MARKER_NONE"] = "-aucun-"
 L["KPL_RM_BUTTON"] = "Marquer %s"

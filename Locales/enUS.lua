@@ -421,8 +421,10 @@ L["KPL_GR_SHOW_PLAYSTYLE"] = "Show group playstyle"
 
 -- Role Marker
 L["KPL_RM_HEADER"] = "Role Marker"
-L["KPL_RM_DESC_LONG"] = "Shows a button to mark the tank and healer in your 5-player group. Click the button to apply the marks; addons cannot place them automatically in Midnight."
+L["KPL_RM_DESC_LONG"] = "Shows a button to mark the tank and healer in Mythic 0 and Mythic+ dungeons. Click the button to apply the marks; addons cannot place them automatically in Midnight."
 L["KPL_RM_CLICK_REQUIRED"] = "A click is required: Blizzard protects raid markers, so this button runs a secure /tm macro."
+L["KPL_RM_SHOW_OUTSIDE"] = "Show outside instances"
+L["KPL_RM_SHOW_OUTSIDE_DESC"] = "Also show the button in the open world so you can mark the tank and healer before entering a dungeon. Hidden in Delves, raids, PvP, and other non-Mythic dungeon instances."
 L["KPL_RM_MARKERS"] = "Markers"
 L["KPL_RM_MARKER_NONE"] = "-none-"
 L["KPL_RM_BUTTON"] = "Mark %s"

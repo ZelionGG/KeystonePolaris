@@ -108,6 +108,7 @@ KeystonePolaris.defaults.global = {
 
 KeystonePolaris.defaults.profile.roleMarker = {
     enabled = true,
+    showOutsideInstance = false,
     tankMarker = 6,
     healerMarker = 5,
     xOffset = 0,
