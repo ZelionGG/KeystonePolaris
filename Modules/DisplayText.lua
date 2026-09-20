@@ -258,7 +258,8 @@ function KeystonePolaris:UpdatePercentageText()
         local milestoneRemaining = tonumber(activeMilestone.remainingPercent) or 0
         milestoneShouldShowInform = milestoneRemaining > 0 and activeMilestone.triggerMet and activeMilestone.shouldInform and self.db.profile.general.informGroup
     end
-    local shouldShowInform = bossShouldShowInform or milestoneShouldShowInform
+    local shouldShowInform = (bossShouldShowInform or milestoneShouldShowInform)
+        and self:IsInformRoleAllowed()
     local informBtn = self.informSecureButton
     if shouldShowInform and not InCombatLockdown() and self.EnsureInformSecureButton then
         local prefix = (self.GetChatPrefix and self:GetChatPrefix(true, true)) or "[Keystone Polaris]"

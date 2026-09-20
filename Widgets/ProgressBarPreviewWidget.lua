@@ -3,7 +3,7 @@ local AceGUI = LibStub("AceGUI-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, true)
 
 local widgetType = "KeystonePolaris_ProgressBarPreview"
-local widgetVersion = 1
+local widgetVersion = 4
 
 local CreateFrame = CreateFrame
 local CreateColor = CreateColor
@@ -14,17 +14,29 @@ local math_min = math.min
 local pairs = pairs
 local string_format = string.format
 
-local function CreateColorFromTable(color)
-    return CreateColor(color.r, color.g, color.b, color.a or 1)
+local spanColorA = CreateColor(1, 1, 1, 1)
+local spanColorB = CreateColor(1, 1, 1, 1)
+local sectionBoundariesScratch = {}
+
+local function FillColorFromTable(dest, color)
+    dest.r = color.r
+    dest.g = color.g
+    dest.b = color.b
+    dest.a = color.a or 1
+    return dest
 end
 
 local function GetSectionBoundaries(thresholds)
-    local boundaries = { 0 }
+    wipe(sectionBoundariesScratch)
+    sectionBoundariesScratch[1] = 0
+    local n = 1
     for _, threshold in ipairs(thresholds) do
-        boundaries[#boundaries + 1] = threshold.percent
+        n = n + 1
+        sectionBoundariesScratch[n] = threshold.percent
     end
-    boundaries[#boundaries + 1] = 100
-    return boundaries
+    n = n + 1
+    sectionBoundariesScratch[n] = 100
+    return sectionBoundariesScratch
 end
 
 local function GetActiveSectionIndex(sectionStates)
@@ -68,8 +80,8 @@ local function ApplyProgressSpanColor(texture, useGradient, isRTL, startPct, end
     if useGradient and (state == "completed" or state == "completedBoss") then
         texture:SetGradient(
             "HORIZONTAL",
-            gradientColorFn(leftEdgePct),
-            gradientColorFn(rightEdgePct)
+            gradientColorFn(leftEdgePct, spanColorA),
+            gradientColorFn(rightEdgePct, spanColorB)
         )
         return
     end
@@ -81,7 +93,7 @@ local function ApplyProgressSpanColor(texture, useGradient, isRTL, startPct, end
         solidColor = missingColor
     end
 
-    local color = CreateColorFromTable(solidColor)
+    local color = FillColorFromTable(spanColorA, solidColor)
     texture:SetGradient("HORIZONTAL", color, color)
 end
 
@@ -93,9 +105,36 @@ local function GetCompletedVisualColor(pb, completedColor)
     return completedColor
 end
 
-local function GetCalloutReservedHeight(addon, pb)
-    if not addon:GetProgressBarValue("showCallout") then return 0 end
+local function GetCalloutReservedHeight(pb)
     return (pb.calloutFontSize or 10) + 18
+end
+
+local function GetPreviewLayout(pb)
+    local calloutExtra = GetCalloutReservedHeight(pb)
+    local previewHeight = math_max(70, pb.height + calloutExtra + 24)
+    local contentOffsetY
+    if pb.calloutPosition == "ABOVE" then
+        contentOffsetY = -(calloutExtra / 2)
+    else
+        contentOffsetY = calloutExtra / 2
+    end
+    return previewHeight, contentOffsetY
+end
+
+local function ApplyPreviewHeight(widget, previewHeight)
+    if widget.frame:GetHeight() == previewHeight then
+        return
+    end
+    widget.frame:SetHeight(previewHeight)
+    if widget.SetHeight then
+        widget:SetHeight(previewHeight)
+    end
+end
+
+local function ApplyPreviewBarOffset(widget, pb, displayWidth, contentOffsetY)
+    widget.barFrame:SetSize(displayWidth, pb.height)
+    widget.barFrame:ClearAllPoints()
+    widget.barFrame:SetPoint("CENTER", widget.frame, "CENTER", 0, contentOffsetY)
 end
 
 local function ApplyCalloutStyle(callout, pb)
@@ -133,9 +172,13 @@ local function BuildPreviewThresholds(addon, dungeonKey)
 end
 
 local function UpdateBorder(widget, addon)
+    local borderFrame = widget.borderFrame
     local borderStyle = addon:GetProgressBarValue("borderStyle")
     if borderStyle == "NONE" then
-        widget.borderFrame:SetBackdrop(nil)
+        if borderFrame._kplBackdropKey ~= "NONE" then
+            borderFrame:SetBackdrop(nil)
+            borderFrame._kplBackdropKey = "NONE"
+        end
         return
     end
 
@@ -147,17 +190,21 @@ local function UpdateBorder(widget, addon)
         edgeFile = KeystonePolaris.LSM:Fetch("border", pb.borderTexture)
     end
 
-    widget.borderFrame:SetBackdrop({
-        edgeFile = edgeFile,
-        edgeSize = pb.borderSize,
-        insets = {
-            left = pb.borderInsets,
-            right = pb.borderInsets,
-            top = pb.borderInsets,
-            bottom = pb.borderInsets,
-        },
-    })
-    widget.borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
+    local backdropKey = string_format("%s|%s|%s|%s", borderStyle or "", edgeFile or "", tostring(pb.borderSize), tostring(pb.borderInsets))
+    if borderFrame._kplBackdropKey ~= backdropKey then
+        borderFrame:SetBackdrop({
+            edgeFile = edgeFile,
+            edgeSize = pb.borderSize,
+            insets = {
+                left = pb.borderInsets,
+                right = pb.borderInsets,
+                top = pb.borderInsets,
+                bottom = pb.borderInsets,
+            },
+        })
+        borderFrame._kplBackdropKey = backdropKey
+    end
+    borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
 end
 
 local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, scenario)
@@ -223,6 +270,71 @@ local function UpdateCallout(widget, thresholds, currentPct, displayWidth, dunge
     widget.callout:Show()
 end
 
+local function StorePreviewState(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, scenario)
+    widget._previewThresholds = thresholds
+    widget._previewCurrentPct = currentPct
+    widget._previewDisplayWidth = displayWidth
+    widget._previewDungeonKey = dungeonKey
+    widget._previewSectionStates = sectionStates
+    widget._previewBossKillStates = bossKillStates
+    widget._previewScenario = scenario
+end
+
+local function ApplyPreviewMilestoneTicks(widget, addon, pb)
+    widget.milestoneTicks = widget.milestoneTicks or {}
+    if not addon:GetProgressBarValue("showMilestoneTicks") then
+        for _, tick in pairs(widget.milestoneTicks) do
+            tick:Hide()
+        end
+        return
+    end
+
+    local dungeonKey = widget._previewDungeonKey
+    local displayWidth = widget._previewDisplayWidth
+    if not dungeonKey or not displayWidth or not addon.GetProgressBarMilestoneThresholds then
+        return
+    end
+
+    local milestoneThresholds = addon:GetProgressBarMilestoneThresholds(dungeonKey, widget._previewScenario)
+    local milestoneTickWidth = pb.milestoneTickWidth or 1
+    local milestoneOverflow = math_max(0, math_ceil((pb.tickOverflow or 0) / 2))
+    local upcomingTickColor = pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 }
+    local isRTL = pb.direction == "RIGHT_TO_LEFT"
+    local currentPct = widget._previewCurrentPct or 0
+    local used = 0
+
+    for idx, threshold in ipairs(milestoneThresholds) do
+        local tick = widget.milestoneTicks[idx]
+        if not tick then
+            tick = (widget.milestoneOverlay or widget.barFrame):CreateTexture(nil, "OVERLAY", nil, 1)
+            widget.milestoneTicks[idx] = tick
+        end
+        used = idx
+
+        if currentPct >= threshold.percent then
+            tick:Hide()
+        else
+            tick:SetColorTexture(upcomingTickColor.r, upcomingTickColor.g, upcomingTickColor.b, upcomingTickColor.a)
+            tick:SetSize(milestoneTickWidth, pb.height + milestoneOverflow * 2)
+
+            local milestoneXPos = displayWidth * (threshold.percent / 100)
+            if isRTL then
+                milestoneXPos = displayWidth - milestoneXPos
+            end
+
+            tick:ClearAllPoints()
+            tick:SetPoint("CENTER", widget.barFrame, "LEFT", milestoneXPos, 0)
+            tick:Show()
+        end
+    end
+
+    for idx, tick in pairs(widget.milestoneTicks) do
+        if idx > used then
+            tick:Hide()
+        end
+    end
+end
+
 local function RenderPreview(widget, scenarioIndex)
     local addon = KeystonePolaris
     if not (addon and addon.db and addon.db.profile and addon.LSM and addon.PreviewScenarios) then return end
@@ -241,24 +353,11 @@ local function RenderPreview(widget, scenarioIndex)
         frameWidth = pb.width + 20
     end
     local displayWidth = math_min(pb.width, math_max(80, frameWidth - 20))
-    local calloutExtra = GetCalloutReservedHeight(addon, pb)
-    local previewHeight = math_max(70, pb.height + calloutExtra + 24)
-    local contentOffsetY = 0
+    local previewHeight, contentOffsetY = GetPreviewLayout(pb)
 
-    if addon:GetProgressBarValue("showCallout") then
-        if pb.calloutPosition == "ABOVE" then
-            contentOffsetY = -(calloutExtra / 2)
-        else
-            contentOffsetY = calloutExtra / 2
-        end
-    end
-
-    widget.frame:SetHeight(previewHeight)
-    if widget.SetHeight then widget:SetHeight(previewHeight) end
-
-    widget.barFrame:SetSize(displayWidth, pb.height)
-    widget.barFrame:ClearAllPoints()
-    widget.barFrame:SetPoint("CENTER", widget.frame, "CENTER", 0, contentOffsetY)
+    StorePreviewState(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, scenario)
+    ApplyPreviewHeight(widget, previewHeight)
+    ApplyPreviewBarOffset(widget, pb, displayWidth, contentOffsetY)
 
     widget.background:SetColorTexture(pb.backgroundColor.r, pb.backgroundColor.g, pb.backgroundColor.b, pb.backgroundColor.a or 0.7)
     UpdateBorder(widget, addon)
@@ -305,8 +404,8 @@ local function RenderPreview(widget, scenarioIndex)
             completedColor,
             inProgressColor,
             missingColor,
-            function(positionPct)
-                return addon:GetProgressBarGradientColor(positionPct)
+            function(positionPct, dest)
+                return addon:GetProgressBarGradientColor(positionPct, dest)
             end
         )
         seg:Show()
@@ -353,38 +452,7 @@ local function RenderPreview(widget, scenarioIndex)
         tick:Show()
     end
 
-    if addon:GetProgressBarValue("showMilestoneTicks") and addon.GetProgressBarMilestoneThresholds then
-        local milestoneThresholds = addon:GetProgressBarMilestoneThresholds(dungeonKey, scenario)
-        local milestoneTickWidth = pb.milestoneTickWidth or 1
-        local milestoneOverflow = math_max(0, math_ceil((pb.tickOverflow or 0) / 2))
-        local upcomingTickColor = pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 }
-        widget.milestoneTicks = widget.milestoneTicks or {}
-
-        for idx, threshold in ipairs(milestoneThresholds) do
-            local tick = widget.milestoneTicks[idx]
-            if not tick then
-                tick = (widget.milestoneOverlay or widget.barFrame):CreateTexture(nil, "OVERLAY", nil, 1)
-                widget.milestoneTicks[idx] = tick
-            end
-
-            local passed = currentPct >= threshold.percent
-            if passed then
-                tick:Hide()
-            else
-                tick:SetColorTexture(upcomingTickColor.r, upcomingTickColor.g, upcomingTickColor.b, upcomingTickColor.a)
-                tick:SetSize(milestoneTickWidth, pb.height + milestoneOverflow * 2)
-
-                local milestoneXPos = displayWidth * (threshold.percent / 100)
-                if isRTL then
-                    milestoneXPos = displayWidth - milestoneXPos
-                end
-
-                tick:ClearAllPoints()
-                tick:SetPoint("CENTER", widget.barFrame, "LEFT", milestoneXPos, 0)
-                tick:Show()
-            end
-        end
-    end
+    ApplyPreviewMilestoneTicks(widget, addon, pb)
 
     UpdateCallout(widget, thresholds, currentPct, displayWidth, dungeonKey, sectionStates, bossKillStates, scenario)
 end
@@ -393,7 +461,6 @@ local methods = {}
 
 function methods.OnAcquire(self)
     self.scenarioIndex = KeystonePolaris._previewScenario or 1
-    self:SetHeight(90)
     self:SetFullWidth(true)
     KeystonePolaris._progressBarPreviewWidget = self
     RenderPreview(self, self.scenarioIndex)
@@ -433,6 +500,41 @@ end
 
 function methods.RefreshPreview(self)
     RenderPreview(self, self.scenarioIndex or 1)
+end
+
+function methods.RefreshPreviewCallout(self)
+    local addon = KeystonePolaris
+    if not (addon and addon.db and addon.db.profile) then return end
+    if not self._previewThresholds then
+        RenderPreview(self, self.scenarioIndex or 1)
+        return
+    end
+
+    local pb = addon.db.profile.progressBar
+    local previewHeight, contentOffsetY = GetPreviewLayout(pb)
+    ApplyPreviewHeight(self, previewHeight)
+    ApplyPreviewBarOffset(self, pb, self._previewDisplayWidth, contentOffsetY)
+    UpdateCallout(
+        self,
+        self._previewThresholds,
+        self._previewCurrentPct,
+        self._previewDisplayWidth,
+        self._previewDungeonKey,
+        self._previewSectionStates,
+        self._previewBossKillStates,
+        self._previewScenario
+    )
+end
+
+function methods.RefreshPreviewMilestoneTicks(self)
+    local addon = KeystonePolaris
+    if not (addon and addon.db and addon.db.profile) then return end
+    if not self._previewDungeonKey then
+        RenderPreview(self, self.scenarioIndex or 1)
+        return
+    end
+
+    ApplyPreviewMilestoneTicks(self, addon, addon.db.profile.progressBar)
 end
 
 local function Constructor()
@@ -486,15 +588,6 @@ local function Constructor()
 
     for method, func in pairs(methods) do
         widget[method] = func
-    end
-
-    local ACR = LibStub("AceConfigRegistry-3.0", true)
-    if ACR then
-        ACR.RegisterCallback(widget, "ConfigTableChange", function(_, appName)
-            if appName == AddOnName and widget.scenarioIndex then
-                RenderPreview(widget, widget.scenarioIndex)
-            end
-        end)
     end
 
     AceGUI:RegisterAsWidget(widget)

@@ -151,53 +151,43 @@ function KeystonePolaris:ApplyTextLayout()
     end
 end
 
--- Refresh the display with current settings
-function KeystonePolaris:Refresh()
+function KeystonePolaris:ApplyDisplayAppearance()
     if self.UpdateColorCache then self:UpdateColorCache() end
-    if not self.displayFrame then return end
+    if not self.displayFrame or not self.displayFrame.text then return end
 
-    -- Update frame position (skip during positioning mode — frame is being dragged)
-    if not self._positioningMode then
-        self.displayFrame:ClearAllPoints()
-        self.displayFrame:SetPoint(
-            self.db.profile.general.position,
-            UIParent,
-            self.db.profile.general.position,
-            self.db.profile.general.xOffset,
-            self.db.profile.general.yOffset
-        )
-    end
-
-    -- Update font size and font
     self.displayFrame.text:SetFont(self.LSM:Fetch('font', self.db.profile.text.font), self.db.profile.general.fontSize, self:GetFontFlags())
-    -- Update horizontal alignment
     self:ApplyTextLayout()
 
-    -- Update text color
     local color = self.db.profile.color.inProgress
     self.displayFrame.text:SetTextColor(color.r, color.g, color.b, 1)
     self.displayFrame.text:SetAlpha(self.db.profile.general.textOpacity or 1)
 
+    if self.UpdatePercentageText then self:UpdatePercentageText() end
+    if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
+end
+
+-- Refresh the display with current settings
+function KeystonePolaris:ApplyDisplayPosition()
+    if not self.displayFrame or self._positioningMode then return end
+
+    self.displayFrame:ClearAllPoints()
+    self.displayFrame:SetPoint(
+        self.db.profile.general.position,
+        UIParent,
+        self.db.profile.general.position,
+        self.db.profile.general.xOffset,
+        self.db.profile.general.yOffset
+    )
+end
+
+function KeystonePolaris:Refresh()
+    if not self.displayFrame then return end
+
+    self:ApplyDisplayPosition()
+
     -- Update dungeon data with advanced options if enabled
     if self.UpdateDungeonData then self:UpdateDungeonData() end
 
-    -- Show/hide based on enabled state
-    local leaderEnabled   = self.db.profile.general.rolesEnabled.LEADER
-    local isLeader        = UnitIsGroupLeader("player")
-    local role            = UnitGroupRolesAssigned("player")   -- "TANK", "HEALER", "DAMAGER", ou "NONE"
-    local roleEnabled     = self.db.profile.general.rolesEnabled[role]
-
-    local shouldShow = (leaderEnabled and isLeader) or roleEnabled or role == "NONE"
-
-    if not shouldShow then
-        if self._testMode then
-            self.displayFrame:Show()
-        else
-            self.displayFrame:Hide()
-        end
-    else
-        self.displayFrame:Show()
-    end
-    if self.UpdatePercentageText then self:UpdatePercentageText() end
-    if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
+    self.displayFrame:Show()
+    self:ApplyDisplayAppearance()
 end

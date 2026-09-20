@@ -203,6 +203,16 @@ function KeystonePolaris:EnsureInformWatcher()
     self._informWatcher = f
 end
 
+-- Role(s) Required only gates the Inform button, never the text display.
+function KeystonePolaris:IsInformRoleAllowed()
+    local roles = self.db and self.db.profile and self.db.profile.general and self.db.profile.general.rolesEnabled
+    if not roles then return true end
+
+    local isLeader = UnitIsGroupLeader("player")
+    local role = UnitGroupRolesAssigned("player")
+    return (roles.LEADER and isLeader) or roles[role] or role == "NONE"
+end
+
 function KeystonePolaris:SetInformButtonMouseEnabled(enabled)
     local btn = self.informSecureButton
     if not btn then return end

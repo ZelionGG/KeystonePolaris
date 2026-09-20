@@ -16,11 +16,15 @@ KeystonePolaris.mdtFeaturesEnabled = MDT_FEATURES_ENABLED
 -- Shared preview scenario index (persists across Display and Appearance pages)
 KeystonePolaris._previewScenario = 1
 
-local function RefreshPreviewWidget()
+local function RefreshDisplayPreview()
     local previewWidget = KeystonePolaris._previewWidget
     if previewWidget and previewWidget.RefreshPreview then
         previewWidget:RefreshPreview()
     end
+end
+
+local function RefreshPreviewWidget()
+    RefreshDisplayPreview()
 
     local progressBarPreviewWidget = KeystonePolaris._progressBarPreviewWidget
     if progressBarPreviewWidget and progressBarPreviewWidget.RefreshPreview then
@@ -48,7 +52,9 @@ local function SetPreviewScenario(value)
         if KeystonePolaris.ApplyProgressBarPreviewScenario then
             KeystonePolaris:ApplyProgressBarPreviewScenario()
         end
-        if KeystonePolaris.RefreshProgressBar then
+        if KeystonePolaris.ApplyProgressBarPaint then
+            KeystonePolaris:ApplyProgressBarPaint()
+        elseif KeystonePolaris.RefreshProgressBar then
             KeystonePolaris:RefreshProgressBar()
         elseif KeystonePolaris.EnableProgressBarPreview then
             KeystonePolaris:EnableProgressBarPreview()
@@ -62,7 +68,6 @@ local function SetPreviewScenario(value)
     if progressBarPreview and progressBarPreview.RefreshPreview then
         progressBarPreview:RefreshPreview()
     end
-    ACR:NotifyChange(AddOnName)
 end
 
 local function PreviewScenarioDropdown(order)
@@ -99,11 +104,24 @@ local function PreviewGroup(order)
     }
 end
 
+local function SetColorTable(color, r, g, b, a)
+    if not color then
+        return { r = r, g = g, b = b, a = a }
+    end
+    color.r = r
+    color.g = g
+    color.b = b
+    if a ~= nil then
+        color.a = a
+    end
+    return color
+end
+
 local function ColumnRow(order, left, right, spacerWidth)
     left.order = 1
-    left.width = left.width or 1.25
+    left.width = 1.25
     right.order = 2
-    right.width = right.width or 1.25
+    right.width = 1.1
     return {
         type = "group", inline = true, name = "", order = order,
         args = {
@@ -115,8 +133,12 @@ local function ColumnRow(order, left, right, spacerWidth)
 end
 
 local function RefreshDisplayColorSettings(self)
-    self:Refresh()
-    RefreshPreviewWidget()
+    if self.ApplyDisplayAppearance then
+        self:ApplyDisplayAppearance()
+    elseif self.Refresh then
+        self:Refresh()
+    end
+    RefreshDisplayPreview()
 end
 
 local function MakeStatusColorOption(name, desc, colorKey, self, order)
@@ -131,7 +153,7 @@ local function MakeStatusColorOption(name, desc, colorKey, self, order)
             return color.r, color.g, color.b, color.a
         end,
         set = function(_, r, g, b, a)
-            self.db.profile.color[colorKey] = { r = r, g = g, b = b, a = a }
+            SetColorTable(self.db.profile.color[colorKey], r, g, b, a)
             RefreshDisplayColorSettings(self)
         end
     }
@@ -142,7 +164,6 @@ local function MakeMilestonePrefixColorProps(self, order)
         name = L["CUSTOM_MILESTONE_PREFIX_COLOR"],
         desc = L["CUSTOM_MILESTONE_PREFIX_COLOR_DESC"],
         type = "toggle",
-        width = 1.125,
         get = function()
             return self.db.profile.general.mainDisplay.customMilestonePrefixColor == true
         end,
@@ -162,10 +183,15 @@ local function MakeMilestonePrefixColorProps(self, order)
             return color.r, color.g, color.b, color.a
         end,
         set = function(_, r, g, b, a)
-            self.db.profile.color.milestonePrefix = { r = r, g = g, b = b, a = a }
+            local colors = self.db.profile.color
+            if colors.milestonePrefix then
+                SetColorTable(colors.milestonePrefix, r, g, b, a)
+            else
+                colors.milestonePrefix = { r = r, g = g, b = b, a = a }
+            end
             RefreshDisplayColorSettings(self)
         end,
-        hidden = function()
+        disabled = function()
             return not self.db.profile.general.mainDisplay.customMilestonePrefixColor
         end,
     })
@@ -491,6 +517,7 @@ end)
 
 -- Expose shared helpers for other Options modules (load after Helpers.lua)
 KeystonePolaris.RefreshPreviewWidget = RefreshPreviewWidget
+KeystonePolaris.RefreshDisplayPreview = RefreshDisplayPreview
 KeystonePolaris.PreviewScenarioValues = PreviewScenarioValues
 KeystonePolaris.SetPreviewScenario = SetPreviewScenario
 KeystonePolaris.PreviewScenarioDropdown = PreviewScenarioDropdown
@@ -498,6 +525,7 @@ KeystonePolaris.PreviewGroup = PreviewGroup
 KeystonePolaris.ColumnRow = ColumnRow
 KeystonePolaris.MakeStatusColorOption = MakeStatusColorOption
 KeystonePolaris.MakeMilestonePrefixColorProps = MakeMilestonePrefixColorProps
+KeystonePolaris.SetColorTable = SetColorTable
 KeystonePolaris.CloneTable = CloneTable
 KeystonePolaris.FormatSeasonDate = FormatSeasonDate
 KeystonePolaris.InsertSortedDungeonOptions = InsertSortedDungeonOptions

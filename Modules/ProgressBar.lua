@@ -15,21 +15,28 @@ local string_format = string.format
 local select = select
 local GetCursorPosition = GetCursorPosition
 
+local spanColorA = CreateColor(1, 1, 1, 1)
+local spanColorB = CreateColor(1, 1, 1, 1)
+local sectionBoundariesScratch = {}
+
 local function Lerp(startValue, endValue, amount)
     return startValue + (endValue - startValue) * amount
 end
 
-local function CreateColorFromTable(color)
-    return CreateColor(color.r, color.g, color.b, color.a or 1)
+local function FillColorFromTable(dest, color)
+    dest.r = color.r
+    dest.g = color.g
+    dest.b = color.b
+    dest.a = color.a or 1
+    return dest
 end
 
-local function InterpolateColor(startColor, endColor, amount)
-    return CreateColor(
-        Lerp(startColor.r, endColor.r, amount),
-        Lerp(startColor.g, endColor.g, amount),
-        Lerp(startColor.b, endColor.b, amount),
-        Lerp(startColor.a or 1, endColor.a or 1, amount)
-    )
+local function InterpolateColor(dest, startColor, endColor, amount)
+    dest.r = Lerp(startColor.r, endColor.r, amount)
+    dest.g = Lerp(startColor.g, endColor.g, amount)
+    dest.b = Lerp(startColor.b, endColor.b, amount)
+    dest.a = Lerp(startColor.a or 1, endColor.a or 1, amount)
+    return dest
 end
 
 function KeystonePolaris:GetProgressBarValue(key)
@@ -44,12 +51,16 @@ function KeystonePolaris:GetProgressBarValue(key)
 end
 
 local function GetSectionBoundaries(thresholds)
-    local boundaries = { 0 }
+    wipe(sectionBoundariesScratch)
+    sectionBoundariesScratch[1] = 0
+    local n = 1
     for _, threshold in ipairs(thresholds) do
-        boundaries[#boundaries + 1] = threshold.percent
+        n = n + 1
+        sectionBoundariesScratch[n] = threshold.percent
     end
-    boundaries[#boundaries + 1] = 100
-    return boundaries
+    n = n + 1
+    sectionBoundariesScratch[n] = 100
+    return sectionBoundariesScratch
 end
 
 local function GetActiveSectionIndex(sectionStates)
@@ -93,8 +104,8 @@ local function ApplyProgressSpanColor(texture, useGradient, isRTL, startPct, end
     if useGradient and (state == "completed" or state == "completedBoss") then
         texture:SetGradient(
             "HORIZONTAL",
-            gradientColorFn(leftEdgePct),
-            gradientColorFn(rightEdgePct)
+            gradientColorFn(leftEdgePct, spanColorA),
+            gradientColorFn(rightEdgePct, spanColorB)
         )
         return
     end
@@ -106,7 +117,7 @@ local function ApplyProgressSpanColor(texture, useGradient, isRTL, startPct, end
         solidColor = missingColor
     end
 
-    local color = CreateColorFromTable(solidColor)
+    local color = FillColorFromTable(spanColorA, solidColor)
     texture:SetGradient("HORIZONTAL", color, color)
 end
 
@@ -926,12 +937,12 @@ function KeystonePolaris:GetProgressBarColors()
     return textColors.finished, textColors.inProgress, textColors.missing
 end
 
-function KeystonePolaris:GetProgressBarGradientColor(positionPct)
+function KeystonePolaris:GetProgressBarGradientColor(positionPct, dest)
     local pb = self.db.profile.progressBar
     local startColor = pb.gradientStartColor
     local endColor = pb.gradientEndColor
     local amount = math_max(0, math_min(positionPct / 100, 1))
-    return InterpolateColor(startColor, endColor, amount)
+    return InterpolateColor(dest or spanColorA, startColor, endColor, amount)
 end
 
 function KeystonePolaris:UpdateProgressBarTickColors(bossKillStates)
@@ -995,8 +1006,8 @@ function KeystonePolaris:UpdateProgressBarSegments(currentPct, sectionStates)
             completedColor,
             inProgressColor,
             missingColor,
-            function(positionPct)
-                return self:GetProgressBarGradientColor(positionPct)
+            function(positionPct, dest)
+                return self:GetProgressBarGradientColor(positionPct, dest)
             end
         )
         seg:Show()
@@ -1022,6 +1033,22 @@ function KeystonePolaris:UpdateProgressBarSegments(currentPct, sectionStates)
     end
 end
 
+local function AcquireTick(pool, idx, parent, subLevel)
+    local tick = pool[idx]
+    if not tick then
+        tick = parent:CreateTexture(nil, "OVERLAY", nil, subLevel)
+        pool[idx] = tick
+    end
+    return tick
+end
+
+local function HideUnusedTicks(pool, usedCount)
+    if not pool then return end
+    for i = (usedCount or 0) + 1, #pool do
+        pool[i]:Hide()
+    end
+end
+
 function KeystonePolaris:ApplyProgressBarBorder()
     local frame = self.progressBarFrame
     if not frame then return end
@@ -1034,7 +1061,10 @@ function KeystonePolaris:ApplyProgressBarBorder()
     local borderStyle = self:GetProgressBarValue("borderStyle")
 
     if borderStyle == "NONE" then
-        borderFrame:SetBackdrop(nil)
+        if borderFrame._kplBackdropKey ~= "NONE" then
+            borderFrame:SetBackdrop(nil)
+            borderFrame._kplBackdropKey = "NONE"
+        end
         return
     end
 
@@ -1048,11 +1078,15 @@ function KeystonePolaris:ApplyProgressBarBorder()
         edgeFile = self.LSM:Fetch("border", pb.borderTexture)
     end
 
-    borderFrame:SetBackdrop({
-        edgeFile = edgeFile,
-        edgeSize = edgeSize,
-        insets = { left = insets, right = insets, top = insets, bottom = insets },
-    })
+    local backdropKey = string_format("%s|%s|%s|%s", borderStyle or "", edgeFile or "", tostring(edgeSize), tostring(insets))
+    if borderFrame._kplBackdropKey ~= backdropKey then
+        borderFrame:SetBackdrop({
+            edgeFile = edgeFile,
+            edgeSize = edgeSize,
+            insets = { left = insets, right = insets, top = insets, bottom = insets },
+        })
+        borderFrame._kplBackdropKey = backdropKey
+    end
     borderFrame:SetBackdropBorderColor(pb.borderColor.r, pb.borderColor.g, pb.borderColor.b, pb.borderColor.a)
 end
 
@@ -1060,20 +1094,22 @@ function KeystonePolaris:BuildProgressBarTicks(dungeonKey)
     local frame = self.progressBarFrame
     if not frame then return end
 
-    for _, tick in pairs(frame.ticks) do
-        tick:Hide()
-        tick:SetParent(nil)
-    end
-    frame.ticks = {}
+    frame.ticks = frame.ticks or {}
     frame.tickThresholds = {}
 
-    if not dungeonKey then return end
+    if not dungeonKey then
+        HideUnusedTicks(frame.ticks, 0)
+        return
+    end
 
     local pb = self.db.profile.progressBar
     local barWidth = pb.width
     local barHeight = pb.height
     local dungeonData = self.GlobalDungeonLookup and self.GlobalDungeonLookup[dungeonKey]
-    if not dungeonData or not dungeonData.bosses then return end
+    if not dungeonData or not dungeonData.bosses then
+        HideUnusedTicks(frame.ticks, 0)
+        return
+    end
 
     local thresholds = {}
     for _, target in ipairs(self:GetOrderedBossTargets(dungeonKey)) do
@@ -1089,7 +1125,7 @@ function KeystonePolaris:BuildProgressBarTicks(dungeonKey)
 
     local tickParent = frame.borderFrame or frame
     for idx, threshold in ipairs(thresholds) do
-        local tick = tickParent:CreateTexture(nil, "OVERLAY", nil, 7)
+        local tick = AcquireTick(frame.ticks, idx, tickParent, 7)
         tick:SetColorTexture(pb.tickColor.r, pb.tickColor.g, pb.tickColor.b, pb.tickColor.a)
         tick:SetSize(pb.tickWidth, barHeight + pb.tickOverflow * 2)
 
@@ -1097,12 +1133,12 @@ function KeystonePolaris:BuildProgressBarTicks(dungeonKey)
         if pb.direction == "RIGHT_TO_LEFT" then
             xPos = barWidth - xPos
         end
+        tick:ClearAllPoints()
         tick:SetPoint("CENTER", frame, "LEFT", xPos, 0)
         tick:Show()
-
-        frame.ticks[idx] = tick
     end
 
+    HideUnusedTicks(frame.ticks, #thresholds)
     frame.tickThresholds = thresholds
 end
 
@@ -1147,14 +1183,11 @@ function KeystonePolaris:BuildProgressBarMilestoneTicks(dungeonKey)
     local frame = self.progressBarFrame
     if not frame then return end
 
-    for _, tick in pairs(frame.milestoneTicks or {}) do
-        tick:Hide()
-        tick:SetParent(nil)
-    end
-    frame.milestoneTicks = {}
+    frame.milestoneTicks = frame.milestoneTicks or {}
     frame.milestoneThresholds = {}
 
     if not self:GetProgressBarValue("showMilestoneTicks") or not dungeonKey then
+        HideUnusedTicks(frame.milestoneTicks, 0)
         return
     end
 
@@ -1168,7 +1201,7 @@ function KeystonePolaris:BuildProgressBarMilestoneTicks(dungeonKey)
     local tickParent = frame.milestoneOverlay or frame
 
     for idx, threshold in ipairs(thresholds) do
-        local tick = tickParent:CreateTexture(nil, "OVERLAY", nil, 1)
+        local tick = AcquireTick(frame.milestoneTicks, idx, tickParent, 1)
         local color = pb.milestoneTickColor or { r = 1, g = 0.82, b = 0, a = 1 }
         tick:SetColorTexture(color.r, color.g, color.b, color.a)
         tick:SetSize(milestoneTickWidth, barHeight + milestoneOverflow * 2)
@@ -1177,12 +1210,12 @@ function KeystonePolaris:BuildProgressBarMilestoneTicks(dungeonKey)
         if pb.direction == "RIGHT_TO_LEFT" then
             xPos = barWidth - xPos
         end
+        tick:ClearAllPoints()
         tick:SetPoint("CENTER", frame, "LEFT", xPos, 0)
         tick:Show()
-
-        frame.milestoneTicks[idx] = tick
     end
 
+    HideUnusedTicks(frame.milestoneTicks, #thresholds)
     frame.milestoneThresholds = thresholds
 end
 
@@ -1197,8 +1230,7 @@ function KeystonePolaris:UpdateProgressBarMilestoneTicks(currentPct)
 
     for idx, tick in ipairs(frame.milestoneTicks) do
         local threshold = frame.milestoneThresholds[idx]
-        local passed = threshold and currentPct >= threshold.percent
-        if passed then
+        if not threshold or currentPct >= threshold.percent then
             tick:Hide()
         else
             tick:SetColorTexture(upcomingColor.r, upcomingColor.g, upcomingColor.b, upcomingColor.a)
@@ -1252,13 +1284,11 @@ function KeystonePolaris:GetProgressBarSectionStates(dungeonKey, currentPct, bos
 
     local states = {}
 
-    local boundaries = { 0 }
+    local boundaries = GetSectionBoundaries(thresholds)
     local bossIndices = {}
     for i, t in ipairs(thresholds) do
-        boundaries[#boundaries + 1] = t.percent
         bossIndices[i] = t.bossIndex
     end
-    boundaries[#boundaries + 1] = 100
 
     if not bossIndices[#boundaries - 1] then
         local targets = self:GetOrderedBossTargets(dungeonKey)
@@ -1405,44 +1435,105 @@ function KeystonePolaris:ApplyProgressBarPreviewScenario()
     return pct, bossKillStates
 end
 
-function KeystonePolaris:RefreshProgressBar()
+function KeystonePolaris:ApplyProgressBarPosition()
     local frame = self.progressBarFrame
-    if frame then
-        local pb = self.db.profile.progressBar
+    if not frame or self._progressBarDragging then return end
 
-        frame:SetSize(pb.width, pb.height)
+    local pb = self.db and self.db.profile and self.db.profile.progressBar
+    if not pb then return end
 
-        if not self._progressBarDragging then
-            frame:ClearAllPoints()
-            frame:SetPoint(pb.position, UIParent, pb.position, pb.xOffset, self:GetProgressBarValue("yOffset"))
-        end
+    frame:ClearAllPoints()
+    frame:SetPoint(pb.position, UIParent, pb.position, pb.xOffset, self:GetProgressBarValue("yOffset"))
+end
 
-        frame.background:SetColorTexture(pb.backgroundColor.r, pb.backgroundColor.g, pb.backgroundColor.b, pb.backgroundColor.a or 0.7)
+function KeystonePolaris:ApplyProgressBarBackground()
+    local frame = self.progressBarFrame
+    if not frame or not frame.background then return end
 
-        self:ApplyProgressBarBorder()
+    local pb = self.db and self.db.profile and self.db.profile.progressBar
+    if not pb then return end
 
-        if self._progressBarDungeonKey then
-            self:BuildProgressBarTicks(self._progressBarDungeonKey)
-            self:BuildProgressBarMilestoneTicks(self._progressBarDungeonKey)
+    local color = pb.backgroundColor
+    frame.background:SetColorTexture(color.r, color.g, color.b, color.a or 0.7)
+end
 
-            local currentPct, bossKillStates
-            if self._progressBarPreview then
-                currentPct = self._progressBarPreviewPct or 0
-                bossKillStates = self._progressBarPreviewBossKillStates or {}
-            else
-                local currentCount, totalCount = self:GetCurrentForcesInfo()
-                currentPct = (totalCount and totalCount > 0) and ((currentCount / totalCount) * 100) or 0
-                bossKillStates = self:GetBossKillStates(self._progressBarDungeonKey)
-            end
-            local sectionStates = self:GetProgressBarSectionStates(self._progressBarDungeonKey, currentPct, bossKillStates)
-            self:UpdateProgressBarTickColors(bossKillStates)
-            self:UpdateProgressBarMilestoneTicks(currentPct)
-            self:UpdateProgressBarSegments(currentPct, sectionStates)
-            self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
-        end
+function KeystonePolaris:GetProgressBarPaintState()
+    local dungeonKey = self._progressBarDungeonKey
+    local currentPct, bossKillStates
+    if self._progressBarPreview then
+        currentPct, bossKillStates = self:ApplyProgressBarPreviewScenario()
+    else
+        local currentCount, totalCount = self:GetCurrentForcesInfo()
+        currentPct = (totalCount and totalCount > 0) and ((currentCount / totalCount) * 100) or 0
+        bossKillStates = dungeonKey and self:GetBossKillStates(dungeonKey) or {}
+    end
+    local sectionStates = dungeonKey and self:GetProgressBarSectionStates(dungeonKey, currentPct, bossKillStates) or nil
+    return currentPct, bossKillStates, sectionStates
+end
+
+function KeystonePolaris:ApplyProgressBarPaint()
+    local frame = self.progressBarFrame
+    if frame and self._progressBarDungeonKey then
+        local currentPct, bossKillStates, sectionStates = self:GetProgressBarPaintState()
+        self:UpdateProgressBarTickColors(bossKillStates)
+        self:UpdateProgressBarMilestoneTicks(currentPct)
+        self:UpdateProgressBarSegments(currentPct, sectionStates)
+        self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
     end
 
     self:RefreshProgressBarOptionsPreview()
+end
+
+function KeystonePolaris:ApplyProgressBarCallout()
+    local frame = self.progressBarFrame
+    if frame and frame.callout then
+        if self._progressBarDungeonKey then
+            local currentPct, _, sectionStates = self:GetProgressBarPaintState()
+            self:UpdateProgressBarCallout(nil, currentPct, sectionStates)
+        else
+            frame.callout:Hide()
+        end
+    end
+
+    local widget = self._progressBarPreviewWidget
+    if widget and widget.RefreshPreviewCallout then
+        widget:RefreshPreviewCallout()
+    end
+end
+
+function KeystonePolaris:ApplyProgressBarMilestoneTicks()
+    if self.progressBarFrame and self._progressBarDungeonKey then
+        self:BuildProgressBarMilestoneTicks(self._progressBarDungeonKey)
+    end
+
+    local widget = self._progressBarPreviewWidget
+    if widget and widget.RefreshPreviewMilestoneTicks then
+        widget:RefreshPreviewMilestoneTicks()
+    end
+end
+
+function KeystonePolaris:ApplyProgressBarLayout()
+    local frame = self.progressBarFrame
+    if frame then
+        local pb = self.db.profile.progressBar
+        frame:SetSize(pb.width, pb.height)
+        if self._progressBarDungeonKey then
+            self:BuildProgressBarTicks(self._progressBarDungeonKey)
+            self:BuildProgressBarMilestoneTicks(self._progressBarDungeonKey)
+        end
+    end
+
+    self:ApplyProgressBarPaint()
+end
+
+function KeystonePolaris:RefreshProgressBar()
+    if self.progressBarFrame then
+        self:ApplyProgressBarPosition()
+        self:ApplyProgressBarBackground()
+        self:ApplyProgressBarBorder()
+    end
+
+    self:ApplyProgressBarLayout()
 end
 
 function KeystonePolaris:EnableProgressBarPreview()
@@ -1455,13 +1546,6 @@ function KeystonePolaris:EnableProgressBarPreview()
     local previewDungeonKey = ResolvePreviewDungeonKey(self)
     if previewDungeonKey then
         self._progressBarDungeonKey = previewDungeonKey
-        self:BuildProgressBarTicks(previewDungeonKey)
-
-        local pct, bossKillStates = self:ApplyProgressBarPreviewScenario()
-        local sectionStates = self:GetProgressBarSectionStates(previewDungeonKey, pct, bossKillStates)
-        self:UpdateProgressBarTickColors(bossKillStates)
-        self:UpdateProgressBarSegments(pct, sectionStates)
-        self:UpdateProgressBarCallout(nil, pct, sectionStates)
     end
 
     self:RefreshProgressBar()

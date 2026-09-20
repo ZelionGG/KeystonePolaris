@@ -1,20 +1,16 @@
 # Keystone Polaris
 
-## [3.12](https://github.com/ZelionGG/KeystonePolaris/releases/tag/3.12) (2026-09-16)
+## [3.12.1](https://github.com/ZelionGG/KeystonePolaris/releases/tag/3.12.1) (2026-09-18)
 
-[Full Changelog](https://github.com/ZelionGG/KeystonePolaris/compare/3.11.4...3.12) [Previous Releases](https://github.com/ZelionGG/KeystonePolaris/releases)
+[Full Changelog](https://github.com/ZelionGG/KeystonePolaris/compare/3.12...3.12.1) [Previous Releases](https://github.com/ZelionGG/KeystonePolaris/releases)
 
-> **Version 3.12 - Role Marker and Midnight season 2 routes**
+> **Version 3.12.1 - Settings freeze fix**
 >
-> Version 3.12 adds the **Role Marker** module: a clickable button that marks the tank and/or healer in your party. Midnight protects raid markers, so this cannot run automatically. Default routes for the dungeons of the Midnight Mythic+ season 2 have been updated. This update also adds a New Feature icon on unread settings, improves **Show Anchor** positioning, and adds a **Group Reminder** option when you are the group leader and the party is full.
+> Version 3.12.1 stops the game from freezing after browsing **Custom Routes**, then opening **Changelog** or another addon's settings. Huge thank you to **Zensunim** for the detailed reports that made this fix possible. This update also makes **Role Marker** easier to identify, keeps **Text Display** visible for every role, and should make **Progress Bar** options feel smoother.
 
-- 🔥 _**IMPORTANT** -_ Updated default boss percentages for Midnight Mythic+ season 2: **Murder Row**, **Den of Nalorakk**, **The Blinding Vale**, **Voidscar Arena**, **Altar of Fangs**, **Ruby Life Pools**, **Temple of Sethraliss**, and **Kings' Rest**.
-- 🆕 _**NEW** -_ Added the **Role Marker** module: click a button to mark selected tank and/or healer roles in a 5-player group. Icons are configurable, and **Show Anchor** moves the button with the rest of the display. A click is required because Midnight protects raid markers. The button lists only roles present in the party.
-- 🆕 _**NEW** -_ Added a New Feature icon on unread options in the settings tree. **Role Marker** is the first module to use it: the icon sits on **Modules** while collapsed, then on **Role Marker** until the panel is opened.
-- 🆕 _**NEW** -_ **Show Anchor** now focuses the component you opened it from (display, **Progress Bar**, or **Role Marker**). Right-click a component to edit its X/Y offsets in a popup beside it. The dashed outline includes the progress bar callout.
-- 🆕 _**NEW** -_ Added an option to show the **Group Reminder** popup when your Mythic+ group is full and you are the group leader.
-- 🛠️ _**IMPROVEMENT** -_ Korean translation updated, thank you **BlueSea-jun**.
-- 🛠️ _**IMPROVEMENT** -_ Removed the New Feature icon from each title in **Modules Overview** so it is not confused with unread features.
-- 🐞 _**BUGFIX** -_ Fixed **Temple of Sethraliss** **MythicDungeonTools** import.
-- 🐞 _**BUGFIX** -_ Opening **Changelog** should no longer freeze the Settings panel.
-- 🐞 _**BUGFIX** -_ Canceling **Show Anchor** no longer leaves preview milestone ticks on the **Progress Bar**.
+- 🔥 _**IMPORTANT** -_ Browsing **Custom Routes** then opening **Changelog** or another addon's settings should no longer freeze or crash the game. Season and expansion dungeon lists now use a dropdown in the top-right of the page. Huge thank you to **Zensunim** for the invaluable detailed reports.
+- 🛠️ _**IMPROVEMENT** -_ Sorry for the lack of transparency around **Role Marker**: it is now off by default and shows a title so it is clear the button comes from Keystone Polaris. You can turn **Show Title** off in the **Role Marker** settings. Profiles that already had it enabled are unchanged.
+- 🛠️ _**IMPROVEMENT** -_ The **Role Marker** default position is now above the **Progress Bar** instead of the center of the screen.
+- 🛠️ _**IMPROVEMENT** -_ The current expansion is highlighted in the **Custom Routes** list.
+- 🛠️ _**IMPROVEMENT** -_ Changing **Progress Bar** options should feel smoother. Feedback on **GitHub** would be appreciated and would help me a lot!
+- 🐞 _**BUGFIX** -_ **Role(s) Required** no longer hides **Required** and **Current** on the main display. Only the **Inform Group** button is filtered by role.

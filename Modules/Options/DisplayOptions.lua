@@ -7,7 +7,7 @@ local AceGUIWidgetLSMlists = _G.AceGUIWidgetLSMlists
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, true)
 local ACR = LibStub("AceConfigRegistry-3.0")
 
-local RefreshPreviewWidget = KeystonePolaris.RefreshPreviewWidget
+local RefreshDisplayPreview = KeystonePolaris.RefreshDisplayPreview
 local PreviewGroup = KeystonePolaris.PreviewGroup
 local ColumnRow = KeystonePolaris.ColumnRow
 local MakeStatusColorOption = KeystonePolaris.MakeStatusColorOption
@@ -36,7 +36,7 @@ function KeystonePolaris:GetPositioningOptions()
                     self.db.profile.general.position = value
                     self.db.profile.general.xOffset = 0
                     self.db.profile.general.yOffset = 0
-                    self:Refresh()
+                    if self.ApplyDisplayPosition then self:ApplyDisplayPosition() end
                 end
             }, {
                 name = L["SHOW_ANCHOR"],
@@ -57,7 +57,7 @@ function KeystonePolaris:GetPositioningOptions()
                 end,
                 set = function(_, value)
                     self.db.profile.general.xOffset = value
-                    self:Refresh()
+                    if self.ApplyDisplayPosition then self:ApplyDisplayPosition() end
                 end
             }, {
                 name = L["Y_OFFSET"],
@@ -70,7 +70,7 @@ function KeystonePolaris:GetPositioningOptions()
                 end,
                 set = function(_, value)
                     self.db.profile.general.yOffset = value
-                    self:Refresh()
+                    if self.ApplyDisplayPosition then self:ApplyDisplayPosition() end
                 end
             }),
             positioningHeader = {
@@ -137,8 +137,8 @@ function KeystonePolaris:GetAppearanceOptions()
                 get = function() return self.db.profile.text.font end,
                 set = function(_, value)
                     self.db.profile.text.font = value
-                    self:Refresh()
-                    RefreshPreviewWidget()
+                    if self.ApplyDisplayAppearance then self:ApplyDisplayAppearance() end
+                    RefreshDisplayPreview()
                 end
             }, {
                 name = L["FONT_ALIGN"],
@@ -192,7 +192,7 @@ function KeystonePolaris:GetAppearanceOptions()
                         setMulti(origMulti)
                         reapply()
                     end)
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.multiLine
@@ -210,8 +210,8 @@ function KeystonePolaris:GetAppearanceOptions()
                 end,
                 set = function(_, value)
                     self.db.profile.general.fontSize = value
-                    self:Refresh()
-                    RefreshPreviewWidget()
+                    if self.ApplyDisplayAppearance then self:ApplyDisplayAppearance() end
+                    RefreshDisplayPreview()
                 end
             }, {
                 name = L["TEXT_OPACITY"],
@@ -224,9 +224,8 @@ function KeystonePolaris:GetAppearanceOptions()
                 end,
                 set = function(_, value)
                     self.db.profile.general.textOpacity = value
-                    if self.UpdatePercentageText then self:UpdatePercentageText() end
-                    self:Refresh()
-                    RefreshPreviewWidget()
+                    if self.ApplyDisplayAppearance then self:ApplyDisplayAppearance() end
+                    RefreshDisplayPreview()
                 end,
             }),
             fontFlags = {
@@ -244,10 +243,10 @@ function KeystonePolaris:GetAppearanceOptions()
                 end,
                 set = function(_, value)
                     self.db.profile.text.fontFlags = value or KeystonePolaris.DEFAULT_FONT_FLAG_PRESET
-                    self:Refresh()
+                    if self.ApplyDisplayAppearance then self:ApplyDisplayAppearance() end
                     if self.RefreshMobPercentageFrames then self:RefreshMobPercentageFrames() end
-                    if self.RefreshProgressBar then self:RefreshProgressBar() end
-                    RefreshPreviewWidget()
+                    if self.ApplyProgressBarPaint then self:ApplyProgressBarPaint() end
+                    RefreshDisplayPreview()
                 end,
             },
             colorsSpacer = {
@@ -304,7 +303,7 @@ function KeystonePolaris:GetDisplayOptions()
                     if self.UpdatePercentageText then self:UpdatePercentageText() end
                     if self.ApplyTextLayout then self:ApplyTextLayout() end
                     if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end
             },
             requiredRow = ColumnRow(3, {
@@ -315,7 +314,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showRequiredText = value
                     self:UpdatePercentageText()
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end
             }, {
                 name = L["PREFIX"],
@@ -327,7 +326,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["REQUIRED_DEFAULT"]
                     self.db.profile.general.mainDisplay.requiredLabel = text
                     self:UpdatePercentageText()
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showRequiredText
@@ -341,7 +340,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showSectionRequiredText = value
                     self:UpdatePercentageText()
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end
             }, {
                 name = L["PREFIX"],
@@ -353,7 +352,7 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["SECTION_REQUIRED_DEFAULT"]
                     self.db.profile.general.mainDisplay.sectionRequiredLabel = text
                     self:UpdatePercentageText()
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showSectionRequiredText
@@ -367,7 +366,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showCurrentPercent = value
                     self:UpdatePercentageText()
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end
             }, {
                 name = L["PREFIX"],
@@ -379,10 +378,72 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["CURRENT_DEFAULT"]
                     self.db.profile.general.mainDisplay.currentLabel = text
                     self:UpdatePercentageText()
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end,
                 disabled = function()
                     return not self.db.profile.general.mainDisplay.showCurrentPercent
+                end
+            }),
+            milestoneRow = ColumnRow(8, {
+                name = L["SHOW_MILESTONES"],
+                desc = L["SHOW_MILESTONES_DESC"],
+                type = "toggle",
+                get = function() return self.db.profile.general.mainDisplay.showMilestones ~= false end,
+                set = function(_, value)
+                    self.db.profile.general.mainDisplay.showMilestones = value and true or false
+                    self:UpdatePercentageText()
+                end
+            }, {
+                name = L["PREFIX"],
+                desc = L["MILESTONE_DISPLAY_LABEL_DESC"],
+                type = "input",
+                get = function() return self.db.profile.general.mainDisplay.milestoneLabel or L["MILESTONE_DISPLAY_DEFAULT"] end,
+                set = function(_, value)
+                    local text = type(value) == "string" and value or ""
+                    text = (text ~= "" and text) or L["MILESTONE_DISPLAY_DEFAULT"]
+                    self.db.profile.general.mainDisplay.milestoneLabel = text
+                    self:UpdatePercentageText()
+                end,
+                disabled = function()
+                    return self.db.profile.general.mainDisplay.showMilestones == false
+                end
+            }),
+            multiLineRow = ColumnRow(9, {
+                name = L["USE_MULTI_LINE_LAYOUT"],
+                desc = L["USE_MULTI_LINE_LAYOUT_DESC"],
+                type = "toggle",
+                get = function() return self.db.profile.general.mainDisplay.multiLine end,
+                set = function(_, value)
+                    self.db.profile.general.mainDisplay.multiLine = value
+                    if self.UpdatePercentageText then self:UpdatePercentageText() end
+                    if self.ApplyTextLayout then self:ApplyTextLayout() end
+                    if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
+                    local function reapply()
+                        if self.displayFrame and self.displayFrame.text then
+                            if self.UpdatePercentageText then self:UpdatePercentageText() end
+                            if self.ApplyTextLayout then self:ApplyTextLayout() end
+                            if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
+                            local t = self.displayFrame.text
+                            t:SetText(t:GetText())
+                        end
+                    end
+                    C_Timer.After(0.03, reapply)
+                    C_Timer.After(0.08, reapply)
+                    C_Timer.After(0.15, reapply)
+                    RefreshDisplayPreview()
+                end
+            }, {
+                name = L["SINGLE_LINE_SEPARATOR"],
+                desc = L["SINGLE_LINE_SEPARATOR_DESC"],
+                type = "input",
+                get = function() return self.db.profile.general.mainDisplay.singleLineSeparator end,
+                set = function(_, value)
+                    self.db.profile.general.mainDisplay.singleLineSeparator = tostring(value or " | ")
+                    self:UpdatePercentageText()
+                    RefreshDisplayPreview()
+                end,
+                disabled = function()
+                    return self.db.profile.general.mainDisplay.multiLine
                 end
             }),
             showCurrentPullPercentLocked = {
@@ -409,7 +470,7 @@ function KeystonePolaris:GetDisplayOptions()
                 set = function(_, value)
                     self.db.profile.general.mainDisplay.showCurrentPullPercent = value
                     self:UpdatePercentageText()
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end,
             },
             pullLabel = {
@@ -424,36 +485,15 @@ function KeystonePolaris:GetDisplayOptions()
                     text = (text ~= "" and text) or L["PULL_DEFAULT"]
                     self.db.profile.general.mainDisplay.pullLabel = text
                     self:UpdatePercentageText()
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end,
                 hidden = function()
-                    return not self.db.profile.general.mainDisplay.showCurrentPullPercent or not IsMDTAvailable()
-                end
-            },
-            milestoneRow = ColumnRow(10, {
-                name = L["SHOW_MILESTONES"],
-                desc = L["SHOW_MILESTONES_DESC"],
-                type = "toggle",
-                get = function() return self.db.profile.general.mainDisplay.showMilestones ~= false end,
-                set = function(_, value)
-                    self.db.profile.general.mainDisplay.showMilestones = value and true or false
-                    self:UpdatePercentageText()
-                end
-            }, {
-                name = L["PREFIX"],
-                desc = L["MILESTONE_DISPLAY_LABEL_DESC"],
-                type = "input",
-                get = function() return self.db.profile.general.mainDisplay.milestoneLabel or L["MILESTONE_DISPLAY_DEFAULT"] end,
-                set = function(_, value)
-                    local text = type(value) == "string" and value or ""
-                    text = (text ~= "" and text) or L["MILESTONE_DISPLAY_DEFAULT"]
-                    self.db.profile.general.mainDisplay.milestoneLabel = text
-                    self:UpdatePercentageText()
+                    return (not MDT_FEATURES_ENABLED) or (not IsMDTAvailable())
                 end,
                 disabled = function()
-                    return self.db.profile.general.mainDisplay.showMilestones == false
+                    return not self.db.profile.general.mainDisplay.showCurrentPullPercent
                 end
-            }),
+            },
             showProjectedLocked = {
                 name = "|cff9d9d9d" .. L["SHOW_PROJECTED"] .. "|r",
                 desc = L["MDT_FEATURE_UNAVAILABLE"],
@@ -480,48 +520,9 @@ function KeystonePolaris:GetDisplayOptions()
                     if self.UpdatePercentageText then self:UpdatePercentageText() end
                     if self.ApplyTextLayout then self:ApplyTextLayout() end
                     if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
-                    RefreshPreviewWidget()
+                    RefreshDisplayPreview()
                 end,
             },
-            multiLineRow = ColumnRow(9, {
-                name = L["USE_MULTI_LINE_LAYOUT"],
-                desc = L["USE_MULTI_LINE_LAYOUT_DESC"],
-                type = "toggle",
-                get = function() return self.db.profile.general.mainDisplay.multiLine end,
-                set = function(_, value)
-                    self.db.profile.general.mainDisplay.multiLine = value
-                    if self.UpdatePercentageText then self:UpdatePercentageText() end
-                    if self.ApplyTextLayout then self:ApplyTextLayout() end
-                    if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
-                    ACR:NotifyChange(AddOnName)
-                    local function reapply()
-                        if self.displayFrame and self.displayFrame.text then
-                            if self.UpdatePercentageText then self:UpdatePercentageText() end
-                            if self.ApplyTextLayout then self:ApplyTextLayout() end
-                            if self.AdjustDisplayFrameSize then self:AdjustDisplayFrameSize() end
-                            local t = self.displayFrame.text
-                            t:SetText(t:GetText())
-                        end
-                    end
-                    C_Timer.After(0.03, reapply)
-                    C_Timer.After(0.08, reapply)
-                    C_Timer.After(0.15, reapply)
-                    RefreshPreviewWidget()
-                end
-            }, {
-                name = L["SINGLE_LINE_SEPARATOR"],
-                desc = L["SINGLE_LINE_SEPARATOR_DESC"],
-                type = "input",
-                get = function() return self.db.profile.general.mainDisplay.singleLineSeparator end,
-                set = function(_, value)
-                    self.db.profile.general.mainDisplay.singleLineSeparator = tostring(value or " | ")
-                    self:UpdatePercentageText()
-                    RefreshPreviewWidget()
-                end,
-                disabled = function()
-                    return self.db.profile.general.mainDisplay.multiLine
-                end
-            }),
         }
     }
 end

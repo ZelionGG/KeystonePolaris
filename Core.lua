@@ -100,6 +100,8 @@ local LDB = LibStub("LibDataBroker-1.1", true)
 local LDBIcon = LibStub("LibDBIcon-1.0", true)
 -- One-shot marker used to re-enable mob percentages when the Blizzard API returned.
 local MOB_PERCENTAGES_REENABLE_MIGRATION = "3.8"
+-- One-shot: move Role Marker off 0,0 (screen center) onto the default Y above the Progress Bar.
+local ROLE_MARKER_DEFAULT_POSITION_MIGRATION = 1
 
 local function Lerp(a, b, t)
     return a + (b - a) * t
@@ -389,6 +391,15 @@ function KeystonePolaris:OnInitialize()
         self.db.profile.mobPercentages = self.db.profile.mobPercentages or {}
         self.db.profile.mobPercentages.enabled = true
         general.mobPercentagesMigrationVersion = MOB_PERCENTAGES_REENABLE_MIGRATION
+    end
+
+    if general.roleMarkerDefaultPositionMigration ~= ROLE_MARKER_DEFAULT_POSITION_MIGRATION then
+        local roleMarker = self.db.profile.roleMarker
+        if roleMarker and (roleMarker.xOffset or 0) == 0 and (roleMarker.yOffset or 0) == 0 then
+            roleMarker.xOffset = self.ROLE_MARKER_DEFAULT_X or 0
+            roleMarker.yOffset = self.ROLE_MARKER_DEFAULT_Y or 420
+        end
+        general.roleMarkerDefaultPositionMigration = ROLE_MARKER_DEFAULT_POSITION_MIGRATION
     end
 
     -- Migrate prefixColor from general.mainDisplay to color.prefix

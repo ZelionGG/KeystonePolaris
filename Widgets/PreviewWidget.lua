@@ -4,7 +4,7 @@ local LSM = LibStub("LibSharedMedia-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName, true)
 
 local widgetType = "KeystonePolaris_Preview"
-local widgetVersion = 1
+local widgetVersion = 2
 
 local function BuildPreviewMilestone(label, remainingPercent, triggerMet, triggerMatchedNow)
     return {
@@ -291,17 +291,6 @@ local function Constructor()
 
     for method, func in pairs(methods) do
         widget[method] = func
-    end
-
-    -- Listen for config changes to auto-refresh
-    local ACR = LibStub("AceConfigRegistry-3.0", true)
-    if ACR then
-        ACR.RegisterCallback(widget, "ConfigTableChange", function(_, appName)
-            -- scenarioIndex is nil when widget is released back to the AceGUI pool
-            if appName == AddOnName and widget.scenarioIndex then
-                RenderPreview(widget, widget.scenarioIndex)
-            end
-        end)
     end
 
     AceGUI:RegisterAsWidget(widget)

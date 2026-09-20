@@ -2,6 +2,13 @@ local AddOnName, KeystonePolaris = ...
 local L = LibStub("AceLocale-3.0"):GetLocale(AddOnName)
 local _G = _G
 
+local function GetRoleMarkerStrataFrame(self)
+    if self.GetRoleMarkerAnchorFrame then
+        return self:GetRoleMarkerAnchorFrame()
+    end
+    return self.roleMarkerButton
+end
+
 -- ---------------------------------------------------------------------------
 -- Positioning Mode
 -- ---------------------------------------------------------------------------
@@ -329,8 +336,9 @@ function KeystonePolaris:ExitPositioningMode(save)
         self.progressBarFrame:SetFrameStrata(self._prevProgressBarStrata)
         self._prevProgressBarStrata = nil
     end
-    if self.roleMarkerButton and self._prevRoleMarkerStrata then
-        self.roleMarkerButton:SetFrameStrata(self._prevRoleMarkerStrata)
+    local roleMarkerFrame = GetRoleMarkerStrataFrame(self)
+    if roleMarkerFrame and self._prevRoleMarkerStrata then
+        roleMarkerFrame:SetFrameStrata(self._prevRoleMarkerStrata)
         self._prevRoleMarkerStrata = nil
     end
 
@@ -355,7 +363,7 @@ end
 function KeystonePolaris:ResolvePositioningFocus(focus)
     if focus == "roleMarker" then
         local db = self.db and self.db.profile and self.db.profile.roleMarker
-        if db and db.enabled and self.roleMarkerButton then
+        if db and db.enabled and (self.roleMarkerButton or self.roleMarkerTitleFrame) then
             return "roleMarker"
         end
     elseif focus == "progressBar" then
@@ -368,8 +376,11 @@ end
 
 function KeystonePolaris:GetPositioningFocusFrame()
     local focus = self._positioningFocus or "display"
-    if focus == "roleMarker" and self.roleMarkerButton then
-        return self.roleMarkerButton, false
+    if focus == "roleMarker" then
+        local frame = self.GetRoleMarkerAnchorFrame and self:GetRoleMarkerAnchorFrame() or self.roleMarkerButton
+        if frame then
+            return frame, false
+        end
     end
     if focus == "progressBar" and self.progressBarFrame then
         return self.progressBarFrame, false
@@ -402,7 +413,7 @@ function KeystonePolaris:SetPositioningFocusOffset(axis, value)
         local pb = self.db and self.db.profile and self.db.profile.progressBar
         if not pb then return end
         pb[axis] = value
-        if self.RefreshProgressBar then self:RefreshProgressBar() end
+        if self.ApplyProgressBarPosition then self:ApplyProgressBarPosition() end
     else
         local general = self.db and self.db.profile and self.db.profile.general
         if not general then return end
@@ -677,9 +688,18 @@ function KeystonePolaris:HidePositioningBorder()
 end
 
 function KeystonePolaris:RefreshPositioningBorder()
-    if self._positioningMode then
-        self:ShowPositioningBorder()
+    if not self._positioningMode then return end
+
+    if self._borderAnchor and self._borderAnimationState then
+        local target, useTextBounds = self:GetPositioningFocusFrame()
+        if target then
+            self:LayoutPositioningBorderAnchor(target, useTextBounds, 4)
+            self:UpdatePositioningBorderAnimation()
+        end
+        return
     end
+
+    self:ShowPositioningBorder()
 end
 
 -- ---------------------------------------------------------------------------
@@ -706,9 +726,10 @@ function KeystonePolaris:UpdatePositioningDim()
             self._prevProgressBarStrata = self._prevProgressBarStrata or self.progressBarFrame:GetFrameStrata()
             self.progressBarFrame:SetFrameStrata("TOOLTIP")
         end
-        if self.roleMarkerButton then
-            self._prevRoleMarkerStrata = self._prevRoleMarkerStrata or self.roleMarkerButton:GetFrameStrata()
-            self.roleMarkerButton:SetFrameStrata("TOOLTIP")
+        local roleMarkerFrame = GetRoleMarkerStrataFrame(self)
+        if roleMarkerFrame then
+            self._prevRoleMarkerStrata = self._prevRoleMarkerStrata or roleMarkerFrame:GetFrameStrata()
+            roleMarkerFrame:SetFrameStrata("TOOLTIP")
         end
     else
         if self.testDimOverlay then self.testDimOverlay:Hide() end
@@ -721,8 +742,9 @@ function KeystonePolaris:UpdatePositioningDim()
                 self.progressBarFrame:SetFrameStrata(self._prevProgressBarStrata)
                 self._prevProgressBarStrata = nil
             end
-            if self.roleMarkerButton and self._prevRoleMarkerStrata then
-                self.roleMarkerButton:SetFrameStrata(self._prevRoleMarkerStrata)
+            local restoreRoleMarker = GetRoleMarkerStrataFrame(self)
+            if restoreRoleMarker and self._prevRoleMarkerStrata then
+                restoreRoleMarker:SetFrameStrata(self._prevRoleMarkerStrata)
                 self._prevRoleMarkerStrata = nil
             end
         end
@@ -811,9 +833,10 @@ function KeystonePolaris:UpdatePositioningGrid()
             self._prevProgressBarStrata = self._prevProgressBarStrata or self.progressBarFrame:GetFrameStrata()
             self.progressBarFrame:SetFrameStrata("TOOLTIP")
         end
-        if self.roleMarkerButton then
-            self._prevRoleMarkerStrata = self._prevRoleMarkerStrata or self.roleMarkerButton:GetFrameStrata()
-            self.roleMarkerButton:SetFrameStrata("TOOLTIP")
+        local roleMarkerFrame = GetRoleMarkerStrataFrame(self)
+        if roleMarkerFrame then
+            self._prevRoleMarkerStrata = self._prevRoleMarkerStrata or roleMarkerFrame:GetFrameStrata()
+            roleMarkerFrame:SetFrameStrata("TOOLTIP")
         end
     else
         if self.gridOverlay then self.gridOverlay:Hide() end

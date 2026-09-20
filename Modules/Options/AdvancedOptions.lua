@@ -272,90 +272,86 @@ function KeystonePolaris:GetAdvancedOptions()
     end
 
     -- Generic builder for section args (used for seasons and expansions)
-    local function CreateGenericSectionArgs(sectionLabel, dungeonKeys, dungeonFilter, getDefaultsFn, headerTitle, extraDisclaimerText)
+    local function CreateGenericSectionArgs(sectionLabel, dungeonKeys, dungeonFilter, getDefaultsFn, extraDisclaimerText)
         local args = {
-            title = {
-                order = 0,
-                type = "description",
-                fontSize = "large",
-                name = (headerTitle or ("|cffeda55f" .. sectionLabel .. "|r")) .. "\n"
-            },
-            seasonAlert = extraDisclaimerText and {
-                order = 0.1,
-                type = "description",
-                fontSize = "medium",
-                name = extraDisclaimerText or "",
-            } or nil,
-            separatorTitle = {
-                order = 0.2,
-                type = "header",
-                name = "",
-            },
-            disclaimer = {
-                order = 0.5,
-                type = "description",
-                fontSize = "medium",
-                name = L["ROUTES_DISCLAIMER"],
-            },
-            separator = {order = 1, type = "header", name = ""},
-            export = {
-                order = 1.25,
-                type = "execute",
-                name = L["EXPORT_SECTION"],
-                desc = (L["EXPORT_SECTION_DESC"]):format(sectionLabel),
-                func = function()
-                    local addon = KeystonePolaris
-                    local sectionData = {}
-                    for _, dungeonKey in ipairs(dungeonKeys) do
-                        if addon.db and addon.db.profile and addon.db.profile.advanced and addon.db.profile.advanced[dungeonKey] then
-                            sectionData[dungeonKey] = addon.db.profile.advanced[dungeonKey]
-                        end
-                    end
-                    addon:ExportDungeonSettings(sectionData, "section", sectionLabel)
-                end
-            },
-            import = {
-                order = 1.5,
-                type = "execute",
-                name = L["IMPORT_SECTION"],
-                desc = (L["IMPORT_SECTION_DESC"]):format(sectionLabel),
-                func = function()
-                    KeystonePolaris:ShowImportDialog(sectionLabel, dungeonFilter)
-                end
-            },
-            separatorDefaultPercentages = {
-                order = 2,
-                type = "header",
+            overview = {
                 name = L["DEFAULT_PERCENTAGES"],
-            },
-            defaultPercentages = {
-                order = 2.5,
-                type = "description",
-                fontSize = "medium",
-                name = L["DEFAULT_PERCENTAGES_DESC"],
-            },
-            separatorDefaultPercentagesText = {
-                order = 2.8,
-                type = "header",
-                name = "",
-            },
-            defaultPercentagesText = {
-                order = 3,
-                type = "description",
-                fontSize = "medium",
-                name = function()
-                    local text = ""
-                    for _, dungeonKey in ipairs(dungeonKeys) do
-                        local defaults = getDefaultsFn and getDefaultsFn(dungeonKey) or nil
-                        text = text .. FormatDungeonText(dungeonKey, defaults)
-                    end
-                    return text
-                end
+                type = "group",
+                order = 0,
+                args = {
+                    seasonAlert = extraDisclaimerText and {
+                        order = 0.1,
+                        type = "description",
+                        fontSize = "medium",
+                        name = extraDisclaimerText or "",
+                    } or nil,
+                    separatorTitle = extraDisclaimerText and {
+                        order = 0.2,
+                        type = "header",
+                        name = "",
+                    } or nil,
+                    disclaimer = {
+                        order = 0.5,
+                        type = "description",
+                        fontSize = "medium",
+                        name = L["ROUTES_DISCLAIMER"],
+                    },
+                    separator = {order = 1, type = "header", name = ""},
+                    export = {
+                        order = 1.25,
+                        type = "execute",
+                        name = L["EXPORT_SECTION"],
+                        desc = (L["EXPORT_SECTION_DESC"]):format(sectionLabel),
+                        func = function()
+                            local addon = KeystonePolaris
+                            local sectionData = {}
+                            for _, dungeonKey in ipairs(dungeonKeys) do
+                                if addon.db and addon.db.profile and addon.db.profile.advanced and addon.db.profile.advanced[dungeonKey] then
+                                    sectionData[dungeonKey] = addon.db.profile.advanced[dungeonKey]
+                                end
+                            end
+                            addon:ExportDungeonSettings(sectionData, "section", sectionLabel)
+                        end
+                    },
+                    import = {
+                        order = 1.5,
+                        type = "execute",
+                        name = L["IMPORT_SECTION"],
+                        desc = (L["IMPORT_SECTION_DESC"]):format(sectionLabel),
+                        func = function()
+                            KeystonePolaris:ShowImportDialog(sectionLabel, dungeonFilter)
+                        end
+                    },
+                    defaultPercentages = {
+                        order = 2,
+                        type = "description",
+                        fontSize = "medium",
+                        name = L["DEFAULT_PERCENTAGES_DESC"],
+                    },
+                    separatorDefaultPercentagesText = {
+                        order = 2.8,
+                        type = "header",
+                        name = "",
+                    },
+                    defaultPercentagesText = {
+                        order = 3,
+                        type = "description",
+                        fontSize = "medium",
+                        name = function()
+                            local text = ""
+                            for _, dungeonKey in ipairs(dungeonKeys) do
+                                local defaults = getDefaultsFn and getDefaultsFn(dungeonKey) or nil
+                                text = text .. FormatDungeonText(dungeonKey, defaults)
+                            end
+                            return text
+                        end
+                    }
+                }
             }
         }
 
         -- Add per-dungeon options (alphabetical by localized name)
-        -- Start at order 4 to come after the defaults header/description/text
+        -- Keep the overview first in the select list, then add dungeons alphabetically.
         InsertSortedDungeonOptions(self, dungeonKeys, sharedDungeonOptions, args, 4)
         return args
     end
@@ -438,7 +434,7 @@ function KeystonePolaris:GetAdvancedOptions()
                 currentSeasonTitle
             currentSeasonAlertText = countdownText
         end
-        dungeonArgs = CreateGenericSectionArgs(L["CURRENT_SEASON"], keys, filter, getDefaultsFn, currentSeasonTitle, currentSeasonAlertText)
+        dungeonArgs = CreateGenericSectionArgs(L["CURRENT_SEASON"], keys, filter, getDefaultsFn, currentSeasonAlertText)
     end
 
     -- Create next season dungeon args
@@ -528,7 +524,7 @@ function KeystonePolaris:GetAdvancedOptions()
             nextSeasonListTitle = "|TInterface\\OptionsFrame\\UI-OptionsFrame-NewFeatureIcon:16:16:0:0|t " ..
                 nextSeasonTitle
         end
-        nextSeasonDungeonArgs = CreateGenericSectionArgs(L["NEXT_SEASON"], keys, filter, getDefaultsFn, nextSeasonTitle, nextSeasonAlertText)
+        nextSeasonDungeonArgs = CreateGenericSectionArgs(L["NEXT_SEASON"], keys, filter, getDefaultsFn, nextSeasonAlertText)
     end
 
     -- Create expansion sections
@@ -594,7 +590,7 @@ function KeystonePolaris:GetAdvancedOptions()
         args.dungeons = {
             name = currentSeasonListTitle,
             type = "group",
-            childGroups = "tree",
+            childGroups = "select",
             order = 5,
             args = dungeonArgs
         }
@@ -605,7 +601,7 @@ function KeystonePolaris:GetAdvancedOptions()
         args.nextseason = {
             name = nextSeasonListTitle,
             type = "group",
-            childGroups = "tree",
+            childGroups = "select",
             order = 4,
             args = nextSeasonDungeonArgs
         }
@@ -706,13 +702,20 @@ function KeystonePolaris:GetAdvancedOptions()
             return defaults and defaults[dungeonKey] or nil
         end
 
-        local expansionTitle = "|cffffffff" .. expansion.name .. "|r"
+        local expansionPrefix = expansion.id .. "_"
+        local isCurrentExpansion = currentSeasonId and (
+            currentSeasonId == expansion.id
+            or currentSeasonId:sub(1, #expansionPrefix) == expansionPrefix
+        )
+        -- Pastel purple marks the live expansion in the Custom Routes tree.
+        local expansionTitleColor = isCurrentExpansion and "|cffc4a5e8" or "|cffffffff"
+        local expansionTitle = expansionTitleColor .. expansion.name .. "|r"
         args[sectionKey] = {
             name = expansionTitle,
             type = "group",
-            childGroups = "tree",
+            childGroups = "select",
             order = expansion.order + 4, -- Shift expansion orders to after next season
-            args = CreateGenericSectionArgs(expansion.name, keys, filter, getDefaultsFn, expansionTitle)
+            args = CreateGenericSectionArgs(expansion.name, keys, filter, getDefaultsFn)
         }
     end
     return {
@@ -1292,7 +1295,6 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                 },
                 informRow = ColumnRow(7, {
                     type = "toggle",
-                    width = 1,
                     name = L["SHOW_INFORM_GROUP_BUTTON"],
                     desc = L["SHOW_INFORM_GROUP_BUTTON_DESC"],
                     hidden = function()
@@ -1311,7 +1313,6 @@ function KeystonePolaris:CreateDungeonOptions(dungeonKey, order)
                     end
                 }, {
                     type = "input",
-                    width = 1.1,
                     name = L["MILESTONE_INFORM_SUFFIX"],
                     desc = L["MILESTONE_INFORM_SUFFIX_DESC"],
                     hidden = function()

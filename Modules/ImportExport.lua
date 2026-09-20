@@ -1344,6 +1344,7 @@ local EXCLUDED_GENERAL_KEYS = {
     lastSeasonCheck = true,
     lastVersionCheck = true,
     mobPercentagesMigrationVersion = true,
+    roleMarkerDefaultPositionMigration = true,
 }
 
 local EXCLUDED_GROUP_REMINDER_KEYS = {

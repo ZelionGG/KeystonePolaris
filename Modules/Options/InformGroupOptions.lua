@@ -60,7 +60,7 @@ function KeystonePolaris:GetInformGroupOptions()
                     else
                         self.db.profile.general.rolesEnabled[key] = false
                     end
-                    self:Refresh()
+                    self:UpdatePercentageText()
                 end
             },
             advancedHeader = {
