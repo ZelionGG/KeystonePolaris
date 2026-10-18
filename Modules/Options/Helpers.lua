@@ -511,6 +511,11 @@ local function ApplyKplDropdownGroupTitle(group)
     titletext:SetFontObject(GameFontHighlightLarge)
     titletext:SetHeight(DROPDOWN_TITLE_HEIGHT)
     titletext:SetPoint("TOPRIGHT", -DROPDOWN_TITLE_RIGHT_PAD, -5)
+    -- White expansion names stay white in the tree. Gold is only the right-hand title.
+    local text = titletext:GetText()
+    if text and text:sub(1, 10) == "|cffffffff" then
+        titletext:SetText("|cffffd100" .. text:sub(11))
+    end
 end
 
 if not AceGUI._kplOptionFeatureCreateHook then
