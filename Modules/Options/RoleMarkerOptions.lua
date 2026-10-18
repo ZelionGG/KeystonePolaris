@@ -41,9 +41,7 @@ function KeystonePolaris:GetRoleMarkerOptions()
     })
 
     return {
-        name = function()
-            return self:GetOptionFeatureLabel("roleMarker", L["KPL_RM_HEADER"])
-        end,
+        name = L["KPL_RM_HEADER"],
         type = "group",
         order = 5,
         args = {

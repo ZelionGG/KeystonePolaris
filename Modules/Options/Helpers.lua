@@ -272,8 +272,14 @@ end
 -- ---------------------------------------------------------------------------
 -- New-feature badges in the AceConfig tree (few groups only)
 -- ---------------------------------------------------------------------------
-local OPTION_FEATURE_ICON = "|TInterface\\OptionsFrame\\UI-OptionsFrame-NewFeatureIcon:16:16:0:0|t "
+-- SettingsCategoryListButtonTemplate: NewFeatureLabelTemplate at scale .8,
+-- BOTTOMRIGHT to the category name LEFT (-4, -10), Label anchored RIGHT.
 local OPTION_FEATURE_MARK_DELAY = 5
+local OPTION_FEATURE_LABEL_SCALE = 0.8
+local OPTION_FEATURE_LABEL_X = -4
+local OPTION_FEATURE_LABEL_Y = -10
+-- AceGUI tree text starts at x=8; Settings category names start at x=36.
+local OPTION_FEATURE_TEXT_PAD = 24
 
 local optionFeatures = {}
 local optionFeatureParents = {}
@@ -413,75 +419,103 @@ function KeystonePolaris:OptionFeatureSeenProbe(key)
     }
 end
 
-function KeystonePolaris:GetOptionFeatureLabel(key, label)
-    if self:IsOptionFeatureUnseen(key) then
-        return OPTION_FEATURE_ICON .. label
+local function ShouldShowOptionFeatureBadge(self, uniquevalue)
+    if not uniquevalue then return false end
+    for key, spec in pairs(optionFeatures) do
+        if spec.treeValue == uniquevalue then
+            return self:IsOptionFeatureUnseen(key)
+        end
     end
-    return label
-end
-
-function KeystonePolaris:GetParentOptionFeatureLabel(parentValue, label)
-    local parent = optionFeatureParents[parentValue]
-    if parent and label then
-        parent.label = label
-    end
-    local parentLabel = label or (parent and parent.label) or parentValue
-    local expanded = self._optionFeatureExpanded and self._optionFeatureExpanded[parentValue]
-    if expanded then
-        return parentLabel
-    end
-    if not parent then
-        return parentLabel
+    local parent = optionFeatureParents[uniquevalue]
+    if not parent then return false end
+    if self._optionFeatureExpanded and self._optionFeatureExpanded[uniquevalue] then
+        return false
     end
     for i = 1, #parent.keys do
         if self:IsOptionFeatureUnseen(parent.keys[i]) then
-            return OPTION_FEATURE_ICON .. parentLabel
+            return true
         end
     end
-    return parentLabel
+    return false
 end
 
-local function UpdateOptionFeatureParentLabels(self, nodes)
-    if type(nodes) ~= "table" then return false end
-    local updated = false
-    for i = 1, #nodes do
-        local entry = nodes[i]
-        if entry then
-            if optionFeatureParents[entry.value] then
-                entry.text = self:GetParentOptionFeatureLabel(entry.value, optionFeatureParents[entry.value].label)
-                updated = true
-            end
-            if UpdateOptionFeatureParentLabels(self, entry.children) then
-                updated = true
-            end
+local function EnsureOptionFeatureLabel(button)
+    local frame = button._kplNewFeature
+    if frame then return frame end
+    if not button.text then return nil end
+    frame = CreateFrame("Frame", nil, button, "NewFeatureLabelTemplate")
+    frame:SetScale(OPTION_FEATURE_LABEL_SCALE)
+    frame:SetFrameLevel(button:GetFrameLevel() + 10)
+    frame:SetSize(1, 1)
+    button._kplNewFeature = frame
+    return frame
+end
+
+local function ApplyOptionFeatureBadge(button, show)
+    local frame = button._kplNewFeature
+    if not show then
+        if frame then
+            frame:Hide()
         end
+        return
     end
-    return updated
+    frame = EnsureOptionFeatureLabel(button)
+    if not frame or not frame.BGLabel or not frame.Label then return end
+    frame:ClearAllPoints()
+    frame:SetPoint("BOTTOMRIGHT", button.text, "LEFT", OPTION_FEATURE_LABEL_X, OPTION_FEATURE_LABEL_Y)
+    frame.BGLabel:SetPoint("RIGHT", 0.5, -0.5)
+    frame.Label:SetPoint("RIGHT", 0, 0)
+    local level = button.level or 1
+    local left = (level == 1) and 8 or (8 * level)
+    button.text:SetPoint("LEFT", left + OPTION_FEATURE_TEXT_PAD, 2)
+    frame:Show()
 end
 
 function KeystonePolaris:OnOptionFeatureTreeRefreshed(tree)
     self:CancelOptionFeatureMarksIfLeftPanel()
-    if self._optionFeatureTreeLock then return end
     if not tree then return end
 
     local status = tree.status or tree.localstatus
     local groups = status and status.groups
     self._optionFeatureExpanded = self._optionFeatureExpanded or {}
-    local changed = false
     for parentValue in pairs(optionFeatureParents) do
-        local expanded = groups and groups[parentValue] and true or false
-        local previous = self._optionFeatureExpanded[parentValue] and true or false
-        if expanded ~= previous then
-            self._optionFeatureExpanded[parentValue] = expanded
-            changed = true
-        end
+        self._optionFeatureExpanded[parentValue] = groups and groups[parentValue] and true or false
     end
-    if not changed then return end
-    if not UpdateOptionFeatureParentLabels(self, tree.tree) then return end
 
-    self._optionFeatureTreeLock = true
-    tree:RefreshTree()
-    self._optionFeatureTreeLock = false
+    local buttons = tree.buttons
+    if not buttons then return end
+    for i = 1, #buttons do
+        local button = buttons[i]
+        local show = button:IsShown() and ShouldShowOptionFeatureBadge(self, button.uniquevalue)
+        ApplyOptionFeatureBadge(button, show)
+    end
+end
+
+-- AceConfig select groups (Custom Routes seasons/expansions) use DropdownGroup
+-- titletext at GameFontNormal 18px. Changelog uses the same widget on another
+-- appName; only enlarge titles for this addon's main options table.
+local DROPDOWN_TITLE_HEIGHT = 22
+local DROPDOWN_TITLE_RIGHT_PAD = 210
+
+local function ResetKplDropdownGroupTitle(group)
+    local titletext = group.titletext
+    if not titletext then return end
+    titletext:SetFontObject(GameFontNormal)
+    titletext:SetHeight(18)
+    titletext:SetPoint("TOPRIGHT", -4, -5)
+end
+
+local function ApplyKplDropdownGroupTitle(group)
+    local titletext = group.titletext
+    if not titletext then return end
+    titletext:SetFontObject(GameFontHighlightLarge)
+    titletext:SetHeight(DROPDOWN_TITLE_HEIGHT)
+    titletext:SetPoint("TOPRIGHT", -DROPDOWN_TITLE_RIGHT_PAD, -5)
+    -- White expansion names stay white in the tree. Gold is only the right-hand title.
+    local text = titletext:GetText()
+    if text and text:sub(1, 10) == "|cffffffff" then
+        titletext:SetText("|cffffd100" .. text:sub(11))
+    end
 end
 
 if not AceGUI._kplOptionFeatureCreateHook then
@@ -496,6 +530,17 @@ if not AceGUI._kplOptionFeatureCreateHook then
                     KeystonePolaris:OnOptionFeatureTreeRefreshed(tree)
                 end
             end)
+        elseif widgetType == "DropdownGroup" and widget and not widget._kplDropdownTitleHook then
+            widget._kplDropdownTitleHook = true
+            hooksecurefunc(widget, "OnAcquire", ResetKplDropdownGroupTitle)
+            local function TryApplyKplDropdownTitle(group)
+                if group.GetUserData and group:GetUserData("appName") == AddOnName then
+                    ApplyKplDropdownGroupTitle(group)
+                end
+            end
+            hooksecurefunc(widget, "SetTitle", TryApplyKplDropdownTitle)
+            -- AceConfig SetTitle runs before InjectInfo; SetGroupList is after.
+            hooksecurefunc(widget, "SetGroupList", TryApplyKplDropdownTitle)
         end
         return widget
     end

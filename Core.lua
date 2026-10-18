@@ -473,9 +473,7 @@ function KeystonePolaris:OnInitialize()
             progressBar = self:GetProgressBarOptions(),
             informGroup = self:GetInformGroupOptions(),
             modules = {
-                name = function()
-                    return self:GetParentOptionFeatureLabel("modules", L["MODULES"])
-                end,
+                name = L["MODULES"],
                 type = "group",
                 order = 6,
                 childGroups = "tree",

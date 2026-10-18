@@ -142,8 +142,7 @@ Distributed under the All Rights Reserved License. See `LICENSE` for more inform
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Stars
-[![Stargazers over time](https://starchart.cc/ZelionGG/KeystonePolaris.svg?variant=adaptive)](https://starchart.cc/ZelionGG/KeystonePolaris)
-
+[![RepoStars](https://repostars.dev/api/embed?repo=ZelionGG%2FKeystonePolaris&theme=noir)](https://repostars.dev/?repos=ZelionGG%2FKeystonePolaris&theme=noir)
 
 [contributors-shield]: https://img.shields.io/github/contributors/ZelionGG/KeystonePolaris.svg?style=for-the-badge
 [contributors-url]: https://github.com/ZelionGG/KeystonePolaris/graphs/contributors

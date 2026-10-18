@@ -50,6 +50,8 @@ read_globals = {
     'EXPANSION_NAME9',
     'EXPANSION_NAME10',
     'EXPANSION_NAME11',
+    'GameFontHighlightLarge',
+    'GameFontNormal',
     'GameTooltip',
     'GetBuildInfo',
     'GetCVarBool',
